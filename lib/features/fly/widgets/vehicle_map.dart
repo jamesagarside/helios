@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
+import '../../../core/map/cached_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';
 
 /// Maximum number of trail points to display.
@@ -73,11 +74,12 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             },
           ),
           children: [
-            // OSM tile layer
+            // OSM tile layer with offline cache
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.argus.helios_gcs',
               maxZoom: 19,
+              tileProvider: CachedTileProvider(),
               tileBuilder: _darkTileBuilder,
             ),
 

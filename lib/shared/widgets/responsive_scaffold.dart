@@ -101,27 +101,32 @@ class _DesktopLayout extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: onDestinationSelected,
-            extended: extended,
-            minWidth: 56,
-            minExtendedWidth: 180,
-            backgroundColor: HeliosColors.surface,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: HeliosLogo(size: extended ? 36 : 28),
+          if (extended)
+            _ExtendedSidebar(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: onDestinationSelected,
+            )
+          else
+            NavigationRail(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: onDestinationSelected,
+              minWidth: 56,
+              backgroundColor: HeliosColors.surface,
+              useIndicator: true,
+              leading: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: HeliosLogo(size: 28),
+              ),
+              destinations: _destinations
+                  .map(
+                    (d) => NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.selectedIcon),
+                      label: Text(d.label),
+                    ),
+                  )
+                  .toList(),
             ),
-            destinations: _destinations
-                .map(
-                  (d) => NavigationRailDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
-                    label: Text(d.label),
-                  ),
-                )
-                .toList(),
-          ),
           const VerticalDivider(
             thickness: 1,
             width: 1,
@@ -129,6 +134,114 @@ class _DesktopLayout extends StatelessWidget {
           ),
           Expanded(child: body),
         ],
+      ),
+    );
+  }
+}
+
+/// Custom extended sidebar with full-width selection highlight.
+class _ExtendedSidebar extends StatelessWidget {
+  const _ExtendedSidebar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      color: HeliosColors.surface,
+      child: Column(
+        children: [
+          // Logo + title
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Row(
+              children: [
+                HeliosLogo(size: 32),
+                SizedBox(width: 10),
+                Text(
+                  'Helios',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: HeliosColors.accent,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Destinations
+          ..._destinations.asMap().entries.map((entry) {
+            final i = entry.key;
+            final d = entry.value;
+            final selected = i == selectedIndex;
+            return _SidebarItem(
+              icon: selected ? d.selectedIcon : d.icon,
+              label: d.label,
+              selected: selected,
+              onTap: () => onDestinationSelected(i),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarItem extends StatelessWidget {
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: selected
+            ? HeliosColors.accent.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: HeliosColors.accent.withValues(alpha: 0.06),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: selected ? HeliosColors.accent : HeliosColors.textSecondary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? HeliosColors.accent : HeliosColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

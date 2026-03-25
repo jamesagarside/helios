@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/connection_state.dart';
+import '../../shared/models/layout_profile.dart' as layout;
 import '../../shared/models/vehicle_state.dart';
+import '../../core/map/cached_tile_provider.dart';
+import '../../shared/providers/display_provider.dart';
+import '../../shared/providers/layout_provider.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/providers/video_provider.dart';
-import '../../core/telemetry/telemetry_store.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 
@@ -245,10 +248,46 @@ class _SetupViewState extends ConsumerState<SetupView> {
         // Recording
         Text('Recording', style: HeliosTypography.heading2),
         const SizedBox(height: 12),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: _RecordingStatus(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Layout Profiles
+        Text('Layout Profiles', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: _RecordingControls(),
+            child: _LayoutProfilesSection(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Display
+        Text('Display', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _DisplaySettings(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Maps
+        Text('Offline Maps', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _MapCacheSettings(),
           ),
         ),
 
@@ -376,106 +415,469 @@ class _VideoSettingsState extends ConsumerState<_VideoSettings> {
   }
 }
 
-class _RecordingControls extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_RecordingControls> createState() => _RecordingControlsState();
-}
-
-class _RecordingControlsState extends ConsumerState<_RecordingControls> {
-  String? _recordingFile;
-  bool _isRecording = false;
-
-  Future<void> _startRecording() async {
-    final store = ref.read(telemetryStoreProvider);
-    final vehicle = ref.read(vehicleStateProvider);
-
-    try {
-      final path = await store.createFlight(
-        vehicleSysId: vehicle.systemId,
-        vehicleType: vehicle.vehicleType.name,
-        autopilot: vehicle.autopilotType.name,
-      );
-      setState(() {
-        _isRecording = true;
-        _recordingFile = path;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Recording failed: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _stopRecording() async {
-    final store = ref.read(telemetryStoreProvider);
-    await store.closeFlight();
-    setState(() {
-      _isRecording = false;
-      _recordingFile = null;
-    });
-  }
+/// Read-only recording status — recording is automatic (start on connect,
+/// stop on disconnect) so no manual controls are needed.
+class _RecordingStatus extends ConsumerWidget {
+  const _RecordingStatus();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(telemetryStoreProvider);
+    final isRecording = store.isRecording;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _isRecording ? null : _startRecording,
-              icon: const Icon(Icons.fiber_manual_record, size: 16, color: HeliosColors.danger),
-              label: const Text('Start Recording'),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _isRecording ? _stopRecording : null,
-              icon: const Icon(Icons.stop, size: 16),
-              label: const Text('Stop'),
-            ),
-          ],
+        const Text(
+          'Telemetry is recorded automatically when a vehicle is connected '
+          'and stops when disconnected. Each flight is saved as a DuckDB file.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
         ),
-        if (_isRecording) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: HeliosColors.danger.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: HeliosColors.danger.withValues(alpha: 0.3)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isRecording
+                ? HeliosColors.danger.withValues(alpha: 0.1)
+                : HeliosColors.surfaceLight,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isRecording
+                  ? HeliosColors.danger.withValues(alpha: 0.3)
+                  : HeliosColors.border,
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.fiber_manual_record, size: 12, color: HeliosColors.danger),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'RECORDING',
-                        style: TextStyle(
-                          color: HeliosColors.danger,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isRecording ? Icons.fiber_manual_record : Icons.circle_outlined,
+                size: 14,
+                color: isRecording ? HeliosColors.danger : HeliosColors.textTertiary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isRecording ? 'RECORDING' : 'IDLE',
+                      style: TextStyle(
+                        color: isRecording ? HeliosColors.danger : HeliosColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                    if (isRecording)
                       Text(
                         '${store.rowsWritten} rows written',
                         style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 11),
+                      )
+                    else
+                      const Text(
+                        'Waiting for connection',
+                        style: TextStyle(color: HeliosColors.textTertiary, fontSize: 11),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Full layout profile management for Setup screen.
+/// UI scale slider.
+/// Map tile cache controls.
+class _MapCacheSettings extends StatefulWidget {
+  @override
+  State<_MapCacheSettings> createState() => _MapCacheSettingsState();
+}
+
+class _MapCacheSettingsState extends State<_MapCacheSettings> {
+  int? _cacheBytes;
+  bool _clearing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSize();
+  }
+
+  Future<void> _refreshSize() async {
+    final size = await CachedTileProvider.cacheSize();
+    if (mounted) setState(() => _cacheBytes = size);
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Map tiles are cached locally for offline use. '
+          'Previously viewed areas will be available without internet.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Icon(Icons.map, size: 18, color: HeliosColors.textSecondary),
+            const SizedBox(width: 8),
+            Text(
+              'Cache size: ${_cacheBytes != null ? _formatBytes(_cacheBytes!) : '...'}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontFamily: 'monospace',
+                color: HeliosColors.textPrimary,
+              ),
+            ),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: _clearing
+                  ? null
+                  : () async {
+                      setState(() => _clearing = true);
+                      await CachedTileProvider.clearCache();
+                      await _refreshSize();
+                      if (mounted) setState(() => _clearing = false);
+                    },
+              icon: Icon(
+                _clearing ? Icons.hourglass_empty : Icons.delete_sweep,
+                size: 14,
+              ),
+              label: Text(_clearing ? 'Clearing...' : 'Clear Cache'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DisplaySettings extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(displayScaleProvider);
+    final notifier = ref.read(displayScaleProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Adjust the global text and widget scale for better readability.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Text('A', style: TextStyle(fontSize: 11, color: HeliosColors.textTertiary)),
+            Expanded(
+              child: Slider(
+                value: scale,
+                min: minScale,
+                max: maxScale,
+                divisions: ((maxScale - minScale) / scaleStep).round(),
+                label: '${(scale * 100).round()}%',
+                onChanged: (v) => notifier.setScale(v),
+              ),
+            ),
+            const Text('A', style: TextStyle(fontSize: 18, color: HeliosColors.textTertiary)),
+            const SizedBox(width: 12),
+            Text(
+              '${(scale * 100).round()}%',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+                color: HeliosColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (scale != defaultScale)
+              TextButton(
+                onPressed: () => notifier.reset(),
+                child: const Text('Reset', style: TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LayoutProfilesSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final layoutState = ref.watch(layoutProvider);
+    final profiles = layoutState.profiles;
+    final activeName = layoutState.activeProfileName;
+    final notifier = ref.read(layoutProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Manage widget layout profiles for the Fly View. '
+          'Each profile saves chart positions, PFD visibility, and sidebar settings.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+
+        // Profile list
+        ...profiles.map((profile) {
+          final isActive = profile.name == activeName;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? HeliosColors.accent.withValues(alpha: 0.08)
+                  : HeliosColors.surfaceLight,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isActive
+                    ? HeliosColors.accent.withValues(alpha: 0.3)
+                    : HeliosColors.border,
+              ),
+            ),
+            child: ListTile(
+              dense: true,
+              leading: Icon(
+                _vehicleIcon(profile.vehicleType),
+                size: 20,
+                color: isActive ? HeliosColors.accent : HeliosColors.textSecondary,
+              ),
+              title: Text(
+                profile.name,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  color: HeliosColors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                _profileSummary(profile),
+                style: const TextStyle(fontSize: 11, color: HeliosColors.textTertiary),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: HeliosColors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: const Text(
+                        'ACTIVE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: HeliosColors.accent,
+                        ),
+                      ),
+                    ),
+                  if (!isActive) ...[
+                    IconButton(
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      color: HeliosColors.textSecondary,
+                      tooltip: 'Set as active',
+                      onPressed: () => notifier.selectProfile(profile.name),
+                    ),
+                  ],
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    color: HeliosColors.textSecondary,
+                    tooltip: 'Duplicate',
+                    onPressed: () => _showDuplicateDialog(context, ref, profile),
+                  ),
+                  if (!profile.isDefault)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      color: HeliosColors.danger,
+                      tooltip: 'Delete',
+                      onPressed: () => _confirmDelete(context, ref, profile.name),
+                    ),
+                  if (profile.isDefault)
+                    IconButton(
+                      icon: const Icon(Icons.restart_alt, size: 16),
+                      color: HeliosColors.textSecondary,
+                      tooltip: 'Reset to defaults',
+                      onPressed: isActive
+                          ? () => notifier.resetActiveProfile()
+                          : null,
+                    ),
+                ],
+              ),
+              onTap: isActive ? null : () => notifier.selectProfile(profile.name),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 12),
+
+        // New profile button
+        OutlinedButton.icon(
+          onPressed: () => _showCreateDialog(context, ref),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('New Profile'),
+        ),
+      ],
+    );
+  }
+
+  String _profileSummary(layout.LayoutProfile profile) {
+    final charts = profile.activeCharts;
+    final chartLabels = charts.map((c) => c.label).join(', ');
+    final parts = <String>[
+      profile.vehicleType.label,
+      if (charts.isNotEmpty) chartLabels else 'No charts',
+      if (!profile.pfd.visible) 'PFD hidden',
+      if (!profile.telemetryStrip.visible) 'Strip hidden',
+    ];
+    return parts.join(' | ');
+  }
+
+  IconData _vehicleIcon(layout.VehicleType type) {
+    return switch (type) {
+      layout.VehicleType.multirotor => Icons.toys,
+      layout.VehicleType.fixedWing => Icons.flight,
+      layout.VehicleType.vtol => Icons.connecting_airports,
+    };
+  }
+
+  void _showCreateDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        title: const Text('New Layout Profile',
+            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 13),
+          decoration: const InputDecoration(
+            hintText: 'Profile name',
+            hintStyle: TextStyle(color: HeliosColors.textTertiary),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: HeliosColors.border),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: HeliosColors.accent),
             ),
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                ref.read(layoutProvider.notifier).createProfile(name);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Create',
+                style: TextStyle(color: HeliosColors.accent, fontSize: 12)),
+          ),
         ],
-      ],
+      ),
+    );
+  }
+
+  void _showDuplicateDialog(BuildContext context, WidgetRef ref, layout.LayoutProfile source) {
+    final controller = TextEditingController(text: '${source.name} (copy)');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        title: const Text('Duplicate Profile',
+            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 13),
+          decoration: const InputDecoration(
+            hintText: 'New profile name',
+            hintStyle: TextStyle(color: HeliosColors.textTertiary),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: HeliosColors.border),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: HeliosColors.accent),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                // Temporarily select source, create copy, then switch to new
+                final notifier = ref.read(layoutProvider.notifier);
+                final currentActive = ref.read(layoutProvider).activeProfileName;
+                notifier.selectProfile(source.name);
+                notifier.createProfile(name);
+                // If the source wasn't active, this creates a copy of it
+                if (currentActive != source.name) {
+                  // Stay on the new copy
+                }
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Duplicate',
+                style: TextStyle(color: HeliosColors.accent, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        title: Text('Delete "$name"?',
+            style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
+        content: const Text('This layout profile will be permanently removed.',
+            style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(layoutProvider.notifier).deleteProfile(name);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete',
+                style: TextStyle(color: HeliosColors.danger, fontSize: 12)),
+          ),
+        ],
+      ),
     );
   }
 }

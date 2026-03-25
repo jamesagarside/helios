@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'shared/models/vehicle_state.dart';
+import 'shared/providers/display_provider.dart';
 import 'shared/providers/providers.dart';
 import 'shared/theme/helios_theme.dart';
 import 'shared/widgets/responsive_scaffold.dart';
@@ -13,15 +13,26 @@ import 'features/video/video_view.dart';
 import 'features/setup/setup_view.dart';
 
 /// Helios GCS application root widget.
-class HeliosApp extends StatelessWidget {
+class HeliosApp extends ConsumerWidget {
   const HeliosApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(displayScaleProvider);
+
     return MaterialApp(
       title: 'Helios GCS',
       debugShowCheckedModeBanner: false,
       theme: heliosTheme(),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(scale),
+          ),
+          child: child!,
+        );
+      },
       home: const _HeliosShell(),
     );
   }

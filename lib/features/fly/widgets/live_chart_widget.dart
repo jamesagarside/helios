@@ -82,18 +82,20 @@ class LiveChartWidget extends ConsumerStatefulWidget {
     super.key,
     required this.chartType,
     required this.initialPosition,
-    this.width = 280,
-    this.height = 150,
+    this.initialWidth = 280,
+    this.initialHeight = 150,
     this.onClose,
     this.onPositionChanged,
+    this.onSizeChanged,
   });
 
   final ChartType chartType;
   final Offset initialPosition;
-  final double width;
-  final double height;
+  final double initialWidth;
+  final double initialHeight;
   final VoidCallback? onClose;
   final ValueChanged<Offset>? onPositionChanged;
+  final void Function(double width, double height)? onSizeChanged;
 
   @override
   ConsumerState<LiveChartWidget> createState() => _LiveChartWidgetState();
@@ -101,16 +103,25 @@ class LiveChartWidget extends ConsumerStatefulWidget {
 
 class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
   late Offset _position;
+  late double _width;
+  late double _height;
   late final List<_SeriesData> _seriesData;
   late final _ChartDef _def;
   Timer? _sampleTimer;
   final _stopwatch = Stopwatch();
   bool _minimised = false;
 
+  static const double _minWidth = 200;
+  static const double _maxWidth = 600;
+  static const double _minHeight = 100;
+  static const double _maxHeight = 400;
+
   @override
   void initState() {
     super.initState();
     _position = widget.initialPosition;
+    _width = widget.initialWidth.clamp(_minWidth, _maxWidth);
+    _height = widget.initialHeight.clamp(_minHeight, _maxHeight);
     _def = _chartDefs[widget.chartType]!;
     _seriesData = _def.seriesDefs.map((d) => _SeriesData(d)).toList();
     _stopwatch.start();
@@ -144,30 +155,59 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
           widget.onPositionChanged?.call(_position);
         },
         child: Container(
-          width: widget.width,
-          height: _minimised ? 32 : widget.height,
+          width: _width,
+          height: _minimised ? 32 : _height,
           decoration: BoxDecoration(
             color: HeliosColors.surfaceDim.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: HeliosColors.border.withValues(alpha: 0.6)),
           ),
-          child: Column(
+          child: Stack(
             children: [
-              _TitleBar(
-                title: _def.title,
-                icon: _def.icon,
-                minimised: _minimised,
-                latestValues: _seriesData
-                    .map((s) => '${s.latest.toStringAsFixed(1)}${_def.unit}')
-                    .join(' / '),
-                onMinimise: () => setState(() => _minimised = !_minimised),
-                onClose: widget.onClose,
+              Column(
+                children: [
+                  _TitleBar(
+                    title: _def.title,
+                    icon: _def.icon,
+                    minimised: _minimised,
+                    latestValues: _seriesData
+                        .map((s) => '${s.latest.toStringAsFixed(1)}${_def.unit}')
+                        .join(' / '),
+                    onMinimise: () => setState(() => _minimised = !_minimised),
+                    onClose: widget.onClose,
+                  ),
+                  if (!_minimised)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 0, 8, 4),
+                        child: _buildChart(),
+                      ),
+                    ),
+                ],
               ),
+              // Resize handle — bottom-right corner
               if (!_minimised)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 0, 8, 4),
-                    child: _buildChart(),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _width = (_width + details.delta.dx).clamp(_minWidth, _maxWidth);
+                        _height = (_height + details.delta.dy).clamp(_minHeight, _maxHeight);
+                      });
+                    },
+                    onPanEnd: (_) {
+                      widget.onSizeChanged?.call(_width, _height);
+                    },
+                    child: const MouseRegion(
+                      cursor: SystemMouseCursors.resizeDownRight,
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CustomPaint(painter: _ResizeHandlePainter()),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -304,4 +344,29 @@ class _TitleBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Diagonal grip lines for the resize handle.
+class _ResizeHandlePainter extends CustomPainter {
+  const _ResizeHandlePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = HeliosColors.textTertiary
+      ..strokeWidth = 1;
+
+    // Three diagonal lines
+    for (var i = 0; i < 3; i++) {
+      final offset = 4.0 + i * 3.5;
+      canvas.drawLine(
+        Offset(size.width, offset),
+        Offset(offset, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

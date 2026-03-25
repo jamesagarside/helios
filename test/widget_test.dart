@@ -16,8 +16,25 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
     });
 
-    testWidgets('navigation rail visible on desktop width', (tester) async {
+    testWidgets('sidebar visible on desktop width', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const ProviderScope(child: HeliosApp()),
+      );
+      await tester.pumpAndSettle();
+
+      // Extended sidebar shows Helios branding and nav labels
+      expect(find.text('Helios'), findsOneWidget);
+      expect(find.text('Fly'), findsOneWidget);
+      expect(find.text('Plan'), findsOneWidget);
+      expect(find.byType(BottomNavigationBar), findsNothing);
+    });
+
+    testWidgets('navigation rail visible on tablet width', (tester) async {
+      tester.view.physicalSize = const Size(900, 700);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
@@ -73,7 +90,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Mode'), findsOneWidget);
+      // Status bar shows DISARMED by default
+      expect(find.text('DISARMED'), findsOneWidget);
     });
   });
 }

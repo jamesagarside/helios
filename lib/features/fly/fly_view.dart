@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../shared/models/layout_profile.dart';
 import '../../shared/models/vehicle_state.dart';
+import '../../shared/providers/layout_provider.dart';
 import '../../shared/providers/providers.dart';
 import 'widgets/chart_toolbar.dart';
+import 'widgets/layout_toolbar.dart';
 import 'widgets/live_chart_widget.dart';
 import 'widgets/vehicle_map.dart';
 import 'widgets/video_stream_widget.dart';
@@ -33,31 +36,21 @@ class FlyView extends ConsumerWidget {
   }
 }
 
-class _DesktopFlyLayout extends ConsumerStatefulWidget {
+class _DesktopFlyLayout extends ConsumerWidget {
   const _DesktopFlyLayout();
 
   @override
-  ConsumerState<_DesktopFlyLayout> createState() => _DesktopFlyLayoutState();
-}
-
-class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
-  final Set<ChartType> _activeCharts = {};
-  final Map<ChartType, Offset> _chartPositions = {};
-  bool _showVideo = false;
-  Offset _videoPosition = const Offset(16, 270);
-
-  Offset _defaultPosition(ChartType type) {
-    const startX = 350.0;
-    const startY = 50.0;
-    const spacing = 160.0;
-    final index = ChartType.values.indexOf(type);
-    return Offset(startX, startY + index * spacing);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final linkState = ref.watch(connectionStatusProvider).linkState;
     final vehicle = ref.watch(vehicleStateProvider);
+    final layout = ref.watch(activeLayoutProvider);
+    final editMode = ref.watch(layoutEditModeProvider);
+    final notifier = ref.read(layoutProvider.notifier);
+
+    final activeCharts = layout.activeCharts;
+    final showVideo = layout.video.visible;
+    final showPfd = layout.pfd.visible;
+    final showStrip = layout.telemetryStrip.visible;
 
     return Row(
       children: [
@@ -65,112 +58,225 @@ class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
           child: Stack(
             children: [
               const VehicleMap(),
+              // Edit mode grid overlay
+              if (editMode) const _GridOverlay(),
               // PFD overlay — bottom-left
-              Positioned(
-                left: 16,
-                bottom: 16,
-                child: Container(
-                  width: 320,
-                  height: 240,
-                  decoration: BoxDecoration(
-                    color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: HeliosColors.border),
-                  ),
-                  child: _PfdWidget(
-                    roll: vehicle.roll,
-                    pitch: vehicle.pitch,
-                    heading: vehicle.heading,
+              if (showPfd)
+                Positioned(
+                  left: 16,
+                  bottom: 16,
+                  child: Container(
+                    width: 320,
+                    height: 240,
+                    decoration: BoxDecoration(
+                      color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: editMode
+                            ? HeliosColors.accent.withValues(alpha: 0.3)
+                            : HeliosColors.border,
+                      ),
+                    ),
+                    child: _PfdWidget(
+                      roll: vehicle.roll,
+                      pitch: vehicle.pitch,
+                      heading: vehicle.heading,
+                    ),
                   ),
                 ),
-              ),
               // Connection badge — top-right
               Positioned(
                 top: 12,
                 right: 12,
                 child: ConnectionBadge(linkState: linkState),
               ),
-              // Toolbar — top-left (charts + video toggle)
+              // Toolbars — top-left
               Positioned(
                 top: 12,
                 left: 16,
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ChartToolbar(
-                      activeCharts: _activeCharts,
-                      onToggle: (type) {
-                        setState(() {
-                          if (_activeCharts.contains(type)) {
-                            _activeCharts.remove(type);
-                          } else {
-                            _activeCharts.add(type);
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    // Video toggle
-                    GestureDetector(
-                      onTap: () => setState(() => _showVideo = !_showVideo),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: _showVideo
-                                ? HeliosColors.accent.withValues(alpha: 0.4)
-                                : HeliosColors.border.withValues(alpha: 0.5),
-                          ),
+                    // Layout profile toolbar
+                    const LayoutToolbar(),
+                    const SizedBox(height: 4),
+                    // Chart + video toggles
+                    Row(
+                      children: [
+                        ChartToolbar(
+                          activeCharts: activeCharts,
+                          onToggle: (type) => notifier.toggleChart(type),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.videocam,
-                              size: 13,
-                              color: _showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'VID',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: _showVideo ? FontWeight.w600 : FontWeight.w400,
-                                color: _showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                        const SizedBox(width: 6),
+                        // Video toggle
+                        GestureDetector(
+                          onTap: () => notifier.toggleVideo(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: showVideo
+                                    ? HeliosColors.accent.withValues(alpha: 0.4)
+                                    : HeliosColors.border.withValues(alpha: 0.5),
                               ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.videocam,
+                                  size: 13,
+                                  color: showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'VID',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: showVideo ? FontWeight.w600 : FontWeight.w400,
+                                    color: showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        // PFD + Strip toggles in edit mode
+                        if (editMode) ...[
+                          const SizedBox(width: 6),
+                          _WidgetToggle(
+                            label: 'PFD',
+                            active: showPfd,
+                            onTap: () => notifier.togglePfd(),
+                          ),
+                          const SizedBox(width: 4),
+                          _WidgetToggle(
+                            label: 'STRIP',
+                            active: showStrip,
+                            onTap: () => notifier.toggleTelemetryStrip(),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
               // Live chart widgets
-              for (final type in _activeCharts)
+              for (final type in activeCharts)
                 LiveChartWidget(
                   key: ValueKey(type),
                   chartType: type,
-                  initialPosition: _chartPositions[type] ?? _defaultPosition(type),
-                  onPositionChanged: (pos) => _chartPositions[type] = pos,
-                  onClose: () => setState(() => _activeCharts.remove(type)),
+                  initialPosition: _chartPosition(layout, type),
+                  initialWidth: layout.charts[type.name]?.width ?? 280,
+                  initialHeight: layout.charts[type.name]?.height ?? 150,
+                  onPositionChanged: (pos) =>
+                      notifier.updateChartPosition(type, pos.dx, pos.dy),
+                  onSizeChanged: (w, h) =>
+                      notifier.updateChartSize(type, w, h),
+                  onClose: () => notifier.toggleChart(type),
                 ),
               // Video stream PiP
-              if (_showVideo)
+              if (showVideo)
                 VideoStreamWidget(
-                  initialPosition: _videoPosition,
-                  onPositionChanged: (pos) => _videoPosition = pos,
-                  onClose: () => setState(() => _showVideo = false),
+                  initialPosition: Offset(layout.video.x, layout.video.y),
+                  onPositionChanged: (pos) =>
+                      notifier.updateVideoPosition(pos.dx, pos.dy),
+                  onClose: () => notifier.toggleVideo(),
                 ),
             ],
           ),
         ),
-        SizedBox(
-          width: 220,
-          child: _TelemetryStrip(vehicle: vehicle),
-        ),
+        if (showStrip)
+          SizedBox(
+            width: 220,
+            child: _TelemetryStrip(vehicle: vehicle),
+          ),
       ],
+    );
+  }
+
+  Offset _chartPosition(LayoutProfile layout, ChartType type) {
+    final config = layout.charts[type.name];
+    if (config != null) return Offset(config.x, config.y);
+    // Fallback: stacked position
+    final index = ChartType.values.indexOf(type);
+    return Offset(350, 50.0 + index * 160.0);
+  }
+}
+
+/// Subtle grid overlay shown in edit mode.
+class _GridOverlay extends StatelessWidget {
+  const _GridOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: _GridPainter(),
+        ),
+      ),
+    );
+  }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = HeliosColors.accent.withValues(alpha: 0.06)
+      ..strokeWidth = 0.5;
+
+    for (var x = 0.0; x < size.width; x += gridSize) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y < size.height; y += gridSize) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Small toggle button for PFD/Strip visibility in edit mode.
+class _WidgetToggle extends StatelessWidget {
+  const _WidgetToggle({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: active
+                ? HeliosColors.accent.withValues(alpha: 0.4)
+                : HeliosColors.border.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            color: active ? HeliosColors.accent : HeliosColors.textTertiary,
+          ),
+        ),
+      ),
     );
   }
 }
