@@ -43,70 +43,12 @@ class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
   final Set<ChartType> _activeCharts = {};
   final Map<ChartType, Offset> _chartPositions = {};
 
-  // Default positions for each chart type
   Offset _defaultPosition(ChartType type) {
     const startX = 350.0;
-    const startY = 12.0;
+    const startY = 50.0;
     const spacing = 160.0;
     final index = ChartType.values.indexOf(type);
     return Offset(startX, startY + index * spacing);
-  }
-
-  LiveChartConfig _buildConfig(ChartType type, VehicleState vehicle) {
-    return switch (type) {
-      ChartType.altitude => LiveChartConfig(
-        title: 'Altitude',
-        icon: Icons.height,
-        unit: 'm',
-        series: [
-          LiveSeries(name: 'REL', color: HeliosColors.accent, getValue: () => vehicle.altitudeRel),
-        ],
-      ),
-      ChartType.speed => LiveChartConfig(
-        title: 'Speed',
-        icon: Icons.speed,
-        unit: 'm/s',
-        series: [
-          LiveSeries(name: 'IAS', color: HeliosColors.accent, getValue: () => vehicle.airspeed),
-          LiveSeries(name: 'GS', color: HeliosColors.success, getValue: () => vehicle.groundspeed),
-        ],
-      ),
-      ChartType.battery => LiveChartConfig(
-        title: 'Battery',
-        icon: Icons.battery_full,
-        unit: 'V',
-        series: [
-          LiveSeries(name: 'V', color: HeliosColors.warning, getValue: () => vehicle.batteryVoltage),
-        ],
-      ),
-      ChartType.attitude => LiveChartConfig(
-        title: 'Attitude',
-        icon: Icons.rotate_right,
-        unit: '\u00B0',
-        series: [
-          LiveSeries(name: 'Roll', color: HeliosColors.accent, getValue: () => vehicle.roll * 57.2958),
-          LiveSeries(name: 'Pitch', color: HeliosColors.warning, getValue: () => vehicle.pitch * 57.2958),
-        ],
-      ),
-      ChartType.climbRate => LiveChartConfig(
-        title: 'Climb Rate',
-        icon: Icons.trending_up,
-        unit: 'm/s',
-        series: [
-          LiveSeries(name: 'VS', color: HeliosColors.success, getValue: () => vehicle.climbRate),
-        ],
-      ),
-      ChartType.vibration => LiveChartConfig(
-        title: 'Vibration',
-        icon: Icons.vibration,
-        unit: '',
-        series: [
-          // Vibration data comes through the vehicle state indirectly;
-          // for now show climb rate variation as a proxy
-          LiveSeries(name: 'Z', color: HeliosColors.danger, getValue: () => vehicle.climbRate.abs() * 5),
-        ],
-      ),
-    };
   }
 
   @override
@@ -166,7 +108,7 @@ class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
               for (final type in _activeCharts)
                 LiveChartWidget(
                   key: ValueKey(type),
-                  config: _buildConfig(type, vehicle),
+                  chartType: type,
                   initialPosition: _chartPositions[type] ?? _defaultPosition(type),
                   onPositionChanged: (pos) => _chartPositions[type] = pos,
                   onClose: () => setState(() => _activeCharts.remove(type)),

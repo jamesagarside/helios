@@ -2,61 +2,85 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/models/vehicle_state.dart';
+import '../../../shared/providers/providers.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
+import 'chart_toolbar.dart';
 
-/// A single data series for the live chart.
-class LiveSeries {
-  LiveSeries({
-    required this.name,
-    required this.color,
-    required this.getValue,
-    this.unit = '',
-  });
-
+/// Series definition — describes what to extract from VehicleState.
+class SeriesDef {
+  const SeriesDef(this.name, this.color, this.extract);
   final String name;
   final Color color;
-  final double Function() getValue;
-  final String unit;
+  final double Function(VehicleState v) extract;
+}
 
-  final Queue<FlSpot> _points = Queue();
+/// Accumulated data for one series.
+class _SeriesData {
+  _SeriesData(this.def);
+  final SeriesDef def;
+  final Queue<FlSpot> points = Queue();
+  double latest = 0;
 
-  void addPoint(double timeSec) {
-    _points.addLast(FlSpot(timeSec, getValue()));
-    // Keep last 60 seconds of data
-    while (_points.length > 1 && _points.first.x < timeSec - 60) {
-      _points.removeFirst();
+  void addPoint(double timeSec, VehicleState vehicle) {
+    latest = def.extract(vehicle);
+    points.addLast(FlSpot(timeSec, latest));
+    while (points.length > 1 && points.first.x < timeSec - 60) {
+      points.removeFirst();
     }
   }
-
-  List<FlSpot> get points => _points.toList();
-  double get latest => _points.isEmpty ? 0 : _points.last.y;
 }
 
-/// Configuration for a live chart widget type.
-class LiveChartConfig {
-  const LiveChartConfig({
-    required this.title,
-    required this.icon,
-    required this.series,
-    this.unit = '',
-    this.minY,
-    this.maxY,
-  });
+/// Static chart definitions per ChartType.
+const _chartDefs = <ChartType, _ChartDef>{
+  ChartType.altitude: _ChartDef('Altitude', Icons.height, 'm', [
+    SeriesDef('REL', HeliosColors.accent, _getAltRel),
+  ]),
+  ChartType.speed: _ChartDef('Speed', Icons.speed, 'm/s', [
+    SeriesDef('IAS', HeliosColors.accent, _getAirspeed),
+    SeriesDef('GS', HeliosColors.success, _getGroundspeed),
+  ]),
+  ChartType.battery: _ChartDef('Battery', Icons.battery_full, 'V', [
+    SeriesDef('V', HeliosColors.warning, _getVoltage),
+  ]),
+  ChartType.attitude: _ChartDef('Attitude', Icons.rotate_right, '\u00B0', [
+    SeriesDef('Roll', HeliosColors.accent, _getRollDeg),
+    SeriesDef('Pitch', HeliosColors.warning, _getPitchDeg),
+  ]),
+  ChartType.climbRate: _ChartDef('Climb Rate', Icons.trending_up, 'm/s', [
+    SeriesDef('VS', HeliosColors.success, _getClimbRate),
+  ]),
+  ChartType.vibration: _ChartDef('Vibration', Icons.vibration, '', [
+    SeriesDef('Accel', HeliosColors.danger, _getVibeProxy),
+  ]),
+};
 
+// Extraction functions (top-level for const)
+double _getAltRel(VehicleState v) => v.altitudeRel;
+double _getAirspeed(VehicleState v) => v.airspeed;
+double _getGroundspeed(VehicleState v) => v.groundspeed;
+double _getVoltage(VehicleState v) => v.batteryVoltage;
+double _getRollDeg(VehicleState v) => v.roll * 57.2958;
+double _getPitchDeg(VehicleState v) => v.pitch * 57.2958;
+double _getClimbRate(VehicleState v) => v.climbRate;
+double _getVibeProxy(VehicleState v) => v.climbRate.abs() * 5;
+
+class _ChartDef {
+  const _ChartDef(this.title, this.icon, this.unit, this.seriesDefs);
   final String title;
   final IconData icon;
-  final List<LiveSeries> series;
   final String unit;
-  final double? minY;
-  final double? maxY;
+  final List<SeriesDef> seriesDefs;
 }
 
-/// Draggable, semi-transparent live chart that overlays on the Fly View map.
-class LiveChartWidget extends StatefulWidget {
+/// Draggable, semi-transparent live chart widget.
+/// Reads vehicle state directly from Riverpod — no external data push needed.
+class LiveChartWidget extends ConsumerStatefulWidget {
   const LiveChartWidget({
     super.key,
-    required this.config,
+    required this.chartType,
     required this.initialPosition,
     this.width = 280,
     this.height = 150,
@@ -64,7 +88,7 @@ class LiveChartWidget extends StatefulWidget {
     this.onPositionChanged,
   });
 
-  final LiveChartConfig config;
+  final ChartType chartType;
   final Offset initialPosition;
   final double width;
   final double height;
@@ -72,12 +96,14 @@ class LiveChartWidget extends StatefulWidget {
   final ValueChanged<Offset>? onPositionChanged;
 
   @override
-  State<LiveChartWidget> createState() => _LiveChartWidgetState();
+  ConsumerState<LiveChartWidget> createState() => _LiveChartWidgetState();
 }
 
-class _LiveChartWidgetState extends State<LiveChartWidget> {
+class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
   late Offset _position;
-  Timer? _updateTimer;
+  late final List<_SeriesData> _seriesData;
+  late final _ChartDef _def;
+  Timer? _sampleTimer;
   final _stopwatch = Stopwatch();
   bool _minimised = false;
 
@@ -85,13 +111,16 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
   void initState() {
     super.initState();
     _position = widget.initialPosition;
+    _def = _chartDefs[widget.chartType]!;
+    _seriesData = _def.seriesDefs.map((d) => _SeriesData(d)).toList();
     _stopwatch.start();
 
-    // Update at 4 Hz
-    _updateTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+    // Sample at 4 Hz
+    _sampleTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      final vehicle = ref.read(vehicleStateProvider);
       final t = _stopwatch.elapsedMilliseconds / 1000.0;
-      for (final series in widget.config.series) {
-        series.addPoint(t);
+      for (final s in _seriesData) {
+        s.addPoint(t, vehicle);
       }
       if (mounted) setState(() {});
     });
@@ -99,7 +128,7 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
 
   @override
   void dispose() {
-    _updateTimer?.cancel();
+    _sampleTimer?.cancel();
     _stopwatch.stop();
     super.dispose();
   }
@@ -111,9 +140,7 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
       top: _position.dy,
       child: GestureDetector(
         onPanUpdate: (details) {
-          setState(() {
-            _position += details.delta;
-          });
+          setState(() => _position += details.delta);
           widget.onPositionChanged?.call(_position);
         },
         child: Container(
@@ -126,18 +153,16 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
           ),
           child: Column(
             children: [
-              // Title bar (always visible, draggable)
               _TitleBar(
-                title: widget.config.title,
-                icon: widget.config.icon,
+                title: _def.title,
+                icon: _def.icon,
                 minimised: _minimised,
-                latestValues: widget.config.series
-                    .map((s) => '${s.latest.toStringAsFixed(1)}${widget.config.unit}')
+                latestValues: _seriesData
+                    .map((s) => '${s.latest.toStringAsFixed(1)}${_def.unit}')
                     .join(' / '),
                 onMinimise: () => setState(() => _minimised = !_minimised),
                 onClose: widget.onClose,
               ),
-              // Chart (hidden when minimised)
               if (!_minimised)
                 Expanded(
                   child: Padding(
@@ -153,14 +178,14 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
   }
 
   Widget _buildChart() {
-    final allSpots = widget.config.series.expand((s) => s.points).toList();
-    if (allSpots.isEmpty) {
+    final hasData = _seriesData.any((s) => s.points.length >= 2);
+    if (!hasData) {
       return const Center(
-        child: Text('Waiting...', style: TextStyle(color: HeliosColors.textTertiary, fontSize: 10)),
+        child: Text('Sampling...', style: TextStyle(color: HeliosColors.textTertiary, fontSize: 10)),
       );
     }
 
-    final maxX = allSpots.map((s) => s.x).reduce((a, b) => a > b ? a : b);
+    final maxX = _stopwatch.elapsedMilliseconds / 1000.0;
     final minX = (maxX - 60).clamp(0.0, double.infinity);
 
     return LineChart(
@@ -168,12 +193,9 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
         clipData: const FlClipData.all(),
         minX: minX,
         maxX: maxX,
-        minY: widget.config.minY,
-        maxY: widget.config.maxY,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: null,
           getDrawingHorizontalLine: (_) => FlLine(
             color: HeliosColors.border.withValues(alpha: 0.3),
             strokeWidth: 0.5,
@@ -198,23 +220,23 @@ class _LiveChartWidgetState extends State<LiveChartWidget> {
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
-        lineBarsData: widget.config.series.map((s) {
+        lineBarsData: _seriesData.map((s) {
           return LineChartBarData(
-            spots: s.points,
+            spots: s.points.toList(),
             isCurved: true,
             curveSmoothness: 0.15,
-            color: s.color,
+            color: s.def.color,
             barWidth: 1.5,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
-            belowBarData: widget.config.series.length == 1
-                ? BarAreaData(show: true, color: s.color.withValues(alpha: 0.08))
+            belowBarData: _seriesData.length == 1
+                ? BarAreaData(show: true, color: s.def.color.withValues(alpha: 0.08))
                 : BarAreaData(show: false),
           );
         }).toList(),
         lineTouchData: const LineTouchData(enabled: false),
       ),
-      duration: Duration.zero, // No animation for real-time
+      duration: Duration.zero,
     );
   }
 }
@@ -254,11 +276,7 @@ class _TitleBar extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: HeliosColors.textPrimary,
-            ),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: HeliosColors.textPrimary),
           ),
           const SizedBox(width: 8),
           Expanded(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../core/telemetry/telemetry_store.dart';
@@ -6,18 +7,23 @@ import '../../../shared/theme/helios_typography.dart';
 
 /// Pre-built visual analytics dashboard — no SQL required.
 ///
-/// Shows charts for altitude, speed, battery, GPS quality, and vibration
-/// automatically from the selected flight data.
+/// When [liveMode] is true, refreshes every 2 seconds for real-time updates.
 class FlightCharts extends StatefulWidget {
-  const FlightCharts({super.key, required this.store});
+  const FlightCharts({
+    super.key,
+    required this.store,
+    this.liveMode = false,
+  });
 
   final TelemetryStore store;
+  final bool liveMode;
 
   @override
   State<FlightCharts> createState() => _FlightChartsState();
 }
 
 class _FlightChartsState extends State<FlightCharts> {
+  Timer? _refreshTimer;
   bool _loading = true;
   String? _error;
 
@@ -49,6 +55,19 @@ class _FlightChartsState extends State<FlightCharts> {
   void initState() {
     super.initState();
     _loadData();
+
+    // Live mode: refresh every 2 seconds
+    if (widget.liveMode) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+        if (mounted) _loadData();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {

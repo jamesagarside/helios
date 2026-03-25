@@ -26,6 +26,14 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   bool _isQuerying = false;
   bool _showSql = false; // false = Charts, true = SQL
 
+  /// Whether the selected flight is the currently recording one.
+  bool get _isLive {
+    final store = ref.read(telemetryStoreProvider);
+    return store.isRecording &&
+        _selectedFlight != null &&
+        store.currentFilePath == _selectedFlight!.filePath;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +49,16 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   Future<void> _refreshFlights() async {
     final store = ref.read(telemetryStoreProvider);
     final flights = await store.listFlights();
-    setState(() => _flights = flights);
+    setState(() {
+      _flights = flights;
+      // Auto-select the live recording if nothing selected
+      if (_selectedFlight == null && store.isRecording && store.currentFilePath != null) {
+        final liveFlight = flights.where((f) => f.filePath == store.currentFilePath).firstOrNull;
+        if (liveFlight != null) {
+          _openFlight(liveFlight);
+        }
+      }
+    });
   }
 
   Future<void> _openFlight(FlightSummary flight) async {
@@ -167,8 +184,9 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                 Expanded(
                   child: _selectedFlight != null
                       ? FlightCharts(
-                          key: ValueKey(_selectedFlight!.filePath),
+                          key: ValueKey('${_selectedFlight!.filePath}_${_isLive}'),
                           store: ref.read(telemetryStoreProvider),
+                          liveMode: _isLive,
                         )
                       : const Center(
                           child: Text(
