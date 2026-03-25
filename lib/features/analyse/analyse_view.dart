@@ -37,7 +37,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   @override
   void initState() {
     super.initState();
-    _refreshFlights();
+    _autoSelectAndRefresh();
   }
 
   @override
@@ -46,23 +46,58 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     super.dispose();
   }
 
+  /// On first load, refresh flights and auto-select the latest/live one.
+  Future<void> _autoSelectAndRefresh() async {
+    final store = ref.read(telemetryStoreProvider);
+    final flights = await store.listFlights();
+
+    if (!mounted) return;
+
+    setState(() => _flights = flights);
+
+    if (_selectedFlight != null) return; // already selected
+
+    // Priority 1: select the live recording (already open, no need to reopen)
+    if (store.isRecording && store.currentFilePath != null) {
+      final live = flights.where((f) => f.filePath == store.currentFilePath).firstOrNull;
+      if (live != null) {
+        setState(() {
+          _selectedFlight = live;
+          _errorMessage = null;
+          _queryResult = null;
+        });
+        return;
+      }
+    }
+
+    // Priority 2: select the most recent flight
+    if (flights.isNotEmpty) {
+      await _openFlight(flights.first);
+    }
+  }
+
   Future<void> _refreshFlights() async {
     final store = ref.read(telemetryStoreProvider);
     final flights = await store.listFlights();
-    setState(() {
-      _flights = flights;
-      // Auto-select the live recording if nothing selected
-      if (_selectedFlight == null && store.isRecording && store.currentFilePath != null) {
-        final liveFlight = flights.where((f) => f.filePath == store.currentFilePath).firstOrNull;
-        if (liveFlight != null) {
-          _openFlight(liveFlight);
-        }
-      }
-    });
+    if (!mounted) return;
+    setState(() => _flights = flights);
   }
 
   Future<void> _openFlight(FlightSummary flight) async {
     final store = ref.read(telemetryStoreProvider);
+
+    // If this IS the live recording, don't reopen (would kill the recording).
+    // The store already has the connection open.
+    if (store.isRecording && store.currentFilePath == flight.filePath) {
+      setState(() {
+        _selectedFlight = flight;
+        _errorMessage = null;
+        _queryResult = null;
+      });
+      return;
+    }
+
+    // Otherwise open the flight file for read-only analysis.
     try {
       await store.openFlight(flight.filePath);
       setState(() {
@@ -135,6 +170,9 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
             child: _FlightBrowser(
               flights: _flights,
               selectedFlight: _selectedFlight,
+              liveFilePath: ref.read(telemetryStoreProvider).isRecording
+                  ? ref.read(telemetryStoreProvider).currentFilePath
+                  : null,
               onRefresh: _refreshFlights,
               onSelect: _openFlight,
             ),
@@ -256,12 +294,14 @@ class _FlightBrowser extends StatelessWidget {
   const _FlightBrowser({
     required this.flights,
     required this.selectedFlight,
+    this.liveFilePath,
     required this.onRefresh,
     required this.onSelect,
   });
 
   final List<FlightSummary> flights;
   final FlightSummary? selectedFlight;
+  final String? liveFilePath;
   final VoidCallback onRefresh;
   final ValueChanged<FlightSummary> onSelect;
 
@@ -305,6 +345,7 @@ class _FlightBrowser extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final flight = flights[index];
                     final isSelected = selectedFlight?.filePath == flight.filePath;
+                    final isLive = flight.filePath == liveFilePath;
                     final sizeKb = (flight.fileSizeBytes / 1024).toStringAsFixed(0);
 
                     return ListTile(
@@ -312,19 +353,47 @@ class _FlightBrowser extends StatelessWidget {
                       selected: isSelected,
                       selectedTileColor: HeliosColors.accent.withValues(alpha: 0.1),
                       leading: Icon(
-                        Icons.flight,
-                        size: 18,
-                        color: isSelected ? HeliosColors.accent : HeliosColors.textSecondary,
+                        isLive ? Icons.fiber_manual_record : Icons.flight,
+                        size: isLive ? 14 : 18,
+                        color: isLive
+                            ? HeliosColors.danger
+                            : isSelected
+                                ? HeliosColors.accent
+                                : HeliosColors.textSecondary,
                       ),
-                      title: Text(
-                        flight.fileName.replaceAll('.duckdb', ''),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isSelected ? HeliosColors.accent : HeliosColors.textPrimary,
-                        ),
+                      title: Row(
+                        children: [
+                          if (isLive)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              margin: const EdgeInsets.only(right: 4),
+                              decoration: BoxDecoration(
+                                color: HeliosColors.danger.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: const Text(
+                                'LIVE',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: HeliosColors.danger,
+                                ),
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              flight.fileName.replaceAll('.duckdb', ''),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isSelected ? HeliosColors.accent : HeliosColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       subtitle: Text(
-                        '${sizeKb} KB',
+                        '$sizeKb KB',
                         style: const TextStyle(fontSize: 11, color: HeliosColors.textTertiary),
                       ),
                       onTap: () => onSelect(flight),
