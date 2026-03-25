@@ -6,6 +6,7 @@ import '../../shared/providers/providers.dart';
 import 'widgets/chart_toolbar.dart';
 import 'widgets/live_chart_widget.dart';
 import 'widgets/vehicle_map.dart';
+import 'widgets/video_stream_widget.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/widgets/connection_badge.dart';
@@ -42,6 +43,8 @@ class _DesktopFlyLayout extends ConsumerStatefulWidget {
 class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
   final Set<ChartType> _activeCharts = {};
   final Map<ChartType, Offset> _chartPositions = {};
+  bool _showVideo = false;
+  Offset _videoPosition = const Offset(16, 270);
 
   Offset _defaultPosition(ChartType type) {
     const startX = 350.0;
@@ -87,21 +90,61 @@ class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
                 right: 12,
                 child: ConnectionBadge(linkState: linkState),
               ),
-              // Chart toolbar — top-left
+              // Toolbar — top-left (charts + video toggle)
               Positioned(
                 top: 12,
                 left: 16,
-                child: ChartToolbar(
-                  activeCharts: _activeCharts,
-                  onToggle: (type) {
-                    setState(() {
-                      if (_activeCharts.contains(type)) {
-                        _activeCharts.remove(type);
-                      } else {
-                        _activeCharts.add(type);
-                      }
-                    });
-                  },
+                child: Row(
+                  children: [
+                    ChartToolbar(
+                      activeCharts: _activeCharts,
+                      onToggle: (type) {
+                        setState(() {
+                          if (_activeCharts.contains(type)) {
+                            _activeCharts.remove(type);
+                          } else {
+                            _activeCharts.add(type);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    // Video toggle
+                    GestureDetector(
+                      onTap: () => setState(() => _showVideo = !_showVideo),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _showVideo
+                                ? HeliosColors.accent.withValues(alpha: 0.4)
+                                : HeliosColors.border.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.videocam,
+                              size: 13,
+                              color: _showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'VID',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: _showVideo ? FontWeight.w600 : FontWeight.w400,
+                                color: _showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // Live chart widgets
@@ -112,6 +155,13 @@ class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
                   initialPosition: _chartPositions[type] ?? _defaultPosition(type),
                   onPositionChanged: (pos) => _chartPositions[type] = pos,
                   onClose: () => setState(() => _activeCharts.remove(type)),
+                ),
+              // Video stream PiP
+              if (_showVideo)
+                VideoStreamWidget(
+                  initialPosition: _videoPosition,
+                  onPositionChanged: (pos) => _videoPosition = pos,
+                  onClose: () => setState(() => _showVideo = false),
                 ),
             ],
           ),
