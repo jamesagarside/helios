@@ -7,6 +7,7 @@ import '../../core/mavlink/transports/udp_transport.dart';
 import '../../core/mavlink/transports/tcp_transport.dart';
 import '../../core/mavlink/transports/serial_transport.dart';
 import '../../core/mission/mission_service.dart';
+import '../../core/params/parameter_service.dart';
 import '../../core/telemetry/telemetry_store.dart';
 import '../models/vehicle_state.dart';
 import '../models/connection_state.dart';
@@ -129,6 +130,7 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
 
     _service = MavlinkService(transport);
     _missionService = MissionService(_service!);
+    _paramService = ParameterService(_service!);
 
     // Wire link state changes to connection status
     _linkSub = _service!.linkStateStream.listen((linkState) {
@@ -218,6 +220,8 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _messageSub = null;
     await _linkSub?.cancel();
     _linkSub = null;
+    _paramService?.dispose();
+    _paramService = null;
     _missionService?.dispose();
     _missionService = null;
     await _service?.disconnect();
@@ -238,9 +242,13 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
   }
 
   MissionService? _missionService;
+  ParameterService? _paramService;
 
   /// The mission service for download/upload operations.
   MissionService? get missionService => _missionService;
+
+  /// The parameter service for reading/writing FC params.
+  ParameterService? get paramService => _paramService;
 
   /// Send an arm/disarm command.
   Future<void> setArmed(bool arm) async {

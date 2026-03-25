@@ -96,6 +96,40 @@ class MavlinkFrameBuilder {
     return buildFrame(messageId: 76, payload: payload);
   }
 
+  /// Build a PARAM_REQUEST_LIST frame (msg_id=21).
+  Uint8List buildParamRequestList({
+    required int targetSystem,
+    required int targetComponent,
+  }) {
+    final payload = Uint8List(2);
+    payload[0] = targetSystem;
+    payload[1] = targetComponent;
+    return buildFrame(messageId: 21, payload: payload);
+  }
+
+  /// Build a PARAM_SET frame (msg_id=23).
+  Uint8List buildParamSet({
+    required int targetSystem,
+    required int targetComponent,
+    required String paramId,
+    required double paramValue,
+    int paramType = 9, // MAV_PARAM_TYPE_REAL32
+  }) {
+    final payload = Uint8List(23);
+    final data = ByteData.sublistView(payload);
+    // Wire order: param_value(float), target_system, target_component, param_id(char[16]), param_type
+    data.setFloat32(0, paramValue, Endian.little);
+    payload[4] = targetSystem;
+    payload[5] = targetComponent;
+    // Write param_id (up to 16 chars, null-padded)
+    final idBytes = paramId.codeUnits;
+    for (var i = 0; i < 16 && i < idBytes.length; i++) {
+      payload[6 + i] = idBytes[i];
+    }
+    payload[22] = paramType;
+    return buildFrame(messageId: 23, payload: payload);
+  }
+
   /// Build a REQUEST_DATA_STREAM frame (msg_id=66).
   ///
   /// Used to request specific telemetry streams at a given rate from ArduPilot.

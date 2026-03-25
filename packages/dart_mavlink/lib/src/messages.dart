@@ -554,6 +554,153 @@ class ServoOutputRawMessage extends MavlinkMessage {
   }
 }
 
+/// PARAM_REQUEST_LIST (msg_id=21) — request all parameters.
+class ParamRequestListMessage extends MavlinkMessage {
+  ParamRequestListMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+  });
+
+  @override
+  final int messageId = 21;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+
+  factory ParamRequestListMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    return ParamRequestListMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      targetSystem: payload[0],
+      targetComponent: payload[1],
+    );
+  }
+}
+
+/// PARAM_VALUE (msg_id=22) — parameter name, value, type, count, index.
+class ParamValueMessage extends MavlinkMessage {
+  ParamValueMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.paramId,
+    required this.paramValue,
+    required this.paramType,
+    required this.paramCount,
+    required this.paramIndex,
+  });
+
+  @override
+  final int messageId = 22;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final String paramId;
+  final double paramValue;
+  final int paramType; // MAV_PARAM_TYPE
+  final int paramCount;
+  final int paramIndex;
+
+  factory ParamValueMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    // Wire order: param_value(float), param_count(u16), param_index(u16), param_id(char[16]), param_type(u8)
+    final paramValue = data.getFloat32(0, Endian.little);
+    final paramCount = data.getUint16(4, Endian.little);
+    final paramIndex = data.getUint16(6, Endian.little);
+    // param_id is 16 bytes starting at offset 8
+    final idBytes = payload.sublist(8, 24);
+    final nullIdx = idBytes.indexOf(0);
+    final paramId = String.fromCharCodes(
+      nullIdx >= 0 ? idBytes.sublist(0, nullIdx) : idBytes,
+    );
+    final paramType = payload[24];
+
+    return ParamValueMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      paramId: paramId,
+      paramValue: paramValue,
+      paramType: paramType,
+      paramCount: paramCount,
+      paramIndex: paramIndex,
+    );
+  }
+}
+
+/// PARAM_SET (msg_id=23) — set a parameter value.
+class ParamSetMessage extends MavlinkMessage {
+  ParamSetMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.paramId,
+    required this.paramValue,
+    required this.paramType,
+  });
+
+  @override
+  final int messageId = 23;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final String paramId;
+  final double paramValue;
+  final int paramType;
+
+  factory ParamSetMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    final paramValue = data.getFloat32(0, Endian.little);
+    final targetSystem = payload[4];
+    final targetComponent = payload[5];
+    final idBytes = payload.sublist(6, 22);
+    final nullIdx = idBytes.indexOf(0);
+    final paramId = String.fromCharCodes(
+      nullIdx >= 0 ? idBytes.sublist(0, nullIdx) : idBytes,
+    );
+    final paramType = payload[22];
+
+    return ParamSetMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      paramId: paramId,
+      paramValue: paramValue,
+      paramType: paramType,
+    );
+  }
+}
+
 /// MISSION_CURRENT (msg_id=42) — current active mission item sequence.
 class MissionCurrentMessage extends MavlinkMessage {
   MissionCurrentMessage({
