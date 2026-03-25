@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
+import 'widgets/chart_toolbar.dart';
+import 'widgets/live_chart_widget.dart';
 import 'widgets/vehicle_map.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
@@ -30,11 +32,85 @@ class FlyView extends ConsumerWidget {
   }
 }
 
-class _DesktopFlyLayout extends ConsumerWidget {
+class _DesktopFlyLayout extends ConsumerStatefulWidget {
   const _DesktopFlyLayout();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DesktopFlyLayout> createState() => _DesktopFlyLayoutState();
+}
+
+class _DesktopFlyLayoutState extends ConsumerState<_DesktopFlyLayout> {
+  final Set<ChartType> _activeCharts = {};
+  final Map<ChartType, Offset> _chartPositions = {};
+
+  // Default positions for each chart type
+  Offset _defaultPosition(ChartType type) {
+    const startX = 350.0;
+    const startY = 12.0;
+    const spacing = 160.0;
+    final index = ChartType.values.indexOf(type);
+    return Offset(startX, startY + index * spacing);
+  }
+
+  LiveChartConfig _buildConfig(ChartType type, VehicleState vehicle) {
+    return switch (type) {
+      ChartType.altitude => LiveChartConfig(
+        title: 'Altitude',
+        icon: Icons.height,
+        unit: 'm',
+        series: [
+          LiveSeries(name: 'REL', color: HeliosColors.accent, getValue: () => vehicle.altitudeRel),
+        ],
+      ),
+      ChartType.speed => LiveChartConfig(
+        title: 'Speed',
+        icon: Icons.speed,
+        unit: 'm/s',
+        series: [
+          LiveSeries(name: 'IAS', color: HeliosColors.accent, getValue: () => vehicle.airspeed),
+          LiveSeries(name: 'GS', color: HeliosColors.success, getValue: () => vehicle.groundspeed),
+        ],
+      ),
+      ChartType.battery => LiveChartConfig(
+        title: 'Battery',
+        icon: Icons.battery_full,
+        unit: 'V',
+        series: [
+          LiveSeries(name: 'V', color: HeliosColors.warning, getValue: () => vehicle.batteryVoltage),
+        ],
+      ),
+      ChartType.attitude => LiveChartConfig(
+        title: 'Attitude',
+        icon: Icons.rotate_right,
+        unit: '\u00B0',
+        series: [
+          LiveSeries(name: 'Roll', color: HeliosColors.accent, getValue: () => vehicle.roll * 57.2958),
+          LiveSeries(name: 'Pitch', color: HeliosColors.warning, getValue: () => vehicle.pitch * 57.2958),
+        ],
+      ),
+      ChartType.climbRate => LiveChartConfig(
+        title: 'Climb Rate',
+        icon: Icons.trending_up,
+        unit: 'm/s',
+        series: [
+          LiveSeries(name: 'VS', color: HeliosColors.success, getValue: () => vehicle.climbRate),
+        ],
+      ),
+      ChartType.vibration => LiveChartConfig(
+        title: 'Vibration',
+        icon: Icons.vibration,
+        unit: '',
+        series: [
+          // Vibration data comes through the vehicle state indirectly;
+          // for now show climb rate variation as a proxy
+          LiveSeries(name: 'Z', color: HeliosColors.danger, getValue: () => vehicle.climbRate.abs() * 5),
+        ],
+      ),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final linkState = ref.watch(connectionStatusProvider).linkState;
     final vehicle = ref.watch(vehicleStateProvider);
 
@@ -63,11 +139,38 @@ class _DesktopFlyLayout extends ConsumerWidget {
                   ),
                 ),
               ),
+              // Connection badge — top-right
               Positioned(
                 top: 12,
                 right: 12,
                 child: ConnectionBadge(linkState: linkState),
               ),
+              // Chart toolbar — top-left
+              Positioned(
+                top: 12,
+                left: 16,
+                child: ChartToolbar(
+                  activeCharts: _activeCharts,
+                  onToggle: (type) {
+                    setState(() {
+                      if (_activeCharts.contains(type)) {
+                        _activeCharts.remove(type);
+                      } else {
+                        _activeCharts.add(type);
+                      }
+                    });
+                  },
+                ),
+              ),
+              // Live chart widgets
+              for (final type in _activeCharts)
+                LiveChartWidget(
+                  key: ValueKey(type),
+                  config: _buildConfig(type, vehicle),
+                  initialPosition: _chartPositions[type] ?? _defaultPosition(type),
+                  onPositionChanged: (pos) => _chartPositions[type] = pos,
+                  onClose: () => setState(() => _activeCharts.remove(type)),
+                ),
             ],
           ),
         ),
