@@ -1,0 +1,577 @@
+import 'dart:typed_data';
+import 'mavlink_types.dart';
+
+/// HEARTBEAT (msg_id=0) — vehicle type, autopilot, mode, arm state.
+class HeartbeatMessage extends MavlinkMessage {
+  HeartbeatMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.type,
+    required this.autopilot,
+    required this.baseMode,
+    required this.customMode,
+    required this.systemStatus,
+    required this.mavlinkVersion,
+  });
+
+  @override
+  final int messageId = 0;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int type;
+  final int autopilot;
+  final int baseMode;
+  final int customMode;
+  final int systemStatus;
+  final int mavlinkVersion;
+
+  bool get armed => (baseMode & MavModeFlag.safetyArmed) != 0;
+
+  factory HeartbeatMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return HeartbeatMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      customMode: data.getUint32(0, Endian.little),
+      type: data.getUint8(4),
+      autopilot: data.getUint8(5),
+      baseMode: data.getUint8(6),
+      systemStatus: data.getUint8(7),
+      mavlinkVersion: data.getUint8(8),
+    );
+  }
+}
+
+/// ATTITUDE (msg_id=30) — roll, pitch, yaw and angular rates.
+class AttitudeMessage extends MavlinkMessage {
+  AttitudeMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeBootMs,
+    required this.roll,
+    required this.pitch,
+    required this.yaw,
+    required this.rollSpeed,
+    required this.pitchSpeed,
+    required this.yawSpeed,
+  });
+
+  @override
+  final int messageId = 30;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeBootMs;
+  final double roll;
+  final double pitch;
+  final double yaw;
+  final double rollSpeed;
+  final double pitchSpeed;
+  final double yawSpeed;
+
+  factory AttitudeMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return AttitudeMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeBootMs: data.getUint32(0, Endian.little),
+      roll: data.getFloat32(4, Endian.little),
+      pitch: data.getFloat32(8, Endian.little),
+      yaw: data.getFloat32(12, Endian.little),
+      rollSpeed: data.getFloat32(16, Endian.little),
+      pitchSpeed: data.getFloat32(20, Endian.little),
+      yawSpeed: data.getFloat32(24, Endian.little),
+    );
+  }
+}
+
+/// GLOBAL_POSITION_INT (msg_id=33) — lat/lon/alt.
+class GlobalPositionIntMessage extends MavlinkMessage {
+  GlobalPositionIntMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeBootMs,
+    required this.lat,
+    required this.lon,
+    required this.alt,
+    required this.relativeAlt,
+    required this.vx,
+    required this.vy,
+    required this.vz,
+    required this.hdg,
+  });
+
+  @override
+  final int messageId = 33;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeBootMs;
+  final int lat;   // degE7
+  final int lon;   // degE7
+  final int alt;   // mm MSL
+  final int relativeAlt; // mm above home
+  final int vx;    // cm/s
+  final int vy;
+  final int vz;
+  final int hdg;   // cdeg (0-35999)
+
+  /// Latitude in degrees.
+  double get latDeg => lat / 1e7;
+
+  /// Longitude in degrees.
+  double get lonDeg => lon / 1e7;
+
+  /// Altitude MSL in metres.
+  double get altMetres => alt / 1000.0;
+
+  /// Relative altitude in metres.
+  double get relAltMetres => relativeAlt / 1000.0;
+
+  /// Heading in degrees (0-359).
+  int get headingDeg => hdg ~/ 100;
+
+  factory GlobalPositionIntMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return GlobalPositionIntMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeBootMs: data.getUint32(0, Endian.little),
+      lat: data.getInt32(4, Endian.little),
+      lon: data.getInt32(8, Endian.little),
+      alt: data.getInt32(12, Endian.little),
+      relativeAlt: data.getInt32(16, Endian.little),
+      vx: data.getInt16(20, Endian.little),
+      vy: data.getInt16(22, Endian.little),
+      vz: data.getInt16(24, Endian.little),
+      hdg: data.getUint16(26, Endian.little),
+    );
+  }
+}
+
+/// GPS_RAW_INT (msg_id=24) — fix type, satellite count, HDOP.
+class GpsRawIntMessage extends MavlinkMessage {
+  GpsRawIntMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeUsec,
+    required this.fixType,
+    required this.lat,
+    required this.lon,
+    required this.alt,
+    required this.eph,
+    required this.epv,
+    required this.vel,
+    required this.cog,
+    required this.satellitesVisible,
+  });
+
+  @override
+  final int messageId = 24;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeUsec;
+  final int fixType;
+  final int lat;  // degE7
+  final int lon;  // degE7
+  final int alt;  // mm MSL
+  final int eph;  // HDOP * 100
+  final int epv;  // VDOP * 100
+  final int vel;  // cm/s
+  final int cog;  // cdeg
+  final int satellitesVisible;
+
+  double get hdop => eph / 100.0;
+  double get vdop => epv / 100.0;
+
+  factory GpsRawIntMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return GpsRawIntMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeUsec: data.getUint64(0, Endian.little),
+      lat: data.getInt32(8, Endian.little),
+      lon: data.getInt32(12, Endian.little),
+      alt: data.getInt32(16, Endian.little),
+      eph: data.getUint16(20, Endian.little),
+      epv: data.getUint16(22, Endian.little),
+      vel: data.getUint16(24, Endian.little),
+      cog: data.getUint16(26, Endian.little),
+      fixType: data.getUint8(28),
+      satellitesVisible: data.getUint8(29),
+    );
+  }
+}
+
+/// SYS_STATUS (msg_id=1) — battery voltage, current, remaining.
+class SysStatusMessage extends MavlinkMessage {
+  SysStatusMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.voltageBattery,
+    required this.currentBattery,
+    required this.batteryRemaining,
+  });
+
+  @override
+  final int messageId = 1;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int voltageBattery;   // mV
+  final int currentBattery;   // cA (10 * mA)
+  final int batteryRemaining; // %, -1 = unknown
+
+  double get voltageVolts => voltageBattery / 1000.0;
+  double get currentAmps => currentBattery / 100.0;
+
+  factory SysStatusMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return SysStatusMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      voltageBattery: data.getUint16(14, Endian.little),
+      currentBattery: data.getInt16(16, Endian.little),
+      batteryRemaining: data.getInt8(30),
+    );
+  }
+}
+
+/// VFR_HUD (msg_id=74) — airspeed, groundspeed, heading, throttle, climb.
+class VfrHudMessage extends MavlinkMessage {
+  VfrHudMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.airspeed,
+    required this.groundspeed,
+    required this.heading,
+    required this.throttle,
+    required this.alt,
+    required this.climb,
+  });
+
+  @override
+  final int messageId = 74;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final double airspeed;    // m/s
+  final double groundspeed; // m/s
+  final int heading;        // degrees 0-359
+  final int throttle;       // percent 0-100
+  final double alt;         // metres MSL
+  final double climb;       // m/s
+
+  factory VfrHudMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return VfrHudMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      airspeed: data.getFloat32(0, Endian.little),
+      groundspeed: data.getFloat32(4, Endian.little),
+      alt: data.getFloat32(8, Endian.little),
+      climb: data.getFloat32(12, Endian.little),
+      heading: data.getInt16(16, Endian.little),
+      throttle: data.getUint16(18, Endian.little),
+    );
+  }
+}
+
+/// VIBRATION (msg_id=241) — vibration levels and clipping.
+class VibrationMessage extends MavlinkMessage {
+  VibrationMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeUsec,
+    required this.vibrationX,
+    required this.vibrationY,
+    required this.vibrationZ,
+    required this.clipping0,
+    required this.clipping1,
+    required this.clipping2,
+  });
+
+  @override
+  final int messageId = 241;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeUsec;
+  final double vibrationX;
+  final double vibrationY;
+  final double vibrationZ;
+  final int clipping0;
+  final int clipping1;
+  final int clipping2;
+
+  factory VibrationMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return VibrationMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeUsec: data.getUint64(0, Endian.little),
+      vibrationX: data.getFloat32(8, Endian.little),
+      vibrationY: data.getFloat32(12, Endian.little),
+      vibrationZ: data.getFloat32(16, Endian.little),
+      clipping0: data.getUint32(20, Endian.little),
+      clipping1: data.getUint32(24, Endian.little),
+      clipping2: data.getUint32(28, Endian.little),
+    );
+  }
+}
+
+/// STATUSTEXT (msg_id=253) — autopilot text messages.
+class StatusTextMessage extends MavlinkMessage {
+  StatusTextMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.severity,
+    required this.text,
+  });
+
+  @override
+  final int messageId = 253;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int severity;
+  final String text;
+
+  factory StatusTextMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final severity = payload[0];
+    // Text is null-terminated, up to 50 chars
+    final textBytes = payload.sublist(1);
+    final nullIndex = textBytes.indexOf(0);
+    final text = String.fromCharCodes(
+      nullIndex >= 0 ? textBytes.sublist(0, nullIndex) : textBytes,
+    );
+    return StatusTextMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      severity: severity,
+      text: text,
+    );
+  }
+}
+
+/// COMMAND_ACK (msg_id=77) — command acknowledgement.
+class CommandAckMessage extends MavlinkMessage {
+  CommandAckMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.command,
+    required this.result,
+  });
+
+  @override
+  final int messageId = 77;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int command;
+  final int result;
+
+  bool get accepted => result == 0; // MAV_RESULT_ACCEPTED
+
+  factory CommandAckMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return CommandAckMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      command: data.getUint16(0, Endian.little),
+      result: data.getUint8(2),
+    );
+  }
+}
+
+/// RC_CHANNELS (msg_id=65) — RC input channels.
+class RcChannelsMessage extends MavlinkMessage {
+  RcChannelsMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeBootMs,
+    required this.channelCount,
+    required this.channels,
+    required this.rssi,
+  });
+
+  @override
+  final int messageId = 65;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeBootMs;
+  final int channelCount;
+  final List<int> channels; // up to 18 channels
+  final int rssi;
+
+  factory RcChannelsMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    final channels = <int>[];
+    for (var i = 0; i < 18; i++) {
+      channels.add(data.getUint16(4 + i * 2, Endian.little));
+    }
+    return RcChannelsMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeBootMs: data.getUint32(0, Endian.little),
+      channelCount: data.getUint8(40),
+      channels: channels,
+      rssi: data.getUint8(41),
+    );
+  }
+}
+
+/// SERVO_OUTPUT_RAW (msg_id=36) — servo/motor outputs.
+class ServoOutputRawMessage extends MavlinkMessage {
+  ServoOutputRawMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeUsec,
+    required this.port,
+    required this.servos,
+  });
+
+  @override
+  final int messageId = 36;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeUsec;
+  final int port;
+  final List<int> servos; // up to 16 servos
+
+  factory ServoOutputRawMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    final servos = <int>[];
+    // First 8 servos at fixed offsets
+    for (var i = 0; i < 8; i++) {
+      servos.add(data.getUint16(4 + i * 2, Endian.little));
+    }
+    // Servos 9-16 if payload is long enough (extended message)
+    if (payload.length >= 38) {
+      for (var i = 0; i < 8; i++) {
+        servos.add(data.getUint16(22 + i * 2, Endian.little));
+      }
+    }
+    return ServoOutputRawMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeUsec: data.getUint32(0, Endian.little),
+      port: data.getUint8(20),
+      servos: servos,
+    );
+  }
+}
+
+/// Unrecognised message — payload preserved for inspection.
+class UnknownMessage extends MavlinkMessage {
+  UnknownMessage({
+    required this.messageId,
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.payload,
+  });
+
+  @override
+  final int messageId;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final Uint8List payload;
+}

@@ -1,0 +1,33 @@
+## ArduPilot SITL for Helios GCS development
+##
+## Usage:
+##   docker compose -f docker/docker-compose.sitl.yaml up
+##
+## This starts ArduPlane SITL with MAVProxy routing MAVLink to your host.
+## Connect Helios with:
+##   - UDP: bind 0.0.0.0, port 14550
+##   - TCP: host 127.0.0.1, port 5760
+##
+## To use ArduCopter instead:
+##   VEHICLE=ArduCopter FRAME=quad docker compose -f docker/docker-compose.sitl.yaml up
+
+services:
+  ardupilot-sitl:
+    image: radarku/ardupilot-sitl:latest
+    platform: linux/amd64
+    environment:
+      - VEHICLE=${VEHICLE:-ArduPlane}
+      - FRAME=${FRAME:-plane}
+      - SPEEDUP=${SPEEDUP:-1}
+    command: >
+      bash -c "
+        /ardupilot/Tools/autotest/sim_vehicle.py
+        --vehicle $${VEHICLE}
+        --frame $${FRAME}
+        --no-rebuild
+        --out=udpout:host.docker.internal:14550
+        --out=tcpin:0.0.0.0:5760
+        --speedup $${SPEEDUP}
+      "
+    ports:
+      - "5760:5760"      # TCP MAVLink
