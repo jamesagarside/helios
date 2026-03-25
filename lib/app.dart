@@ -38,12 +38,23 @@ class _HeliosShell extends ConsumerStatefulWidget {
 class _HeliosShellState extends ConsumerState<_HeliosShell> {
   int _selectedIndex = 0;
 
-  // Video view is created lazily to avoid media_kit init on startup
-  Widget _buildView(int index) {
-    return switch (index) {
-      0 => const FlyView(),
-      1 => const PlanView(),
-      2 => const AnalyseView(),
+  // Views that don't need native libs — kept alive via IndexedStack.
+  // Video and Setup (which references video provider) are lazy-loaded.
+  static const _coreViews = <Widget>[
+    FlyView(),
+    PlanView(),
+    AnalyseView(),
+  ];
+
+  Widget _buildBody() {
+    if (_selectedIndex <= 2) {
+      return IndexedStack(
+        index: _selectedIndex,
+        children: _coreViews,
+      );
+    }
+    // Video and Setup are built on-demand (media_kit dependency)
+    return switch (_selectedIndex) {
       3 => const VideoView(),
       4 => const SetupView(),
       _ => const SizedBox(),
@@ -89,7 +100,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
             child: ResponsiveScaffold(
               selectedIndex: _selectedIndex,
               onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-              body: _buildView(_selectedIndex),
+              body: _buildBody(),
             ),
           ),
           StatusBar(
