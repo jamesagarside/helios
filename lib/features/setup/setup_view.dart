@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/connection_state.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
+import '../../shared/providers/video_provider.dart';
 import '../../core/telemetry/telemetry_store.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
@@ -229,6 +230,18 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
         const SizedBox(height: 24),
 
+        // Video Settings
+        Text('Video Stream', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _VideoSettings(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // Recording
         Text('Recording', style: HeliosTypography.heading2),
         const SizedBox(height: 12),
@@ -266,6 +279,98 @@ class _SetupViewState extends ConsumerState<SetupView> {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _VideoSettings extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_VideoSettings> createState() => _VideoSettingsState();
+}
+
+class _VideoSettingsState extends ConsumerState<_VideoSettings> {
+  late TextEditingController _urlController;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = ref.read(videoPlayerProvider);
+    _urlController = TextEditingController(text: settings.rtspUrl);
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(videoPlayerProvider);
+    final videoCtrl = ref.watch(videoPlayerProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _urlController,
+          decoration: const InputDecoration(
+            labelText: 'RTSP URL',
+            hintText: 'rtsp://192.168.0.10:8554/main',
+          ),
+          onChanged: (url) {
+            ref.read(videoPlayerProvider.notifier).updateSettings(
+              settings.copyWith(rtspUrl: url),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          title: const Text('Low-latency mode'),
+          subtitle: const Text('Minimise buffer for real-time video'),
+          value: settings.lowLatency,
+          onChanged: (v) {
+            ref.read(videoPlayerProvider.notifier).updateSettings(
+              settings.copyWith(lowLatency: v),
+            );
+          },
+          contentPadding: EdgeInsets.zero,
+        ),
+        SwitchListTile(
+          title: const Text('Auto-connect on launch'),
+          subtitle: const Text('Automatically start video when app opens'),
+          value: settings.autoConnect,
+          onChanged: (v) {
+            ref.read(videoPlayerProvider.notifier).updateSettings(
+              settings.copyWith(autoConnect: v),
+            );
+          },
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: videoCtrl.isPlaying ? null : () => videoCtrl.connect(),
+              icon: const Icon(Icons.play_arrow, size: 16),
+              label: const Text('Test Stream'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: videoCtrl.isPlaying ? () => videoCtrl.disconnect() : null,
+              icon: const Icon(Icons.stop, size: 16),
+              label: const Text('Stop'),
+            ),
+          ],
+        ),
+        if (videoCtrl.lastError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            videoCtrl.lastError!,
+            style: const TextStyle(color: HeliosColors.danger, fontSize: 11),
+          ),
+        ],
       ],
     );
   }

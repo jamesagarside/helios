@@ -9,6 +9,7 @@ import 'shared/widgets/status_bar.dart';
 import 'features/fly/fly_view.dart';
 import 'features/plan/plan_view.dart';
 import 'features/analyse/analyse_view.dart';
+import 'features/video/video_view.dart';
 import 'features/setup/setup_view.dart';
 
 /// Helios GCS application root widget.
@@ -37,12 +38,17 @@ class _HeliosShell extends ConsumerStatefulWidget {
 class _HeliosShellState extends ConsumerState<_HeliosShell> {
   int _selectedIndex = 0;
 
-  static const _views = <Widget>[
-    FlyView(),
-    PlanView(),
-    AnalyseView(),
-    SetupView(),
-  ];
+  // Video view is created lazily to avoid media_kit init on startup
+  Widget _buildView(int index) {
+    return switch (index) {
+      0 => const FlyView(),
+      1 => const PlanView(),
+      2 => const AnalyseView(),
+      3 => const VideoView(),
+      4 => const SetupView(),
+      _ => const SizedBox(),
+    };
+  }
 
   void _handleKeyPress(KeyEvent event) {
     if (event is! KeyDownEvent) return;
@@ -59,6 +65,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
       LogicalKeyboardKey.digit2 => 1,
       LogicalKeyboardKey.digit3 => 2,
       LogicalKeyboardKey.digit4 => 3,
+      LogicalKeyboardKey.digit5 => 4,
       _ => null,
     };
 
@@ -82,10 +89,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
             child: ResponsiveScaffold(
               selectedIndex: _selectedIndex,
               onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-              body: IndexedStack(
-                index: _selectedIndex,
-                children: _views,
-              ),
+              body: _buildView(_selectedIndex),
             ),
           ),
           StatusBar(

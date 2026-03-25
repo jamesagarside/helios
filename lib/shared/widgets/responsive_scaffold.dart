@@ -38,6 +38,11 @@ const _destinations = [
     selectedIcon: Icons.analytics,
   ),
   HeliosDestination(
+    label: 'Video',
+    icon: Icons.videocam_outlined,
+    selectedIcon: Icons.videocam,
+  ),
+  HeliosDestination(
     label: 'Setup',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
