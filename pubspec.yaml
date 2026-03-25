@@ -18,6 +18,10 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
 
+  # Database (embedded analytics) — patched for macOS support
+  duckdb_dart:
+    path: packages/duckdb_dart_patched
+
   # Charts (Analyse View)
   fl_chart: ^0.70.2
 

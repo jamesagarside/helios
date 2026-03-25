@@ -5,6 +5,7 @@ import '../../core/mavlink/mavlink_service.dart';
 import '../../core/mavlink/transports/transport.dart';
 import '../../core/mavlink/transports/udp_transport.dart';
 import '../../core/mavlink/transports/tcp_transport.dart';
+import '../../core/telemetry/telemetry_store.dart';
 import '../models/vehicle_state.dart';
 import '../models/connection_state.dart';
 import '../models/recording_state.dart';
@@ -73,6 +74,13 @@ final gpsFixLabelProvider = Provider<String>((ref) {
   };
 });
 
+/// TelemetryStore singleton provider.
+final telemetryStoreProvider = Provider<TelemetryStore>((ref) {
+  final store = TelemetryStore();
+  ref.onDispose(store.dispose);
+  return store;
+});
+
 /// Connection controller — manages the MavlinkService lifecycle.
 class ConnectionController extends StateNotifier<ConnectionStatus> {
   ConnectionController(this._ref) : super(const ConnectionStatus());
@@ -107,9 +115,14 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       _ref.read(connectionStatusProvider.notifier).state = state;
     });
 
-    // Wire all messages to VehicleStateNotifier
+    // Wire all messages to VehicleStateNotifier + TelemetryStore
     _messageSub = _service!.messageStream.listen((msg) {
       _ref.read(vehicleStateProvider.notifier).handleMessage(msg);
+      // Buffer to DuckDB if recording
+      final store = _ref.read(telemetryStoreProvider);
+      if (store.isRecording) {
+        store.buffer(msg);
+      }
     });
 
     // Message rate calculation (every second)
@@ -138,7 +151,21 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
         connectedSince: DateTime.now(),
       );
       _ref.read(connectionStatusProvider.notifier).state = state;
+
+      // Auto-record on connect
+      try {
+        final store = _ref.read(telemetryStoreProvider);
+        if (!store.isRecording) {
+          await store.createFlight();
+        }
+      } catch (_) {
+        // Recording failure shouldn't prevent connection
+      }
     } catch (e) {
+      // Clean up on connection failure
+      await _service?.disconnect();
+      _service?.dispose();
+      _service = null;
       state = state.copyWith(transportState: TransportState.error);
       _ref.read(connectionStatusProvider.notifier).state = state;
       rethrow;
@@ -156,6 +183,12 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _service?.dispose();
     _service = null;
     _lastMsgCount = 0;
+
+    // Stop recording on disconnect
+    final store = _ref.read(telemetryStoreProvider);
+    if (store.isRecording) {
+      await store.closeFlight();
+    }
 
     _ref.read(vehicleStateProvider.notifier).reset();
     state = const ConnectionStatus();

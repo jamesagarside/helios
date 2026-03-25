@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 
-/// Plan View — mission planning screen.
-///
-/// Interactive map for tap-to-place waypoints, waypoint list panel,
-/// and upload/download controls.
+/// Plan View — mission planning screen with interactive map.
 class PlanView extends StatelessWidget {
   const PlanView({super.key});
 
@@ -16,25 +15,25 @@ class PlanView extends StatelessWidget {
 
     return Row(
       children: [
-        // Map area
         Expanded(
           child: Stack(
             children: [
-              Container(
-                color: HeliosColors.background,
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.map_outlined, size: 48, color: HeliosColors.textTertiary),
-                      SizedBox(height: 8),
-                      Text(
-                        'Tap to place waypoints — Phase 3',
-                        style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
-                      ),
-                    ],
-                  ),
+              FlutterMap(
+                options: MapOptions(
+                  initialCenter: const LatLng(-35.3632, 149.1652),
+                  initialZoom: 15,
+                  onTap: (tapPos, latLng) {
+                    // Phase 3: tap-to-place waypoints
+                  },
                 ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.argus.helios_gcs',
+                    maxZoom: 19,
+                    tileBuilder: _darkTileBuilder,
+                  ),
+                ],
               ),
               // Bottom info bar
               Positioned(
@@ -59,7 +58,6 @@ class PlanView extends StatelessWidget {
             ],
           ),
         ),
-        // Waypoint panel (desktop/tablet only)
         if (showPanel) ...[
           const VerticalDivider(width: 1, color: HeliosColors.border),
           SizedBox(
@@ -76,7 +74,8 @@ class PlanView extends StatelessWidget {
                 const Expanded(
                   child: Center(
                     child: Text(
-                      'No waypoints',
+                      'Tap map to add waypoints\n(Phase 3)',
+                      textAlign: TextAlign.center,
                       style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
                     ),
                   ),
@@ -109,6 +108,18 @@ class PlanView extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _darkTileBuilder(BuildContext context, Widget tileWidget, TileImage tile) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix([
+        -0.5, 0, 0, 0, 128,
+        0, -0.5, 0, 0, 128,
+        0, 0, -0.5, 0, 128,
+        0, 0, 0, 1, 0,
+      ]),
+      child: tileWidget,
     );
   }
 }

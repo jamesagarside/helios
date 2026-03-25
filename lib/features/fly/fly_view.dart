@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
+import 'widgets/vehicle_map.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/widgets/connection_badge.dart';
@@ -42,7 +43,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
         Expanded(
           child: Stack(
             children: [
-              const _MapPlaceholder(),
+              const VehicleMap(),
               // PFD overlay — bottom-left
               Positioned(
                 left: 16,
@@ -93,7 +94,7 @@ class _TabletFlyLayout extends ConsumerWidget {
           flex: 6,
           child: Stack(
             children: [
-              const _MapPlaceholder(),
+              const VehicleMap(),
               Positioned(
                 top: 12,
                 right: 12,
@@ -135,7 +136,7 @@ class _MobileFlyLayout extends ConsumerWidget {
 
     return Stack(
       children: [
-        const _MapPlaceholder(),
+        const VehicleMap(),
         Positioned(
           left: 8,
           top: 8,
@@ -584,26 +585,3 @@ class _MiniTelemetryItem extends StatelessWidget {
   }
 }
 
-class _MapPlaceholder extends StatelessWidget {
-  const _MapPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: HeliosColors.background,
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map_outlined, size: 48, color: HeliosColors.textTertiary),
-            SizedBox(height: 8),
-            Text(
-              'Map — flutter_map in Phase 2',
-              style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

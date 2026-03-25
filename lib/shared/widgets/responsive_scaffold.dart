@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/helios_colors.dart';
+import 'helios_logo.dart';
 
 /// Breakpoints for responsive layout.
 abstract final class HeliosBreakpoints {
@@ -104,11 +105,7 @@ class _DesktopLayout extends StatelessWidget {
             backgroundColor: HeliosColors.surface,
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Icon(
-                Icons.sunny,
-                color: HeliosColors.accent,
-                size: extended ? 32 : 28,
-              ),
+              child: HeliosLogo(size: extended ? 36 : 28),
             ),
             destinations: _destinations
                 .map(

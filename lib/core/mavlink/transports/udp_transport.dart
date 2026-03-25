@@ -18,8 +18,10 @@ class UdpTransport implements MavlinkTransport {
   final int bindPort;
 
   RawDatagramSocket? _socket;
+  StreamSubscription<RawSocketEvent>? _subscription;
   InternetAddress? _remoteAddress;
   int? _remotePort;
+  bool _disposed = false;
 
   final _dataController = StreamController<Uint8List>.broadcast();
   final _stateController = StreamController<TransportState>.broadcast();
@@ -35,14 +37,17 @@ class UdpTransport implements MavlinkTransport {
   Stream<TransportState> get stateStream => _stateController.stream;
 
   void _setState(TransportState newState) {
-    if (_state != newState) {
+    if (_state != newState && !_disposed) {
       _state = newState;
-      _stateController.add(newState);
+      if (!_stateController.isClosed) {
+        _stateController.add(newState);
+      }
     }
   }
 
   @override
   Future<void> connect() async {
+    await disconnect();
     _setState(TransportState.connecting);
     try {
       _socket = await RawDatagramSocket.bind(
@@ -51,16 +56,16 @@ class UdpTransport implements MavlinkTransport {
       );
       _socket!.broadcastEnabled = true;
 
-      _socket!.listen(
+      _subscription = _socket!.listen(
         (event) {
           if (event == RawSocketEvent.read) {
-            final datagram = _socket!.receive();
+            final datagram = _socket?.receive();
             if (datagram != null) {
-              // Auto-discover remote endpoint from first packet
               _remoteAddress ??= datagram.address;
               _remotePort ??= datagram.port;
-
-              _dataController.add(Uint8List.fromList(datagram.data));
+              if (!_dataController.isClosed) {
+                _dataController.add(Uint8List.fromList(datagram.data));
+              }
             }
           }
         },
@@ -81,6 +86,8 @@ class UdpTransport implements MavlinkTransport {
 
   @override
   Future<void> disconnect() async {
+    await _subscription?.cancel();
+    _subscription = null;
     _socket?.close();
     _socket = null;
     _remoteAddress = null;
@@ -91,15 +98,18 @@ class UdpTransport implements MavlinkTransport {
   @override
   Future<void> send(Uint8List data) async {
     if (_socket == null || _remoteAddress == null || _remotePort == null) {
-      return; // Silently drop if no remote endpoint known
+      return;
     }
     _socket!.send(data, _remoteAddress!, _remotePort!);
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    _subscription?.cancel();
     _socket?.close();
-    _dataController.close();
-    _stateController.close();
+    _socket = null;
+    if (!_dataController.isClosed) _dataController.close();
+    if (!_stateController.isClosed) _stateController.close();
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/connection_state.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
+import '../../core/telemetry/telemetry_store.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 
@@ -228,6 +229,18 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
         const SizedBox(height: 24),
 
+        // Recording
+        Text('Recording', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _RecordingControls(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // About
         Text('About', style: HeliosTypography.heading2),
         const SizedBox(height: 12),
@@ -253,6 +266,110 @@ class _SetupViewState extends ConsumerState<SetupView> {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _RecordingControls extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_RecordingControls> createState() => _RecordingControlsState();
+}
+
+class _RecordingControlsState extends ConsumerState<_RecordingControls> {
+  String? _recordingFile;
+  bool _isRecording = false;
+
+  Future<void> _startRecording() async {
+    final store = ref.read(telemetryStoreProvider);
+    final vehicle = ref.read(vehicleStateProvider);
+
+    try {
+      final path = await store.createFlight(
+        vehicleSysId: vehicle.systemId,
+        vehicleType: vehicle.vehicleType.name,
+        autopilot: vehicle.autopilotType.name,
+      );
+      setState(() {
+        _isRecording = true;
+        _recordingFile = path;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recording failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    final store = ref.read(telemetryStoreProvider);
+    await store.closeFlight();
+    setState(() {
+      _isRecording = false;
+      _recordingFile = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = ref.watch(telemetryStoreProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: _isRecording ? null : _startRecording,
+              icon: const Icon(Icons.fiber_manual_record, size: 16, color: HeliosColors.danger),
+              label: const Text('Start Recording'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _isRecording ? _stopRecording : null,
+              icon: const Icon(Icons.stop, size: 16),
+              label: const Text('Stop'),
+            ),
+          ],
+        ),
+        if (_isRecording) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: HeliosColors.danger.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: HeliosColors.danger.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.fiber_manual_record, size: 12, color: HeliosColors.danger),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'RECORDING',
+                        style: TextStyle(
+                          color: HeliosColors.danger,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '${store.rowsWritten} rows written',
+                        style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
