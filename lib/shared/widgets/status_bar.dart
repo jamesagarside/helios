@@ -11,6 +11,8 @@ class StatusBar extends StatelessWidget {
     this.messageRate = 0.0,
     this.gpsFixType = 'No Fix',
     this.satellites = 0,
+    this.currentWaypoint = -1,
+    this.totalWaypoints = 0,
   });
 
   final String flightMode;
@@ -19,6 +21,8 @@ class StatusBar extends StatelessWidget {
   final double messageRate;
   final String gpsFixType;
   final int satellites;
+  final int currentWaypoint;
+  final int totalWaypoints;
 
   String _formatDuration(Duration d) {
     final hours = d.inHours.toString().padLeft(2, '0');
@@ -79,6 +83,19 @@ class StatusBar extends StatelessWidget {
                 label: '$gpsFixType  $satellites sats',
                 color: _gpsColor(),
               ),
+              // Mission waypoint
+              if (totalWaypoints > 0) ...[
+                const _Separator(),
+                _StatusChip(
+                  icon: Icons.route,
+                  label: currentWaypoint >= 0
+                      ? 'WP ${currentWaypoint + 1}/$totalWaypoints'
+                      : '$totalWaypoints WPs',
+                  color: currentWaypoint >= 0
+                      ? HeliosColors.warning
+                      : HeliosColors.textSecondary,
+                ),
+              ],
               const _Separator(),
               // Flight time
               _StatusChip(

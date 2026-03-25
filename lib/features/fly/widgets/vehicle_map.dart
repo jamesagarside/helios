@@ -1,8 +1,10 @@
 import 'dart:math' as math;
+import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+import '../../../shared/models/mission_item.dart';
 import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../core/map/cached_tile_provider.dart';
@@ -29,6 +31,8 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
   @override
   Widget build(BuildContext context) {
     final vehicle = ref.watch(vehicleStateProvider);
+    final missionItems = ref.watch(missionItemsProvider);
+    final currentWp = ref.watch(currentWaypointProvider);
     final hasPosition = vehicle.hasPosition;
 
     // Update trail
@@ -93,6 +97,40 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                     strokeWidth: 3,
                   ),
                 ],
+              ),
+
+            // Mission path polyline
+            if (missionItems.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: missionItems
+                        .where((i) => i.isNavCommand)
+                        .map((i) => LatLng(i.latitude, i.longitude))
+                        .toList(),
+                    color: HeliosColors.warning.withValues(alpha: 0.6),
+                    strokeWidth: 2,
+                    pattern: StrokePattern.dashed(segments: [8, 4]),
+                  ),
+                ],
+              ),
+
+            // Mission waypoint markers
+            if (missionItems.isNotEmpty)
+              MarkerLayer(
+                markers: missionItems
+                    .where((i) => i.isNavCommand)
+                    .map((item) => Marker(
+                          point: LatLng(item.latitude, item.longitude),
+                          width: 24,
+                          height: 24,
+                          child: _MissionWaypointMarker(
+                            index: item.seq,
+                            isCurrent: item.seq == currentWp,
+                            command: item.command,
+                          ),
+                        ))
+                    .toList(),
               ),
 
             // Home marker
@@ -267,6 +305,56 @@ class _HomeMarker extends StatelessWidget {
       ),
       child: const Center(
         child: Icon(Icons.home, size: 14, color: HeliosColors.success),
+      ),
+    );
+  }
+}
+
+/// Mission waypoint marker on the Fly View map.
+class _MissionWaypointMarker extends StatelessWidget {
+  const _MissionWaypointMarker({
+    required this.index,
+    required this.isCurrent,
+    required this.command,
+  });
+
+  final int index;
+  final bool isCurrent;
+  final int command;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCurrent ? HeliosColors.success : HeliosColors.warning;
+
+    final icon = switch (command) {
+      MavCmd.navTakeoff => Icons.flight_takeoff,
+      MavCmd.navLand => Icons.flight_land,
+      MavCmd.navReturnToLaunch => Icons.home,
+      _ => null,
+    };
+
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: HeliosColors.surface.withValues(alpha: 0.85),
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: isCurrent ? 2.5 : 1.5),
+        boxShadow: isCurrent
+            ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 6)]
+            : null,
+      ),
+      child: Center(
+        child: icon != null
+            ? Icon(icon, size: 12, color: color)
+            : Text(
+                '$index',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
     );
   }

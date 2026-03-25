@@ -1,13 +1,32 @@
+import 'dart:async';
 import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/vehicle_state.dart';
 
 /// Notifier that updates VehicleState from decoded MAVLink messages.
+///
+/// Batches incoming messages and emits state at a fixed frame rate (~30Hz).
+/// High-frequency messages (ATTITUDE at 25-50Hz) are accumulated into
+/// [_pending] and flushed to [state] every 33ms by a persistent timer.
 class VehicleStateNotifier extends StateNotifier<VehicleState> {
   VehicleStateNotifier() : super(const VehicleState());
 
+  /// Target UI refresh interval — 33ms ≈ 30 fps.
+  static const _frameInterval = Duration(milliseconds: 33);
+
+  Timer? _frameTimer;
+  VehicleState _pending = const VehicleState();
+  bool _dirty = false;
+  bool _active = false;
+
   /// Handle a decoded MAVLink message and update state accordingly.
   void handleMessage(MavlinkMessage msg) {
+    // Start the frame timer on first message
+    if (!_active) {
+      _active = true;
+      _frameTimer = Timer.periodic(_frameInterval, (_) => _flush());
+    }
+
     switch (msg) {
       case HeartbeatMessage():
         _handleHeartbeat(msg);
@@ -23,6 +42,8 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
         _handleVfrHud(msg);
       case RcChannelsMessage():
         _handleRcChannels(msg);
+      case MissionCurrentMessage():
+        _handleMissionCurrent(msg);
       case VibrationMessage():
         break; // Recorded to DuckDB, no UI state update needed
       case StatusTextMessage():
@@ -31,6 +52,22 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
         break; // Handled by command sender
       default:
         break;
+    }
+  }
+
+  void _flush() {
+    if (_dirty) {
+      state = _pending;
+      _dirty = false;
+    }
+  }
+
+  /// Force-flush pending state to listeners immediately.
+  /// Used by tests and for critical state changes that can't wait.
+  void flush() {
+    if (_dirty) {
+      state = _pending;
+      _dirty = false;
     }
   }
 
@@ -56,7 +93,7 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       msg.customMode,
     );
 
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       systemId: msg.systemId,
       componentId: msg.componentId,
       vehicleType: vehicleType,
@@ -65,10 +102,11 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       armed: msg.armed,
       lastHeartbeat: DateTime.now(),
     );
+    _dirty = true;
   }
 
   void _handleAttitude(AttitudeMessage msg) {
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       roll: msg.roll,
       pitch: msg.pitch,
       yaw: msg.yaw,
@@ -76,16 +114,18 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       pitchSpeed: msg.pitchSpeed,
       yawSpeed: msg.yawSpeed,
     );
+    _dirty = true;
   }
 
   void _handleGlobalPosition(GlobalPositionIntMessage msg) {
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       latitude: msg.latDeg,
       longitude: msg.lonDeg,
       altitudeMsl: msg.altMetres,
       altitudeRel: msg.relAltMetres,
       heading: msg.headingDeg,
     );
+    _dirty = true;
   }
 
   void _handleGpsRaw(GpsRawIntMessage msg) {
@@ -100,37 +140,57 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       _ => GpsFix.none,
     };
 
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       gpsFix: fix,
       satellites: msg.satellitesVisible,
       hdop: msg.hdop,
     );
+    _dirty = true;
   }
 
   void _handleSysStatus(SysStatusMessage msg) {
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       batteryVoltage: msg.voltageVolts,
       batteryCurrent: msg.currentAmps,
       batteryRemaining: msg.batteryRemaining,
     );
+    _dirty = true;
   }
 
   void _handleVfrHud(VfrHudMessage msg) {
-    state = state.copyWith(
+    _pending = _pending.copyWith(
       airspeed: msg.airspeed,
       groundspeed: msg.groundspeed,
       heading: msg.heading,
       throttle: msg.throttle,
       climbRate: msg.climb,
     );
+    _dirty = true;
   }
 
   void _handleRcChannels(RcChannelsMessage msg) {
-    state = state.copyWith(rssi: msg.rssi);
+    _pending = _pending.copyWith(rssi: msg.rssi);
+    _dirty = true;
+  }
+
+  void _handleMissionCurrent(MissionCurrentMessage msg) {
+    _pending = _pending.copyWith(currentWaypoint: msg.seq);
+    _dirty = true;
   }
 
   /// Reset state to defaults (on disconnect).
   void reset() {
+    _frameTimer?.cancel();
+    _frameTimer = null;
+    _active = false;
+    _dirty = false;
+    _pending = const VehicleState();
     state = const VehicleState();
+  }
+
+  @override
+  void dispose() {
+    _frameTimer?.cancel();
+    super.dispose();
   }
 }

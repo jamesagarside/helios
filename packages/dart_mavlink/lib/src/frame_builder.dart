@@ -95,4 +95,124 @@ class MavlinkFrameBuilder {
 
     return buildFrame(messageId: 76, payload: payload);
   }
+
+  /// Build a REQUEST_DATA_STREAM frame (msg_id=66).
+  ///
+  /// Used to request specific telemetry streams at a given rate from ArduPilot.
+  /// Stream IDs: 0=ALL, 1=RAW_SENSORS, 2=EXTENDED_STATUS, 3=RC_CHANNELS,
+  /// 4=RAW_CONTROLLER, 6=POSITION, 10=EXTRA1(attitude), 11=EXTRA2(VFR_HUD), 12=EXTRA3
+  Uint8List buildRequestDataStream({
+    required int targetSystem,
+    required int targetComponent,
+    required int streamId,
+    required int messageRate,
+    int startStop = 1,
+  }) {
+    final payload = Uint8List(6);
+    final data = ByteData.sublistView(payload);
+    data.setUint16(0, messageRate, Endian.little);
+    payload[2] = targetSystem;
+    payload[3] = targetComponent;
+    payload[4] = streamId;
+    payload[5] = startStop;
+    return buildFrame(messageId: 66, payload: payload);
+  }
+
+  /// Build a MISSION_REQUEST_LIST frame (msg_id=43).
+  Uint8List buildMissionRequestList({
+    required int targetSystem,
+    required int targetComponent,
+    int missionType = 0,
+  }) {
+    final payload = Uint8List(3);
+    payload[0] = targetSystem;
+    payload[1] = targetComponent;
+    payload[2] = missionType;
+    return buildFrame(messageId: 43, payload: payload);
+  }
+
+  /// Build a MISSION_COUNT frame (msg_id=44).
+  Uint8List buildMissionCount({
+    required int targetSystem,
+    required int targetComponent,
+    required int count,
+    int missionType = 0,
+  }) {
+    final payload = Uint8List(5);
+    final data = ByteData.sublistView(payload);
+    data.setUint16(0, count, Endian.little);
+    payload[2] = targetSystem;
+    payload[3] = targetComponent;
+    payload[4] = missionType;
+    return buildFrame(messageId: 44, payload: payload);
+  }
+
+  /// Build a MISSION_ACK frame (msg_id=47).
+  Uint8List buildMissionAck({
+    required int targetSystem,
+    required int targetComponent,
+    required int type,
+    int missionType = 0,
+  }) {
+    final payload = Uint8List(4);
+    payload[0] = targetSystem;
+    payload[1] = targetComponent;
+    payload[2] = type;
+    payload[3] = missionType;
+    return buildFrame(messageId: 47, payload: payload);
+  }
+
+  /// Build a MISSION_REQUEST_INT frame (msg_id=51).
+  Uint8List buildMissionRequestInt({
+    required int targetSystem,
+    required int targetComponent,
+    required int seq,
+    int missionType = 0,
+  }) {
+    final payload = Uint8List(5);
+    final data = ByteData.sublistView(payload);
+    data.setUint16(0, seq, Endian.little);
+    payload[2] = targetSystem;
+    payload[3] = targetComponent;
+    payload[4] = missionType;
+    return buildFrame(messageId: 51, payload: payload);
+  }
+
+  /// Build a MISSION_ITEM_INT frame (msg_id=73).
+  Uint8List buildMissionItemInt({
+    required int targetSystem,
+    required int targetComponent,
+    required int seq,
+    required int frame,
+    required int command,
+    required int current,
+    required int autocontinue,
+    required double param1,
+    required double param2,
+    required double param3,
+    required double param4,
+    required int x,
+    required int y,
+    required double z,
+    int missionType = 0,
+  }) {
+    final payload = Uint8List(38);
+    final data = ByteData.sublistView(payload);
+    data.setFloat32(0, param1, Endian.little);
+    data.setFloat32(4, param2, Endian.little);
+    data.setFloat32(8, param3, Endian.little);
+    data.setFloat32(12, param4, Endian.little);
+    data.setInt32(16, x, Endian.little);
+    data.setInt32(20, y, Endian.little);
+    data.setFloat32(24, z, Endian.little);
+    data.setUint16(28, seq, Endian.little);
+    data.setUint16(30, command, Endian.little);
+    payload[32] = targetSystem;
+    payload[33] = targetComponent;
+    payload[34] = frame;
+    payload[35] = current;
+    payload[36] = autocontinue;
+    payload[37] = missionType;
+    return buildFrame(messageId: 73, payload: payload);
+  }
 }

@@ -101,6 +101,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     final vehicle = ref.watch(vehicleStateProvider);
     final connection = ref.watch(connectionStatusProvider);
     final gpsLabel = ref.watch(gpsFixLabelProvider);
+    final missionState = ref.watch(missionStateProvider);
 
     return KeyboardListener(
       focusNode: FocusNode()..requestFocus(),
@@ -123,6 +124,8 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
             messageRate: connection.messageRate,
             gpsFixType: gpsLabel,
             satellites: vehicle.satellites,
+            currentWaypoint: vehicle.currentWaypoint,
+            totalWaypoints: missionState.waypointCount,
           ),
         ],
       ),

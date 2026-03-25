@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/layout_profile.dart';
 import '../../shared/models/vehicle_state.dart';
@@ -12,6 +13,7 @@ import 'widgets/vehicle_map.dart';
 import 'widgets/video_stream_widget.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
+import '../../shared/providers/connection_settings_provider.dart';
 import '../../shared/widgets/connection_badge.dart';
 
 /// Fly View — primary in-flight screen with live telemetry.
@@ -81,14 +83,18 @@ class _DesktopFlyLayout extends ConsumerWidget {
                       roll: vehicle.roll,
                       pitch: vehicle.pitch,
                       heading: vehicle.heading,
+                      airspeed: vehicle.airspeed,
+                      altitude: vehicle.altitudeMsl,
+                      altitudeRel: vehicle.altitudeRel,
+                      climbRate: vehicle.climbRate,
                     ),
                   ),
                 ),
-              // Connection badge — top-right
+              // Connection badge + quick reconnect — top-right
               Positioned(
                 top: 12,
                 right: 12,
-                child: ConnectionBadge(linkState: linkState),
+                child: _ConnectionControls(linkState: linkState),
               ),
               // Toolbars — top-left
               Positioned(
@@ -397,27 +403,231 @@ class _MobileFlyLayout extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// PFD Widget — simple attitude indicator using CustomPainter
+// Connection controls — badge + quick reconnect
 // ---------------------------------------------------------------------------
 
-class _PfdWidget extends StatelessWidget {
+class _ConnectionControls extends ConsumerWidget {
+  const _ConnectionControls({required this.linkState});
+  final LinkState linkState;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connection = ref.watch(connectionStatusProvider);
+    final savedConfig = ref.watch(connectionSettingsProvider);
+    final isConnected =
+        connection.transportState == TransportState.connected;
+    final isConnecting =
+        connection.transportState == TransportState.connecting;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Quick reconnect / disconnect button
+        if (!isConnected && savedConfig != null && !isConnecting)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Material(
+              color: HeliosColors.surface.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(6),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => ref
+                    .read(connectionControllerProvider.notifier)
+                    .connect(savedConfig),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.link, size: 13, color: HeliosColors.accent),
+                      const SizedBox(width: 4),
+                      Text(
+                        ref.read(connectionSettingsProvider.notifier).label,
+                        style: const TextStyle(
+                          color: HeliosColors.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (isConnecting)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: HeliosColors.surface.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: HeliosColors.accent,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Connecting...',
+                    style: TextStyle(
+                      color: HeliosColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ConnectionBadge(linkState: linkState),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PFD Widget — compound glass cockpit instrument
+// ---------------------------------------------------------------------------
+
+/// Compound PFD with speed tape (left), attitude indicator (centre),
+/// altitude tape (right), and heading readout (bottom).
+///
+/// Uses a Ticker to lerp values at 60fps for glass-smooth motion.
+class _PfdWidget extends StatefulWidget {
   const _PfdWidget({
     required this.roll,
     required this.pitch,
     required this.heading,
+    this.airspeed = 0.0,
+    this.altitude = 0.0,
+    this.altitudeRel = 0.0,
+    this.climbRate = 0.0,
   });
 
   final double roll;
   final double pitch;
   final int heading;
+  final double airspeed;
+  final double altitude;
+  final double altitudeRel;
+  final double climbRate;
+
+  @override
+  State<_PfdWidget> createState() => _PfdWidgetState();
+}
+
+class _PfdWidgetState extends State<_PfdWidget>
+    with SingleTickerProviderStateMixin {
+  late Ticker _ticker;
+  bool _tickerActive = false;
+
+  double _roll = 0, _pitch = 0, _heading = 0;
+  double _speed = 0, _alt = 0, _altRel = 0, _vs = 0;
+
+  // Fast tracking — 0.7 = ~3 frames to settle at 60fps (~50ms)
+  static const double _k = 0.7;
+  static const double _eps = 0.001;
+
+  @override
+  void initState() {
+    super.initState();
+    _roll = widget.roll;
+    _pitch = widget.pitch;
+    _heading = widget.heading.toDouble();
+    _speed = widget.airspeed;
+    _alt = widget.altitude;
+    _altRel = widget.altitudeRel;
+    _vs = widget.climbRate;
+    _ticker = createTicker(_onTick);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PfdWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.roll != oldWidget.roll ||
+        widget.pitch != oldWidget.pitch ||
+        widget.heading != oldWidget.heading ||
+        widget.airspeed != oldWidget.airspeed ||
+        widget.altitude != oldWidget.altitude) {
+      if (!_tickerActive) {
+        _ticker.start();
+        _tickerActive = true;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  double _lerp(double current, double target) =>
+      current + (target - current) * _k;
+
+  void _onTick(Duration elapsed) {
+    _roll = _lerp(_roll, widget.roll);
+    _pitch = _lerp(_pitch, widget.pitch);
+    _speed = _lerp(_speed, widget.airspeed);
+    _alt = _lerp(_alt, widget.altitude);
+    _altRel = _lerp(_altRel, widget.altitudeRel);
+    _vs = _lerp(_vs, widget.climbRate);
+
+    // Heading — shortest path
+    final targetH = widget.heading.toDouble();
+    var dh = targetH - _heading;
+    if (dh > 180) dh -= 360;
+    if (dh < -180) dh += 360;
+    _heading += dh * _k;
+    if (_heading < 0) _heading += 360;
+    if (_heading >= 360) _heading -= 360;
+
+    // Stop when converged
+    final converged = (widget.roll - _roll).abs() < _eps &&
+        (widget.pitch - _pitch).abs() < _eps &&
+        dh.abs() < _eps &&
+        (widget.airspeed - _speed).abs() < 0.01 &&
+        (widget.altitude - _alt).abs() < 0.01;
+
+    if (converged) {
+      _roll = widget.roll;
+      _pitch = widget.pitch;
+      _heading = targetH;
+      _speed = widget.airspeed;
+      _alt = widget.altitude;
+      _altRel = widget.altitudeRel;
+      _vs = widget.climbRate;
+      _ticker.stop();
+      _tickerActive = false;
+    }
+
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: CustomPaint(
-        painter: _PfdPainter(roll: roll, pitch: pitch, heading: heading),
-        child: Container(),
+        painter: _PfdPainter(
+          roll: _roll,
+          pitch: _pitch,
+          heading: _heading.round(),
+          airspeed: _speed,
+          altitude: _alt,
+          altitudeRel: _altRel,
+          climbRate: _vs,
+        ),
+        child: const SizedBox.expand(),
       ),
     );
   }
@@ -428,162 +638,294 @@ class _PfdPainter extends CustomPainter {
     required this.roll,
     required this.pitch,
     required this.heading,
+    required this.airspeed,
+    required this.altitude,
+    required this.altitudeRel,
+    required this.climbRate,
   });
 
-  final double roll;
-  final double pitch;
+  final double roll, pitch, airspeed, altitude, altitudeRel, climbRate;
   final int heading;
 
-  // Pre-allocated paints
+  // Layout constants — tape widths
+  static const double _tapeWidth = 48.0;
+
+  // Paints
   static final _skyPaint = Paint()..color = HeliosColors.sky;
   static final _groundPaint = Paint()..color = HeliosColors.ground;
   static final _horizonPaint = Paint()
     ..color = HeliosColors.horizon
     ..strokeWidth = 2
     ..style = PaintingStyle.stroke;
-  static final _pitchLinePaint = Paint()
-    ..color = HeliosColors.pitchLine
-    ..strokeWidth = 1;
-  static final _centerPaint = Paint()
-    ..color = HeliosColors.warning
-    ..strokeWidth = 2.5
+  static final _tapeBgPaint = Paint()
+    ..color = HeliosColors.surfaceDim.withValues(alpha: 0.75);
+  static final _tapeLinePaint = Paint()
+    ..color = HeliosColors.textTertiary
+    ..strokeWidth = 0.5;
+  static final _readoutBgPaint = Paint()
+    ..color = HeliosColors.surfaceDim.withValues(alpha: 0.9);
+  static final _readoutBorderPaint = Paint()
+    ..color = HeliosColors.textPrimary
+    ..strokeWidth = 1.5
     ..style = PaintingStyle.stroke;
-  static final _headingBgPaint = Paint()
-    ..color = HeliosColors.surfaceDim.withValues(alpha: 0.7);
-  static final _headingTextStyle = TextStyle(
+
+  static const _tapeTextStyle = TextStyle(
+    color: HeliosColors.textSecondary,
+    fontSize: 10,
+    fontFamily: 'monospace',
+  );
+  static const _readoutTextStyle = TextStyle(
     color: HeliosColors.textPrimary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: FontWeight.w700,
+    fontFamily: 'monospace',
+  );
+  static const _labelTextStyle = TextStyle(
+    color: HeliosColors.textTertiary,
+    fontSize: 8,
     fontFamily: 'monospace',
   );
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final pitchPixelsPerDeg = size.height / 60; // 60 degrees visible
+    final w = size.width;
+    final h = size.height;
+
+    // Regions
+    final attitudeRect = Rect.fromLTWH(_tapeWidth, 0, w - _tapeWidth * 2, h);
+    final speedTapeRect = Rect.fromLTWH(0, 0, _tapeWidth, h);
+    final altTapeRect = Rect.fromLTWH(w - _tapeWidth, 0, _tapeWidth, h);
+
+    // --- Attitude indicator (centre) ---
+    canvas.save();
+    canvas.clipRect(attitudeRect);
+
+    final cx = attitudeRect.center.dx;
+    final cy = attitudeRect.center.dy;
+    final pitchPpd = h / 60;
 
     canvas.save();
     canvas.translate(cx, cy);
     canvas.rotate(-roll);
 
-    // Pitch offset
-    final pitchOffset = pitch * (180 / math.pi) * pitchPixelsPerDeg;
+    final po = pitch * (180 / math.pi) * pitchPpd;
 
-    // Sky (upper half, shifted by pitch)
-    canvas.drawRect(
-      Rect.fromLTWH(-size.width, -size.height + pitchOffset, size.width * 2, size.height),
-      _skyPaint,
-    );
+    canvas.drawRect(Rect.fromLTWH(-w, -h + po, w * 2, h), _skyPaint);
+    canvas.drawRect(Rect.fromLTWH(-w, po, w * 2, h), _groundPaint);
+    canvas.drawLine(Offset(-w, po), Offset(w, po), _horizonPaint);
 
-    // Ground (lower half, shifted by pitch)
-    canvas.drawRect(
-      Rect.fromLTWH(-size.width, pitchOffset, size.width * 2, size.height),
-      _groundPaint,
-    );
-
-    // Horizon line
-    canvas.drawLine(
-      Offset(-size.width, pitchOffset),
-      Offset(size.width, pitchOffset),
-      _horizonPaint,
-    );
-
-    // Pitch ladder (every 10 degrees)
-    for (var deg = -30; deg <= 30; deg += 10) {
+    // Pitch ladder — 5° and 10° lines
+    for (var deg = -30; deg <= 30; deg += 5) {
       if (deg == 0) continue;
-      final y = pitchOffset - deg * pitchPixelsPerDeg;
-      final halfWidth = deg.abs() < 20 ? 30.0 : 20.0;
-      canvas.drawLine(
-        Offset(-halfWidth, y),
-        Offset(halfWidth, y),
-        _pitchLinePaint,
-      );
+      final y = po - deg * pitchPpd;
+      final major = deg % 10 == 0;
+      final hw = major ? 28.0 : 14.0;
+      final paint = Paint()
+        ..color = HeliosColors.pitchLine
+        ..strokeWidth = major ? 1.0 : 0.5;
+      canvas.drawLine(Offset(-hw, y), Offset(hw, y), paint);
 
-      // Degree label
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${deg.abs()}',
-          style: TextStyle(color: HeliosColors.pitchLine, fontSize: 9),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(halfWidth + 4, y - tp.height / 2));
-      tp.paint(canvas, Offset(-halfWidth - tp.width - 4, y - tp.height / 2));
+      if (major) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '${deg.abs()}',
+            style: TextStyle(color: HeliosColors.pitchLine, fontSize: 8),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(hw + 3, y - tp.height / 2));
+        tp.paint(canvas, Offset(-hw - tp.width - 3, y - tp.height / 2));
+      }
     }
 
     canvas.restore();
 
-    // Fixed aircraft symbol (W shape)
+    // Aircraft symbol
     final acPaint = Paint()
       ..color = HeliosColors.warning
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx - 35, cy)
+        ..lineTo(cx - 12, cy)
+        ..lineTo(cx, cy + 7)
+        ..lineTo(cx + 12, cy)
+        ..lineTo(cx + 35, cy),
+      acPaint,
+    );
+    canvas.drawCircle(Offset(cx, cy), 2.5, Paint()..color = HeliosColors.warning);
 
-    final path = Path()
-      ..moveTo(cx - 40, cy)
-      ..lineTo(cx - 15, cy)
-      ..lineTo(cx, cy + 8)
-      ..lineTo(cx + 15, cy)
-      ..lineTo(cx + 40, cy);
-    canvas.drawPath(path, acPaint);
-
-    // Centre dot
-    canvas.drawCircle(Offset(cx, cy), 3, Paint()..color = HeliosColors.warning);
-
-    // Roll indicator arc at top
+    // Roll arc + pointer
     canvas.save();
     canvas.translate(cx, cy);
-    final rollArcRadius = size.height * 0.38;
-    final rollArcPaint = Paint()
-      ..color = HeliosColors.textPrimary.withValues(alpha: 0.5)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
+    final rr = h * 0.36;
     canvas.drawArc(
-      Rect.fromCircle(center: Offset.zero, radius: rollArcRadius),
-      -math.pi * 0.83, // start angle
-      math.pi * 0.66,   // sweep
+      Rect.fromCircle(center: Offset.zero, radius: rr),
+      -math.pi * 0.83,
+      math.pi * 0.66,
       false,
-      rollArcPaint,
+      Paint()
+        ..color = HeliosColors.textPrimary.withValues(alpha: 0.4)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke,
     );
 
-    // Roll pointer (triangle at current roll)
+    // Bank angle tick marks (10° increments)
+    for (final deg in [-30, -20, -10, 0, 10, 20, 30]) {
+      final a = (-90 + deg) * math.pi / 180;
+      final inner = rr - (deg == 0 ? 8 : 5);
+      canvas.drawLine(
+        Offset(math.cos(a) * inner, math.sin(a) * inner),
+        Offset(math.cos(a) * rr, math.sin(a) * rr),
+        Paint()
+          ..color = HeliosColors.textPrimary.withValues(alpha: 0.5)
+          ..strokeWidth = deg == 0 ? 1.5 : 0.8,
+      );
+    }
+
     canvas.rotate(-roll);
-    final pointerPath = Path()
-      ..moveTo(0, -rollArcRadius - 6)
-      ..lineTo(-5, -rollArcRadius + 2)
-      ..lineTo(5, -rollArcRadius + 2)
-      ..close();
-    canvas.drawPath(pointerPath, Paint()..color = HeliosColors.warning);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, -rr - 5)
+        ..lineTo(-4, -rr + 3)
+        ..lineTo(4, -rr + 3)
+        ..close(),
+      Paint()..color = HeliosColors.warning,
+    );
     canvas.restore();
 
-    // Heading readout at bottom
-    final hdgRect = Rect.fromCenter(
-      center: Offset(cx, size.height - 14),
-      width: 60,
-      height: 20,
+    // Heading readout
+    final hdgRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(cx, h - 12), width: 52, height: 18),
+      const Radius.circular(3),
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(hdgRect, const Radius.circular(3)),
-      _headingBgPaint,
+    canvas.drawRRect(hdgRect, _readoutBgPaint);
+    canvas.drawRRect(hdgRect, Paint()
+      ..color = HeliosColors.border
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke);
+    _drawText(canvas, '${heading.toString().padLeft(3, '0')}\u00B0',
+        _readoutTextStyle.copyWith(fontSize: 12), Offset(cx, h - 12));
+
+    canvas.restore(); // attitude clip
+
+    // --- Speed tape (left) ---
+    canvas.save();
+    canvas.clipRect(speedTapeRect);
+    canvas.drawRect(speedTapeRect, _tapeBgPaint);
+    _drawTape(canvas, speedTapeRect, airspeed, step: 5, majorEvery: 2);
+
+    // Speed readout box
+    _drawReadoutBox(canvas, speedTapeRect.center, '${airspeed.toStringAsFixed(0)}');
+
+    // "IAS" label
+    _drawText(canvas, 'IAS', _labelTextStyle,
+        Offset(speedTapeRect.center.dx, 10));
+    canvas.restore();
+
+    // --- Altitude tape (right) ---
+    canvas.save();
+    canvas.clipRect(altTapeRect);
+    canvas.drawRect(altTapeRect, _tapeBgPaint);
+    _drawTape(canvas, altTapeRect, altitude, step: 10, majorEvery: 2, alignRight: true);
+
+    // Alt readout box
+    _drawReadoutBox(canvas, altTapeRect.center, '${altitude.toStringAsFixed(0)}');
+
+    // REL alt below readout
+    _drawText(canvas, 'R ${altitudeRel.toStringAsFixed(0)}m',
+        _labelTextStyle.copyWith(color: HeliosColors.accent, fontSize: 9),
+        Offset(altTapeRect.center.dx, altTapeRect.center.dy + 16));
+
+    // VS arrow
+    if (climbRate.abs() > 0.3) {
+      final vsY = altTapeRect.center.dy + 30;
+      final arrow = climbRate > 0 ? '\u25B2' : '\u25BC';
+      final vsColor = climbRate > 0 ? HeliosColors.success : HeliosColors.warning;
+      _drawText(canvas, '$arrow${climbRate.abs().toStringAsFixed(1)}',
+          _labelTextStyle.copyWith(color: vsColor, fontSize: 9),
+          Offset(altTapeRect.center.dx, vsY));
+    }
+
+    // "ALT" label
+    _drawText(canvas, 'ALT', _labelTextStyle,
+        Offset(altTapeRect.center.dx, 10));
+    canvas.restore();
+  }
+
+  void _drawTape(Canvas canvas, Rect rect, double value, {
+    required int step,
+    int majorEvery = 2,
+    bool alignRight = false,
+  }) {
+    final pixelsPerUnit = rect.height / 12; // Show ~12 steps visible
+    final cy = rect.center.dy;
+
+    // Range of values visible on tape
+    final minVal = value - 6 * step;
+    final maxVal = value + 6 * step;
+    final firstTick = (minVal / step).floor() * step;
+
+    for (var v = firstTick; v <= maxVal; v += step) {
+      final y = cy - (v - value) * pixelsPerUnit / step;
+      if (y < rect.top - 10 || y > rect.bottom + 10) continue;
+
+      final tickIndex = (v / step).round();
+      final isMajor = tickIndex % majorEvery == 0;
+      final tickLen = isMajor ? 8.0 : 4.0;
+
+      if (alignRight) {
+        canvas.drawLine(
+          Offset(rect.left, y),
+          Offset(rect.left + tickLen, y),
+          _tapeLinePaint,
+        );
+      } else {
+        canvas.drawLine(
+          Offset(rect.right - tickLen, y),
+          Offset(rect.right, y),
+          _tapeLinePaint,
+        );
+      }
+
+      if (isMajor && v >= 0) {
+        final tp = TextPainter(
+          text: TextSpan(text: '${v.round()}', style: _tapeTextStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final x = alignRight
+            ? rect.left + tickLen + 3
+            : rect.right - tickLen - tp.width - 3;
+        tp.paint(canvas, Offset(x, y - tp.height / 2));
+      }
+    }
+  }
+
+  void _drawReadoutBox(Canvas canvas, Offset center, String text) {
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: 42, height: 20),
+      const Radius.circular(3),
     );
-    final hdgTp = TextPainter(
-      text: TextSpan(
-        text: '${heading.toString().padLeft(3, '0')}\u00B0',
-        style: _headingTextStyle,
-      ),
+    canvas.drawRRect(rrect, _readoutBgPaint);
+    canvas.drawRRect(rrect, _readoutBorderPaint);
+    _drawText(canvas, text, _readoutTextStyle, center);
+  }
+
+  void _drawText(Canvas canvas, String text, TextStyle style, Offset center) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,
     )..layout();
-    hdgTp.paint(canvas, Offset(cx - hdgTp.width / 2, size.height - 14 - hdgTp.height / 2));
+    tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
   }
 
   @override
-  bool shouldRepaint(covariant _PfdPainter oldDelegate) {
-    return roll != oldDelegate.roll ||
-        pitch != oldDelegate.pitch ||
-        heading != oldDelegate.heading;
+  bool shouldRepaint(covariant _PfdPainter old) {
+    return roll != old.roll || pitch != old.pitch || heading != old.heading ||
+        airspeed != old.airspeed || altitude != old.altitude ||
+        altitudeRel != old.altitudeRel || climbRate != old.climbRate;
   }
 }
 

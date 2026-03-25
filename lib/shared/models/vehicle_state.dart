@@ -76,6 +76,7 @@ class VehicleState extends Equatable {
     this.armed = false,
     this.lastHeartbeat,
     this.rssi = 0,
+    this.currentWaypoint = -1,
   });
 
   // Identity
@@ -120,6 +121,7 @@ class VehicleState extends Equatable {
   final bool armed;
   final DateTime? lastHeartbeat;
   final int rssi;
+  final int currentWaypoint; // -1 = no mission active
 
   /// Convenience — whether we have a valid GPS position.
   bool get hasPosition => latitude != 0.0 || longitude != 0.0;
@@ -157,6 +159,7 @@ class VehicleState extends Equatable {
     bool? armed,
     DateTime? lastHeartbeat,
     int? rssi,
+    int? currentWaypoint,
   }) {
     return VehicleState(
       systemId: systemId ?? this.systemId,
@@ -190,6 +193,7 @@ class VehicleState extends Equatable {
       armed: armed ?? this.armed,
       lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
       rssi: rssi ?? this.rssi,
+      currentWaypoint: currentWaypoint ?? this.currentWaypoint,
     );
   }
 
@@ -200,6 +204,6 @@ class VehicleState extends Equatable {
         latitude, longitude, altitudeMsl, altitudeRel, gpsFix, satellites, hdop,
         airspeed, groundspeed, heading, climbRate, throttle,
         batteryVoltage, batteryCurrent, batteryRemaining, batteryConsumed,
-        flightMode, armed, lastHeartbeat, rssi,
+        flightMode, armed, lastHeartbeat, rssi, currentWaypoint,
       ];
 }

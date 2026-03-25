@@ -1,5 +1,9 @@
 /// MAVLink v2 protocol constants and base types.
 
+// CRC extras are auto-generated from MAVLink XML.
+// Run: dart run scripts/generate_crc_extras.dart
+export 'generated_crc_extras.dart';
+
 /// MAVLink v2 start-of-frame marker.
 const int mavlinkV2Magic = 0xFD;
 
@@ -45,28 +49,6 @@ abstract class MavlinkMessage {
   int get sequence;
 }
 
-/// CRC extra values for each message ID.
-/// These are derived from the message field definitions.
-/// Reference: https://mavlink.io/en/guide/serialization.html#crc_extra
-const Map<int, int> mavlinkCrcExtras = {
-  0: 50,    // HEARTBEAT
-  1: 124,   // SYS_STATUS
-  24: 24,   // GPS_RAW_INT
-  30: 39,   // ATTITUDE
-  33: 104,  // GLOBAL_POSITION_INT
-  36: 222,  // SERVO_OUTPUT_RAW
-  44: 159,  // MISSION_COUNT
-  47: 153,  // MISSION_ACK
-  51: 196,  // MISSION_REQUEST_INT
-  65: 118,  // RC_CHANNELS
-  73: 38,   // MISSION_ITEM_INT
-  74: 20,   // VFR_HUD
-  76: 152,  // COMMAND_LONG
-  77: 143,  // COMMAND_ACK
-  147: 154, // BATTERY_STATUS
-  241: 90,  // VIBRATION
-  253: 83,  // STATUSTEXT
-};
 
 /// MAV_TYPE enumeration (subset).
 abstract final class MavType {
@@ -105,6 +87,66 @@ abstract final class MavState {
   static const int active = 4;
   static const int critical = 5;
   static const int emergency = 6;
+}
+
+/// MAV_MISSION_RESULT enumeration.
+abstract final class MavMissionResult {
+  static const int accepted = 0;
+  static const int error = 1;
+  static const int unsupportedFrame = 2;
+  static const int unsupported = 3;
+  static const int noSpace = 4;
+  static const int invalid = 5;
+  static const int invalidParam1 = 6;
+  static const int invalidParam2 = 7;
+  static const int invalidParam3 = 8;
+  static const int invalidParam4 = 9;
+  static const int invalidParam5X = 10;
+  static const int invalidParam6Y = 11;
+  static const int invalidParam7 = 12;
+  static const int invalidSequence = 13;
+  static const int denied = 14;
+  static const int operationCancelled = 15;
+}
+
+/// MAV_MISSION_TYPE enumeration.
+abstract final class MavMissionType {
+  static const int mission = 0;
+  static const int fence = 1;
+  static const int rally = 2;
+  static const int all = 255;
+}
+
+/// MAV_FRAME enumeration (subset).
+abstract final class MavFrame {
+  static const int global = 0;
+  static const int localNed = 1;
+  static const int mission = 2;
+  static const int globalRelativeAlt = 3;
+  static const int globalInt = 5;
+  static const int globalRelativeAltInt = 6;
+  static const int globalTerrainAlt = 10;
+  static const int globalTerrainAltInt = 11;
+}
+
+/// MAV_CMD enumeration (subset — mission-relevant commands).
+abstract final class MavCmd {
+  static const int navWaypoint = 16;
+  static const int navLoiterUnlim = 17;
+  static const int navLoiterTurns = 18;
+  static const int navLoiterTime = 19;
+  static const int navReturnToLaunch = 20;
+  static const int navLand = 21;
+  static const int navTakeoff = 22;
+  static const int navLoiterToAlt = 31;
+  static const int doSetMode = 176;
+  static const int doChangeSpeed = 178;
+  static const int doSetHome = 179;
+  static const int doSetRelay = 181;
+  static const int doSetServo = 183;
+  static const int doJump = 177;
+  static const int componentArmDisarm = 400;
+  static const int missionStart = 300;
 }
 
 /// MAV_SEVERITY for STATUSTEXT.

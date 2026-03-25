@@ -100,6 +100,24 @@ abstract final class HeliosSchema {
     );
   ''';
 
+  static const createMissions = '''
+    CREATE TABLE IF NOT EXISTS missions (
+      ts          TIMESTAMP NOT NULL,
+      direction   VARCHAR NOT NULL,
+      seq         SMALLINT NOT NULL,
+      frame       TINYINT NOT NULL,
+      command     SMALLINT NOT NULL,
+      param1      DOUBLE,
+      param2      DOUBLE,
+      param3      DOUBLE,
+      param4      DOUBLE,
+      lat         DOUBLE NOT NULL,
+      lon         DOUBLE NOT NULL,
+      alt         DOUBLE NOT NULL,
+      autocont    TINYINT NOT NULL
+    );
+  ''';
+
   static const allTables = [
     createFlightMeta,
     createAttitude,
@@ -110,5 +128,6 @@ abstract final class HeliosSchema {
     createEvents,
     createRcChannels,
     createServoOutput,
+    createMissions,
   ];
 }

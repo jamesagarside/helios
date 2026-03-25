@@ -1,0 +1,98 @@
+name: Release Desktop
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: brew install automake libtool
+      - run: flutter pub get
+      - run: flutter build macos --release
+
+      - name: Create DMG
+        run: |
+          cd build/macos/Build/Products/Release
+          mkdir -p dmg_contents
+          cp -R helios_gcs.app dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+          hdiutil create -volname "Helios GCS" -srcfolder dmg_contents -ov -format UDZO ../helios-gcs-macos.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: build/macos/Build/Products/helios-gcs-macos.dmg
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libserialport-dev libmpv-dev
+
+      - run: flutter pub get
+      - run: flutter build linux --release
+
+      - name: Create tarball
+        run: |
+          cd build/linux/x64/release/bundle
+          tar czf ../../../helios-gcs-linux-x64.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: build/linux/x64/release/helios-gcs-linux-x64.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter build windows --release
+
+      - name: Create zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath build\helios-gcs-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: build/helios-gcs-windows-x64.zip
+
+  create-release:
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/macos-dmg/helios-gcs-macos.dmg
+            artifacts/linux-tarball/helios-gcs-linux-x64.tar.gz
+            artifacts/windows-zip/helios-gcs-windows-x64.zip

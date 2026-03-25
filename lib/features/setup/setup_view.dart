@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/mavlink/transports/serial_transport.dart';
 import '../../shared/models/connection_state.dart';
+import '../../shared/providers/connection_settings_provider.dart';
+import '../../shared/providers/stream_rate_provider.dart';
 import '../../shared/models/layout_profile.dart' as layout;
 import '../../shared/models/vehicle_state.dart';
 import '../../core/map/cached_tile_provider.dart';
@@ -27,6 +30,61 @@ class _SetupViewState extends ConsumerState<SetupView> {
   final _tcpPortController = TextEditingController(text: '5760');
   String? _errorMessage;
 
+  // Serial port state
+  List<String> _serialPorts = [];
+  String? _selectedSerialPort;
+  int _baudRate = 115200;
+  static const _baudRates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSerialPorts();
+    _loadSavedSettings();
+  }
+
+  void _loadSavedSettings() {
+    // Load last-used connection config after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saved = ref.read(connectionSettingsProvider);
+      if (saved == null) return;
+
+      setState(() {
+        switch (saved) {
+          case UdpConnectionConfig(:final bindAddress, :final port):
+            _transportType = 'UDP';
+            _addressController.text = bindAddress;
+            _portController.text = port.toString();
+          case TcpConnectionConfig(:final host, :final port):
+            _transportType = 'TCP';
+            _tcpHostController.text = host;
+            _tcpPortController.text = port.toString();
+          case SerialConnectionConfig(:final portName, :final baudRate):
+            _transportType = 'Serial';
+            _selectedSerialPort = portName;
+            _baudRate = baudRate;
+        }
+      });
+    });
+  }
+
+  void _refreshSerialPorts() {
+    try {
+      _serialPorts = SerialTransport.availablePorts();
+      if (_serialPorts.isNotEmpty && _selectedSerialPort == null) {
+        _selectedSerialPort = _serialPorts.first;
+      }
+      if (_selectedSerialPort != null &&
+          !_serialPorts.contains(_selectedSerialPort)) {
+        _selectedSerialPort =
+            _serialPorts.isNotEmpty ? _serialPorts.first : null;
+      }
+    } catch (_) {
+      _serialPorts = [];
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _addressController.dispose();
@@ -51,8 +109,16 @@ class _SetupViewState extends ConsumerState<SetupView> {
           host: _tcpHostController.text.trim(),
           port: int.parse(_tcpPortController.text.trim()),
         );
+      } else if (_transportType == 'Serial') {
+        if (_selectedSerialPort == null) {
+          setState(() => _errorMessage = 'No serial port selected');
+          return;
+        }
+        config = SerialConnectionConfig(
+          portName: _selectedSerialPort!,
+          baudRate: _baudRate,
+        );
       } else {
-        setState(() => _errorMessage = 'Serial not yet implemented');
         return;
       }
 
@@ -126,9 +192,63 @@ class _SetupViewState extends ConsumerState<SetupView> {
                     enabled: !isConnected,
                   ),
                 ] else ...[
-                  const Text(
-                    'Serial transport requires flutter_libserialport — Phase 4',
-                    style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
+                  // Serial port picker
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedSerialPort,
+                          decoration: const InputDecoration(labelText: 'Port'),
+                          dropdownColor: HeliosColors.surfaceLight,
+                          items: _serialPorts.map((port) {
+                            final desc = SerialTransport.portDescription(port);
+                            return DropdownMenuItem(
+                              value: port,
+                              child: Text(
+                                desc,
+                                style: const TextStyle(fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: isConnected
+                              ? null
+                              : (v) => setState(() => _selectedSerialPort = v),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 20),
+                        tooltip: 'Refresh ports',
+                        onPressed: isConnected ? null : _refreshSerialPorts,
+                      ),
+                    ],
+                  ),
+                  if (_serialPorts.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'No serial ports detected. Connect your flight controller via USB.',
+                        style: TextStyle(color: HeliosColors.warning, fontSize: 12),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  // Baud rate selector
+                  DropdownButtonFormField<int>(
+                    initialValue: _baudRate,
+                    decoration: const InputDecoration(labelText: 'Baud Rate'),
+                    dropdownColor: HeliosColors.surfaceLight,
+                    items: _baudRates
+                        .map((b) => DropdownMenuItem(
+                              value: b,
+                              child: Text('$b'),
+                            ))
+                        .toList(),
+                    onChanged: isConnected
+                        ? null
+                        : (v) {
+                            if (v != null) setState(() => _baudRate = v);
+                          },
                   ),
                 ],
 
@@ -228,6 +348,18 @@ class _SetupViewState extends ConsumerState<SetupView> {
                 ),
               ],
             ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Stream Rates
+        Text('Telemetry Rates', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _StreamRateSettings(),
           ),
         ),
 
@@ -875,6 +1007,149 @@ class _LayoutProfilesSection extends ConsumerWidget {
             },
             child: const Text('Delete',
                 style: TextStyle(color: HeliosColors.danger, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StreamRateSettings extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(streamRateProvider);
+    final notifier = ref.read(streamRateProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Control how fast telemetry is requested from the flight controller. '
+          'Higher rates give smoother instruments but use more bandwidth and storage.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+
+        // Preset buttons
+        Wrap(
+          spacing: 8,
+          children: StreamRatePreset.values
+              .where((p) => p != StreamRatePreset.custom)
+              .map((preset) => ChoiceChip(
+                    label: Text(preset.label, style: const TextStyle(fontSize: 12)),
+                    selected: rates.preset == preset,
+                    onSelected: (_) => notifier.applyPreset(preset),
+                    selectedColor: HeliosColors.accentDim,
+                    backgroundColor: HeliosColors.surfaceLight,
+                    labelStyle: TextStyle(
+                      color: rates.preset == preset
+                          ? HeliosColors.textPrimary
+                          : HeliosColors.textSecondary,
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 12),
+
+        // Individual rate sliders
+        _RateSlider(
+          label: 'Attitude (PFD)',
+          value: rates.attitudeHz,
+          min: 1,
+          max: 50,
+          onChanged: (v) => notifier.setRate(attitudeHz: v),
+        ),
+        _RateSlider(
+          label: 'Position (GPS/Map)',
+          value: rates.positionHz,
+          min: 1,
+          max: 10,
+          onChanged: (v) => notifier.setRate(positionHz: v),
+        ),
+        _RateSlider(
+          label: 'VFR HUD (Speed/Alt)',
+          value: rates.vfrHudHz,
+          min: 1,
+          max: 10,
+          onChanged: (v) => notifier.setRate(vfrHudHz: v),
+        ),
+        _RateSlider(
+          label: 'Status (Battery/GPS fix)',
+          value: rates.statusHz,
+          min: 1,
+          max: 5,
+          onChanged: (v) => notifier.setRate(statusHz: v),
+        ),
+
+        const SizedBox(height: 8),
+        Text(
+          'Est. ${rates.estimatedRowsPerMinute} rows/min to DuckDB',
+          style: const TextStyle(
+            color: HeliosColors.textTertiary,
+            fontSize: 11,
+            fontFamily: 'monospace',
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Changes take effect on next connect.',
+          style: TextStyle(color: HeliosColors.textTertiary, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+class _RateSlider extends StatelessWidget {
+  const _RateSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final void Function(int) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: HeliosColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Slider(
+              value: value.toDouble(),
+              min: min.toDouble(),
+              max: max.toDouble(),
+              divisions: max - min,
+              onChanged: (v) => onChanged(v.round()),
+            ),
+          ),
+          SizedBox(
+            width: 45,
+            child: Text(
+              '$value Hz',
+              style: const TextStyle(
+                color: HeliosColors.textPrimary,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
         ],
       ),

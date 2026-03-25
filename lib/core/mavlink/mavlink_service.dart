@@ -15,7 +15,7 @@ class MavlinkService {
   final MavlinkTransport _transport;
   final MavlinkParser _parser = MavlinkParser();
   final HeartbeatWatchdog _watchdog = HeartbeatWatchdog();
-  late final MavlinkFrameBuilder _frameBuilder = MavlinkFrameBuilder();
+  late final MavlinkFrameBuilder frameBuilder = MavlinkFrameBuilder();
 
   StreamSubscription<Uint8List>? _dataSubscription;
   Timer? _heartbeatTimer;
@@ -85,6 +85,80 @@ class MavlinkService {
     _messagesSent++;
   }
 
+  /// Request telemetry at specified rates.
+  ///
+  /// Tries MAV_CMD_SET_MESSAGE_INTERVAL (modern, per-message) first.
+  /// Falls back to REQUEST_DATA_STREAM (legacy, per-stream-group) if
+  /// the FC doesn't support command 511.
+  Future<void> requestStreamRates({
+    required int targetSystem,
+    required int targetComponent,
+    int attitudeHz = 10,
+    int positionHz = 5,
+    int vfrHz = 5,
+    int statusHz = 2,
+    int rcHz = 2,
+  }) async {
+    // Try modern per-message interval (command 511) first
+    final useModern = await _trySetMessageInterval(
+      targetSystem, targetComponent, 30, attitudeHz, // ATTITUDE
+    );
+
+    if (useModern) {
+      // FC supports command 511 — set all individually
+      await _trySetMessageInterval(targetSystem, targetComponent, 33, positionHz); // GLOBAL_POSITION_INT
+      await _trySetMessageInterval(targetSystem, targetComponent, 74, vfrHz);      // VFR_HUD
+      await _trySetMessageInterval(targetSystem, targetComponent, 1, statusHz);    // SYS_STATUS
+      await _trySetMessageInterval(targetSystem, targetComponent, 24, statusHz);   // GPS_RAW_INT
+      await _trySetMessageInterval(targetSystem, targetComponent, 65, rcHz);       // RC_CHANNELS
+      await _trySetMessageInterval(targetSystem, targetComponent, 241, 1);         // VIBRATION
+    } else {
+      // Fallback to legacy REQUEST_DATA_STREAM
+      await _requestLegacyStream(targetSystem, targetComponent, 10, attitudeHz);
+      await _requestLegacyStream(targetSystem, targetComponent, 6, positionHz);
+      await _requestLegacyStream(targetSystem, targetComponent, 11, vfrHz);
+      await _requestLegacyStream(targetSystem, targetComponent, 2, statusHz);
+      await _requestLegacyStream(targetSystem, targetComponent, 3, rcHz);
+    }
+  }
+
+  /// Try MAV_CMD_SET_MESSAGE_INTERVAL (511).
+  /// Returns true if the FC accepted it, false if NACKed or timed out.
+  Future<bool> _trySetMessageInterval(
+    int targetSystem, int targetComponent, int msgId, int rateHz,
+  ) async {
+    final intervalUs = rateHz > 0 ? (1000000 / rateHz).round() : -1;
+    await sendCommand(
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      command: 511, // MAV_CMD_SET_MESSAGE_INTERVAL
+      param1: msgId.toDouble(),
+      param2: intervalUs.toDouble(),
+    );
+
+    // Wait briefly for ACK
+    try {
+      final ack = await messagesOf<CommandAckMessage>()
+          .where((m) => m.command == 511)
+          .first
+          .timeout(const Duration(milliseconds: 500));
+      return ack.accepted;
+    } on TimeoutException {
+      return false;
+    }
+  }
+
+  Future<void> _requestLegacyStream(
+    int targetSystem, int targetComponent, int streamId, int rateHz,
+  ) async {
+    await sendRaw(frameBuilder.buildRequestDataStream(
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      streamId: streamId,
+      messageRate: rateHz,
+    ));
+  }
+
   /// Send a COMMAND_LONG to the vehicle.
   Future<void> sendCommand({
     required int targetSystem,
@@ -99,7 +173,7 @@ class MavlinkService {
     double param6 = 0,
     double param7 = 0,
   }) async {
-    final frame = _frameBuilder.buildCommandLong(
+    final frame = frameBuilder.buildCommandLong(
       targetSystem: targetSystem,
       targetComponent: targetComponent,
       command: command,
@@ -132,7 +206,7 @@ class MavlinkService {
   }
 
   void _sendHeartbeat() {
-    final frame = _frameBuilder.buildHeartbeat();
+    final frame = frameBuilder.buildHeartbeat();
     _transport.send(frame);
     _messagesSent++;
   }

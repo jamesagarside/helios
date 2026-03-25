@@ -28,6 +28,7 @@ void main() {
 
       final msg = AttitudeMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.roll, closeTo(0.5, 0.001));
       expect(notifier.state.pitch, closeTo(-0.1, 0.001));
@@ -46,6 +47,7 @@ void main() {
 
       final msg = GlobalPositionIntMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.latitude, closeTo(-35.362, 0.001));
       expect(notifier.state.longitude, closeTo(149.165, 0.001));
@@ -65,6 +67,7 @@ void main() {
 
       final msg = GpsRawIntMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.gpsFix, GpsFix.fix3d);
       expect(notifier.state.satellites, 14);
@@ -80,6 +83,7 @@ void main() {
 
       final msg = SysStatusMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.batteryVoltage, closeTo(12.42, 0.01));
       expect(notifier.state.batteryCurrent, closeTo(15.0, 0.01));
@@ -97,6 +101,7 @@ void main() {
 
       final msg = VfrHudMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.airspeed, closeTo(22.5, 0.01));
       expect(notifier.state.groundspeed, closeTo(25.1, 0.01));
@@ -115,6 +120,7 @@ void main() {
 
       final msg = HeartbeatMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.armed, true);
       expect(notifier.state.vehicleType, VehicleType.fixedWing);
@@ -131,6 +137,7 @@ void main() {
 
       final msg = HeartbeatMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.armed, false);
       expect(notifier.state.vehicleType, VehicleType.quadrotor);
@@ -143,6 +150,7 @@ void main() {
 
       final msg = RcChannelsMessage.fromPayload(payload, 1, 1, 0);
       notifier.handleMessage(msg);
+      notifier.flush();
 
       expect(notifier.state.rssi, 189);
     });
@@ -154,6 +162,7 @@ void main() {
       payload[6] = MavModeFlag.safetyArmed;
       payload[8] = 3;
       notifier.handleMessage(HeartbeatMessage.fromPayload(payload, 1, 1, 0));
+      notifier.flush();
 
       expect(notifier.state.armed, true);
 
@@ -183,6 +192,7 @@ void main() {
         payload[28] = fixType;
         final msg = GpsRawIntMessage.fromPayload(payload, 1, 1, 0);
         notifier.handleMessage(msg);
+        notifier.flush();
         // Should not throw
         expect(notifier.state.gpsFix, isNotNull);
       }

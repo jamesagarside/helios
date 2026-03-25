@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:duckdb_dart/duckdb_dart.dart';
+import '../../shared/models/mission_item.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -240,6 +241,25 @@ class TelemetryStore {
     _conn = null;
     _isRecording = false;
     _currentFilePath = null;
+  }
+
+  /// Save a mission snapshot to the database.
+  /// Called on upload/download to record the mission at that point in time.
+  void saveMission(List<MissionItem> items, {required String direction}) {
+    if (_conn == null || items.isEmpty) return;
+
+    try {
+      final now = DateTime.now().toUtc();
+      final ts = _ts(now);
+      final values = items.map((item) =>
+        "('$ts', '$direction', ${item.seq}, ${item.frame}, ${item.command}, "
+        '${item.param1}, ${item.param2}, ${item.param3}, ${item.param4}, '
+        '${item.latitude}, ${item.longitude}, ${item.altitude}, ${item.autocontinue})'
+      ).join(', ');
+      _conn!.execute('INSERT INTO missions VALUES $values');
+    } catch (_) {
+      // Don't let persistence errors affect operations
+    }
   }
 
   /// Open an existing flight database for analysis.

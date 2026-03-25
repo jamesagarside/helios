@@ -554,6 +554,282 @@ class ServoOutputRawMessage extends MavlinkMessage {
   }
 }
 
+/// MISSION_CURRENT (msg_id=42) — current active mission item sequence.
+class MissionCurrentMessage extends MavlinkMessage {
+  MissionCurrentMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.seq,
+  });
+
+  @override
+  final int messageId = 42;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int seq; // Current waypoint sequence number
+
+  factory MissionCurrentMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seqNum,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MissionCurrentMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seqNum,
+      seq: data.getUint16(0, Endian.little),
+    );
+  }
+}
+
+/// MISSION_REQUEST_LIST (msg_id=43) — request mission item count.
+class MissionRequestListMessage extends MavlinkMessage {
+  MissionRequestListMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    this.missionType = 0,
+  });
+
+  @override
+  final int messageId = 43;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final int missionType;
+
+  factory MissionRequestListMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    return MissionRequestListMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      targetSystem: payload[0],
+      targetComponent: payload[1],
+      missionType: payload.length > 2 ? payload[2] : 0,
+    );
+  }
+}
+
+/// MISSION_COUNT (msg_id=44) — number of mission items.
+class MissionCountMessage extends MavlinkMessage {
+  MissionCountMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.count,
+    this.missionType = 0,
+  });
+
+  @override
+  final int messageId = 44;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final int count;
+  final int missionType;
+
+  factory MissionCountMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MissionCountMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      count: data.getUint16(0, Endian.little),
+      targetSystem: payload[2],
+      targetComponent: payload[3],
+      missionType: payload.length > 4 ? payload[4] : 0,
+    );
+  }
+}
+
+/// MISSION_ACK (msg_id=47) — mission transfer acknowledgement.
+class MissionAckMessage extends MavlinkMessage {
+  MissionAckMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.type,
+    this.missionType = 0,
+  });
+
+  @override
+  final int messageId = 47;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final int type; // MAV_MISSION_RESULT
+  final int missionType;
+
+  bool get accepted => type == 0; // MAV_MISSION_RESULT_ACCEPTED
+
+  factory MissionAckMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    return MissionAckMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      targetSystem: payload[0],
+      targetComponent: payload[1],
+      type: payload[2],
+      missionType: payload.length > 3 ? payload[3] : 0,
+    );
+  }
+}
+
+/// MISSION_REQUEST_INT (msg_id=51) — request a specific mission item.
+class MissionRequestIntMessage extends MavlinkMessage {
+  MissionRequestIntMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.seq,
+    this.missionType = 0,
+  });
+
+  @override
+  final int messageId = 51;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final int seq; // Requested item sequence number
+  final int missionType;
+
+  factory MissionRequestIntMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seqNum,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MissionRequestIntMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seqNum,
+      seq: data.getUint16(0, Endian.little),
+      targetSystem: payload[2],
+      targetComponent: payload[3],
+      missionType: payload.length > 4 ? payload[4] : 0,
+    );
+  }
+}
+
+/// MISSION_ITEM_INT (msg_id=73) — mission item with int32 lat/lon.
+class MissionItemIntMessage extends MavlinkMessage {
+  MissionItemIntMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.seq,
+    required this.frame,
+    required this.command,
+    required this.current,
+    required this.autocontinue,
+    required this.param1,
+    required this.param2,
+    required this.param3,
+    required this.param4,
+    required this.x,
+    required this.y,
+    required this.z,
+    this.missionType = 0,
+  });
+
+  @override
+  final int messageId = 73;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetSystem;
+  final int targetComponent;
+  final int seq;         // Waypoint sequence number
+  final int frame;       // MAV_FRAME
+  final int command;     // MAV_CMD
+  final int current;     // 0 or 1
+  final int autocontinue;
+  final double param1;
+  final double param2;
+  final double param3;
+  final double param4;
+  final int x;           // Latitude degE7
+  final int y;           // Longitude degE7
+  final double z;        // Altitude (metres)
+  final int missionType;
+
+  double get latDeg => x / 1e7;
+  double get lonDeg => y / 1e7;
+
+  factory MissionItemIntMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seqNum,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MissionItemIntMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seqNum,
+      param1: data.getFloat32(0, Endian.little),
+      param2: data.getFloat32(4, Endian.little),
+      param3: data.getFloat32(8, Endian.little),
+      param4: data.getFloat32(12, Endian.little),
+      x: data.getInt32(16, Endian.little),
+      y: data.getInt32(20, Endian.little),
+      z: data.getFloat32(24, Endian.little),
+      seq: data.getUint16(28, Endian.little),
+      command: data.getUint16(30, Endian.little),
+      targetSystem: payload[32],
+      targetComponent: payload[33],
+      frame: payload[34],
+      current: payload[35],
+      autocontinue: payload[36],
+      missionType: payload.length > 37 ? payload[37] : 0,
+    );
+  }
+}
+
 /// Unrecognised message — payload preserved for inspection.
 class UnknownMessage extends MavlinkMessage {
   UnknownMessage({
