@@ -13,6 +13,7 @@ class StatusBar extends StatelessWidget {
     this.satellites = 0,
     this.currentWaypoint = -1,
     this.totalWaypoints = 0,
+    this.alertCount = 0,
   });
 
   final String flightMode;
@@ -23,6 +24,7 @@ class StatusBar extends StatelessWidget {
   final int satellites;
   final int currentWaypoint;
   final int totalWaypoints;
+  final int alertCount;
 
   String _formatDuration(Duration d) {
     final hours = d.inHours.toString().padLeft(2, '0');
@@ -112,6 +114,16 @@ class StatusBar extends StatelessWidget {
                 color: _linkColor(),
                 mono: true,
               ),
+              // Maintenance alerts badge
+              if (alertCount > 0) ...[
+                const _Separator(),
+                _StatusChip(
+                  icon: Icons.warning_amber,
+                  label: '$alertCount alert${alertCount == 1 ? '' : 's'}',
+                  color: HeliosColors.warning,
+                  bold: true,
+                ),
+              ],
             ],
           ),
         ),

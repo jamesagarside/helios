@@ -8,6 +8,7 @@ import '../../core/mavlink/transports/tcp_transport.dart';
 import '../../core/mavlink/transports/serial_transport.dart';
 import '../../core/mission/mission_service.dart';
 import '../../core/params/parameter_service.dart';
+import '../../core/telemetry/maintenance_service.dart';
 import '../../core/telemetry/replay_service.dart';
 import '../../core/telemetry/telemetry_store.dart';
 import '../models/vehicle_state.dart';
@@ -114,6 +115,17 @@ final replayServiceProvider = Provider<ReplayService>((ref) {
 
 /// True when the Fly View is showing replayed data instead of live telemetry.
 final replayActiveProvider = StateProvider<bool>((ref) => false);
+
+/// Predictive maintenance alerts computed from historical flight data.
+///
+/// Automatically re-evaluates whenever the telemetry store changes.
+/// Returns an empty list if fewer than 3 flights are recorded.
+final maintenanceAlertsProvider =
+    FutureProvider<List<MaintenanceAlert>>((ref) async {
+  final store = ref.watch(telemetryStoreProvider);
+  final flights = await store.listFlights();
+  return MaintenanceService().analyze(flights);
+});
 
 /// Mission state — tracks mission items, transfer state, current waypoint.
 final missionStateProvider = StateProvider<MissionState>(

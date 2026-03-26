@@ -14,6 +14,7 @@ import '../../shared/models/vehicle_state.dart';
 import '../../core/map/cached_tile_provider.dart';
 import '../../shared/providers/display_provider.dart';
 import '../../shared/providers/layout_provider.dart';
+import '../../core/telemetry/maintenance_service.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/providers/video_provider.dart';
 import '../../shared/theme/helios_colors.dart';
@@ -491,8 +492,20 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
         const SizedBox(height: 24),
 
+        // Predictive Maintenance
+        const Text('Predictive Maintenance', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: _MaintenancePanel(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // About
-        Text('About', style: HeliosTypography.heading2),
+        const Text('About', style: HeliosTypography.heading2),
         const SizedBox(height: 12),
         Card(
           child: Padding(
@@ -517,6 +530,135 @@ class _SetupViewState extends ConsumerState<SetupView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Predictive maintenance panel that surfaces alerts derived from flight history.
+class _MaintenancePanel extends ConsumerWidget {
+  const _MaintenancePanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncAlerts = ref.watch(maintenanceAlertsProvider);
+
+    return asyncAlerts.when(
+      loading: () => const SizedBox(
+        height: 48,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (e, _) => Text(
+        'Analysis error: $e',
+        style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
+      ),
+      data: (alerts) {
+        if (alerts.isEmpty) {
+          return const Row(
+            children: [
+              Icon(Icons.check_circle_outline,
+                  size: 18, color: HeliosColors.success),
+              SizedBox(width: 8),
+              Text(
+                'No maintenance concerns detected.',
+                style: TextStyle(
+                    color: HeliosColors.textSecondary, fontSize: 13),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: alerts.map((alert) => _AlertTile(alert: alert)).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _AlertTile extends StatelessWidget {
+  const _AlertTile({required this.alert});
+
+  final MaintenanceAlert alert;
+
+  Color get _color => switch (alert.severity) {
+        MaintenanceSeverity.critical => HeliosColors.danger,
+        MaintenanceSeverity.warning => HeliosColors.warning,
+        MaintenanceSeverity.info => HeliosColors.accent,
+      };
+
+  IconData get _icon => switch (alert.severity) {
+        MaintenanceSeverity.critical => Icons.error_outline,
+        MaintenanceSeverity.warning => Icons.warning_amber_outlined,
+        MaintenanceSeverity.info => Icons.info_outline,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(_icon, size: 16, color: _color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      alert.category,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _color,
+                          letterSpacing: 0.5),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: _color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Text(
+                        alert.severity.label.toUpperCase(),
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: _color),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  alert.title,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: HeliosColors.textPrimary),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  alert.detail,
+                  style: const TextStyle(
+                      fontSize: 12, color: HeliosColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

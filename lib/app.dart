@@ -125,6 +125,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     final gpsLabel = ref.watch(gpsFixLabelProvider);
     final missionState = ref.watch(missionStateProvider);
 
+    final maintenanceAlerts = ref.watch(maintenanceAlertsProvider);
     final vehicleCount = ref.watch(vehicleCountProvider);
     final activeId = ref.watch(activeVehicleIdProvider);
     final registry = ref.watch(vehicleRegistryProvider);
@@ -212,6 +213,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
             satellites: vehicle.satellites,
             currentWaypoint: vehicle.currentWaypoint,
             totalWaypoints: missionState.waypointCount,
+            alertCount: maintenanceAlerts.valueOrNull?.length ?? 0,
           ),
         ],
       ),
