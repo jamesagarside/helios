@@ -38,12 +38,26 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
   @override
   void initState() {
     super.initState();
-    // Default: select all flights (up to 20)
-    _selectedPaths = widget.flights
-        .take(20)
-        .map((f) => f.filePath)
-        .toSet();
     _sqlController.text = _activeTemplate.sql.trim();
+    _selectedPaths = widget.flights.take(20).map((f) => f.filePath).toSet();
+    // Auto-run the default template once flights are available.
+    if (_selectedPaths.length >= 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    }
+  }
+
+  @override
+  void didUpdateWidget(ForensicsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flights != widget.flights) {
+      final newPaths =
+          widget.flights.take(20).map((f) => f.filePath).toSet();
+      if (_selectedPaths.isEmpty && newPaths.length >= 2) {
+        // Flights arrived after the panel was first built — select all and run.
+        setState(() => _selectedPaths = newPaths);
+        WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+      }
+    }
   }
 
   @override
@@ -263,24 +277,48 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                         ),
                       ),
 
-                    // Results table
-                    if (_result != null && _result!.rowCount > 0)
+                    // Results table / empty / loading states
+                    if (_running)
+                      const Expanded(
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_result != null && _result!.rowCount > 0)
                       Expanded(
                         child: _ForensicsTable(result: _result!),
                       )
-                    else if (!_running && _result == null && _error == null)
+                    else if (_result != null && _result!.rowCount == 0)
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.search_off,
+                                  size: 40,
+                                  color: HeliosColors.textTertiary),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No data — flights may have no telemetry yet',
+                                style: HeliosTypography.caption.copyWith(
+                                    color: HeliosColors.textTertiary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (_result == null && _error == null)
                       Expanded(
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.analytics_outlined,
-                                  size: 40, color: HeliosColors.textTertiary),
+                                  size: 40,
+                                  color: HeliosColors.textTertiary),
                               const SizedBox(height: 8),
                               Text(
                                 'Select flights and click Compare',
-                                style: HeliosTypography.caption
-                                    .copyWith(color: HeliosColors.textTertiary),
+                                style: HeliosTypography.caption.copyWith(
+                                    color: HeliosColors.textTertiary),
                               ),
                             ],
                           ),
