@@ -5,8 +5,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../shared/models/fence_zone.dart';
-import '../../../shared/models/mission_item.dart';
-import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../core/map/cached_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';

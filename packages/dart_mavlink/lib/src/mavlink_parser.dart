@@ -3,9 +3,6 @@ import 'crc.dart';
 import 'mavlink_types.dart';
 import 'messages.dart';
 
-/// Parser state for the MAVLink v2 frame state machine.
-enum _ParserState { idle, gotMagic, gotHeader, gotPayload }
-
 /// MAVLink v2 frame parser.
 ///
 /// Feed raw bytes via [parse], retrieve decoded messages via [takeMessages].

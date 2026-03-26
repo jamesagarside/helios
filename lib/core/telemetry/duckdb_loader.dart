@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+// ignore: unused_import — kept for platform resolution side effects
 import 'package:duckdb_dart/duckdb_dart.dart' as duckdb_ffi;
 
 /// Custom DuckDB library loader that supports all platforms.

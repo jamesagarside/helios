@@ -8,6 +8,7 @@ import '../../core/mavlink/transports/tcp_transport.dart';
 import '../../core/mavlink/transports/serial_transport.dart';
 import '../../core/mission/mission_service.dart';
 import '../../core/params/parameter_service.dart';
+import '../../core/telemetry/replay_service.dart';
 import '../../core/telemetry/telemetry_store.dart';
 import '../models/vehicle_state.dart';
 import '../models/connection_state.dart';
@@ -104,6 +105,16 @@ final telemetryStoreProvider = Provider<TelemetryStore>((ref) {
   return store;
 });
 
+/// ReplayService singleton provider.
+final replayServiceProvider = Provider<ReplayService>((ref) {
+  final service = ReplayService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+/// True when the Fly View is showing replayed data instead of live telemetry.
+final replayActiveProvider = StateProvider<bool>((ref) => false);
+
 /// Mission state — tracks mission items, transfer state, current waypoint.
 final missionStateProvider = StateProvider<MissionState>(
   (ref) => const MissionState(),
@@ -156,7 +167,7 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     });
 
     // Wire all messages to VehicleStateNotifier + TelemetryStore
-    final Set<int> _knownSystems = {};
+    final Set<int> knownSystems = {};
     bool streamsRequested = false;
     _messageSub = _service!.messageStream.listen((msg) {
       // Route to active vehicle's state notifier
@@ -174,8 +185,8 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       // Track vehicle registry + request streams on first heartbeat per vehicle
       if (msg is HeartbeatMessage && msg.systemId > 0) {
         // Register new vehicle in registry
-        if (!_knownSystems.contains(msg.systemId)) {
-          _knownSystems.add(msg.systemId);
+        if (!knownSystems.contains(msg.systemId)) {
+          knownSystems.add(msg.systemId);
           final registry = Map<int, VehicleState>.from(
             _ref.read(vehicleRegistryProvider),
           );

@@ -34,7 +34,6 @@ class _PlanViewState extends ConsumerState<PlanView> {
   Widget build(BuildContext context) {
     final editState = ref.watch(missionEditProvider);
     final missionState = ref.watch(missionStateProvider);
-    final fenceState = ref.watch(fenceEditProvider);
     final width = MediaQuery.sizeOf(context).width;
     final showPanel = width >= 768;
 

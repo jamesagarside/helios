@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/telemetry/analytics_templates.dart';
+import '../../core/telemetry/replay_service.dart';
 import '../../core/telemetry/telemetry_store.dart';
 import '../../shared/models/flight_metadata.dart';
 import '../../shared/providers/providers.dart';
@@ -8,6 +9,9 @@ import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/widgets/confirm_dialog.dart';
 import 'widgets/flight_charts.dart';
+import 'widgets/forensics_panel.dart';
+
+enum _AnalyseMode { charts, sql, compare }
 
 /// Analyse View — visual charts (default) + SQL editor for advanced users.
 class AnalyseView extends ConsumerStatefulWidget {
@@ -26,7 +30,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   QueryResult? _queryResult;
   String? _errorMessage;
   bool _isQuerying = false;
-  bool _showSql = false; // false = Charts, true = SQL
+  _AnalyseMode _mode = _AnalyseMode.charts;
   Map<String, FlightMetadata> _metadata = {};
 
   /// Whether the selected flight is the currently recording one.
@@ -210,6 +214,46 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     setState(() => _metadata[flight.filePath] = updated);
   }
 
+  /// Load a flight into the ReplayService and switch to the Fly View.
+  Future<void> _launchReplay(FlightSummary flight) async {
+    final replay = ref.read(replayServiceProvider);
+    if (replay.state == ReplayState.playing || replay.state == ReplayState.paused) {
+      replay.stop();
+    }
+
+    // Show loading indicator briefly
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Loading replay: ${_displayName(flight)}',
+          style: const TextStyle(color: HeliosColors.textPrimary),
+        ),
+        backgroundColor: HeliosColors.surface,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      await replay.loadFlight(flight.filePath);
+      if (!mounted) return;
+
+      // Switch to Fly View (tab index 0)
+      // Navigate via the app's tab controller by popping context if needed.
+      // We signal via replayActiveProvider which FlyView watches.
+      ref.read(replayActiveProvider.notifier).state = true;
+      replay.play();
+
+      // Switch tab — find the tab controller in the widget tree
+      DefaultTabController.maybeOf(context)?.animateTo(0);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Replay error: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _deleteFlight(FlightSummary flight) async {
     final confirmed = await showConfirmDialog(
       context,
@@ -344,6 +388,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
               onRename: _renameFlight,
               onEditNotes: _editNotes,
               onDelete: _deleteFlight,
+              onReplay: _launchReplay,
             ),
           ),
         if (showBrowser)
@@ -353,7 +398,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
         Expanded(
           child: Column(
             children: [
-              // Mode toggle: Charts / SQL
+              // Mode toggle: Charts / SQL / Compare
               Container(
                 height: 40,
                 color: HeliosColors.surface,
@@ -363,17 +408,25 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                     _ModeTab(
                       label: 'Charts',
                       icon: Icons.bar_chart,
-                      selected: !_showSql,
-                      onTap: () => setState(() => _showSql = false),
+                      selected: _mode == _AnalyseMode.charts,
+                      onTap: () => setState(() => _mode = _AnalyseMode.charts),
                     ),
                     const SizedBox(width: 4),
                     _ModeTab(
                       label: 'SQL',
                       icon: Icons.code,
-                      selected: _showSql,
-                      onTap: () => setState(() => _showSql = true),
+                      selected: _mode == _AnalyseMode.sql,
+                      onTap: () => setState(() => _mode = _AnalyseMode.sql),
                     ),
-                    if (_selectedFlight != null) ...[
+                    const SizedBox(width: 4),
+                    _ModeTab(
+                      label: 'Compare',
+                      icon: Icons.compare_arrows,
+                      selected: _mode == _AnalyseMode.compare,
+                      onTap: () => setState(() => _mode = _AnalyseMode.compare),
+                    ),
+                    if (_selectedFlight != null &&
+                        _mode != _AnalyseMode.compare) ...[
                       const Spacer(),
                       Text(
                         _selectedFlight!.fileName.replaceAll('.duckdb', ''),
@@ -386,23 +439,25 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
               const Divider(height: 1, color: HeliosColors.border),
 
               // Content based on mode
-              if (!_showSql) ...[
+              if (_mode == _AnalyseMode.charts) ...[
                 // Charts mode (default)
                 Expanded(
                   child: _selectedFlight != null
                       ? FlightCharts(
-                          key: ValueKey('${_selectedFlight!.filePath}_${_isLive}'),
+                          key: ValueKey(
+                              '${_selectedFlight!.filePath}_$_isLive'),
                           store: ref.read(telemetryStoreProvider),
                           liveMode: _isLive,
                         )
                       : const Center(
                           child: Text(
                             'Select a flight to view charts',
-                            style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
+                            style: TextStyle(
+                                color: HeliosColors.textTertiary, fontSize: 13),
                           ),
                         ),
                 ),
-              ] else ...[
+              ] else if (_mode == _AnalyseMode.sql) ...[
                 // SQL mode
                 _TemplateBar(
                   onSelect: _selectedFlight != null ? _loadTemplate : null,
@@ -422,7 +477,10 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                     color: HeliosColors.danger.withValues(alpha: 0.1),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: HeliosColors.danger, fontSize: 12, fontFamily: 'monospace'),
+                      style: const TextStyle(
+                          color: HeliosColors.danger,
+                          fontSize: 12,
+                          fontFamily: 'monospace'),
                     ),
                   ),
                 Expanded(
@@ -433,7 +491,8 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                             _selectedFlight == null
                                 ? 'Select a flight to begin analysis'
                                 : 'Run a query to see results',
-                            style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
+                            style: const TextStyle(
+                                color: HeliosColors.textTertiary, fontSize: 13),
                           ),
                         ),
                 ),
@@ -444,12 +503,23 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
-                        Text('${_queryResult!.rowCount} rows', style: HeliosTypography.caption),
+                        Text('${_queryResult!.rowCount} rows',
+                            style: HeliosTypography.caption),
                         const SizedBox(width: 16),
-                        Text('${_queryResult!.executionTime.inMilliseconds}ms', style: HeliosTypography.caption),
+                        Text(
+                            '${_queryResult!.executionTime.inMilliseconds}ms',
+                            style: HeliosTypography.caption),
                       ],
                     ),
                   ),
+              ] else ...[
+                // Compare mode — cross-flight forensics
+                Expanded(
+                  child: ForensicsPanel(
+                    flights: _flights,
+                    metadata: _metadata,
+                  ),
+                ),
               ],
             ],
           ),
@@ -470,6 +540,7 @@ class _FlightBrowser extends StatelessWidget {
     required this.onRename,
     required this.onEditNotes,
     required this.onDelete,
+    required this.onReplay,
   });
 
   final List<FlightSummary> flights;
@@ -481,6 +552,7 @@ class _FlightBrowser extends StatelessWidget {
   final ValueChanged<FlightSummary> onRename;
   final ValueChanged<FlightSummary> onEditNotes;
   final ValueChanged<FlightSummary> onDelete;
+  final ValueChanged<FlightSummary> onReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -492,7 +564,7 @@ class _FlightBrowser extends StatelessWidget {
           color: HeliosColors.surface,
           child: Row(
             children: [
-              Text('Flights', style: HeliosTypography.heading2),
+              const Text('Flights', style: HeliosTypography.heading2),
               const SizedBox(width: 4),
               Text('(${flights.length})',
                   style: HeliosTypography.caption
@@ -650,6 +722,23 @@ class _FlightBrowser extends StatelessWidget {
                               ),
                           ],
                         ),
+                        trailing: !isLive
+                            ? Tooltip(
+                                message: 'Replay in Fly View',
+                                child: InkWell(
+                                  onTap: () => onReplay(flight),
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(4),
+                                    child: Icon(
+                                      Icons.play_circle_outline,
+                                      size: 16,
+                                      color: HeliosColors.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
                         onTap: () => onSelect(flight),
                       ),
                     );
@@ -694,6 +783,18 @@ class _FlightBrowser extends StatelessWidget {
         ),
         if (!isLive)
           const PopupMenuItem(
+            value: 'replay',
+            child: Row(
+              children: [
+                Icon(Icons.play_circle_outline, size: 14, color: HeliosColors.accent),
+                SizedBox(width: 8),
+                Text('Replay in Fly View',
+                    style: TextStyle(fontSize: 13, color: HeliosColors.accent)),
+              ],
+            ),
+          ),
+        if (!isLive)
+          const PopupMenuItem(
             value: 'delete',
             child: Row(
               children: [
@@ -708,6 +809,7 @@ class _FlightBrowser extends StatelessWidget {
     ).then((value) {
       if (value == 'rename') onRename(flight);
       if (value == 'notes') onEditNotes(flight);
+      if (value == 'replay') onReplay(flight);
       if (value == 'delete') onDelete(flight);
     });
   }
