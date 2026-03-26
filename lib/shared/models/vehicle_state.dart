@@ -83,6 +83,18 @@ class VehicleState extends Equatable {
     this.ekfCompassVar = 0.0,
     this.ekfTerrainVar = 0.0,
     this.sensorHealth = 0,
+    // Firmware (AUTOPILOT_VERSION)
+    this.firmwareVersionMajor = 0,
+    this.firmwareVersionMinor = 0,
+    this.firmwareVersionPatch = 0,
+    this.boardVersion = 0,
+    this.capabilities = 0,
+    this.vehicleUid = 0,
+    // Gimbal (MOUNT_STATUS)
+    this.gimbalPitch = 0.0,
+    this.gimbalYaw = 0.0,
+    this.gimbalRoll = 0.0,
+    this.hasGimbal = false,
   });
 
   // Identity
@@ -137,6 +149,28 @@ class VehicleState extends Equatable {
   final double ekfTerrainVar;
   final int sensorHealth; // SYS_STATUS bitmask
 
+  // Firmware (AUTOPILOT_VERSION)
+  final int firmwareVersionMajor;
+  final int firmwareVersionMinor;
+  final int firmwareVersionPatch;
+  final int boardVersion;
+  final int capabilities; // MAV_PROTOCOL_CAPABILITY bitmask
+  final int vehicleUid;
+
+  // Gimbal (MOUNT_STATUS)
+  final double gimbalPitch; // degrees
+  final double gimbalYaw; // degrees
+  final double gimbalRoll; // degrees
+  final bool hasGimbal;
+
+  /// Formatted firmware version string (e.g. "4.5.1").
+  String get firmwareVersionString {
+    if (firmwareVersionMajor == 0 && firmwareVersionMinor == 0) {
+      return firmwareVersion.isNotEmpty ? firmwareVersion : '';
+    }
+    return '$firmwareVersionMajor.$firmwareVersionMinor.$firmwareVersionPatch';
+  }
+
   /// EKF overall health: 0=good, 1=warning, 2=bad
   int get ekfHealth {
     final maxVar = [ekfVelocityVar, ekfPosHorizVar, ekfPosVertVar, ekfCompassVar]
@@ -189,6 +223,16 @@ class VehicleState extends Equatable {
     double? ekfCompassVar,
     double? ekfTerrainVar,
     int? sensorHealth,
+    int? firmwareVersionMajor,
+    int? firmwareVersionMinor,
+    int? firmwareVersionPatch,
+    int? boardVersion,
+    int? capabilities,
+    int? vehicleUid,
+    double? gimbalPitch,
+    double? gimbalYaw,
+    double? gimbalRoll,
+    bool? hasGimbal,
   }) {
     return VehicleState(
       systemId: systemId ?? this.systemId,
@@ -229,6 +273,16 @@ class VehicleState extends Equatable {
       ekfCompassVar: ekfCompassVar ?? this.ekfCompassVar,
       ekfTerrainVar: ekfTerrainVar ?? this.ekfTerrainVar,
       sensorHealth: sensorHealth ?? this.sensorHealth,
+      firmwareVersionMajor: firmwareVersionMajor ?? this.firmwareVersionMajor,
+      firmwareVersionMinor: firmwareVersionMinor ?? this.firmwareVersionMinor,
+      firmwareVersionPatch: firmwareVersionPatch ?? this.firmwareVersionPatch,
+      boardVersion: boardVersion ?? this.boardVersion,
+      capabilities: capabilities ?? this.capabilities,
+      vehicleUid: vehicleUid ?? this.vehicleUid,
+      gimbalPitch: gimbalPitch ?? this.gimbalPitch,
+      gimbalYaw: gimbalYaw ?? this.gimbalYaw,
+      gimbalRoll: gimbalRoll ?? this.gimbalRoll,
+      hasGimbal: hasGimbal ?? this.hasGimbal,
     );
   }
 
@@ -242,5 +296,8 @@ class VehicleState extends Equatable {
         flightMode, armed, lastHeartbeat, rssi, currentWaypoint,
         ekfVelocityVar, ekfPosHorizVar, ekfPosVertVar, ekfCompassVar,
         ekfTerrainVar, sensorHealth,
+        firmwareVersionMajor, firmwareVersionMinor, firmwareVersionPatch,
+        boardVersion, capabilities, vehicleUid,
+        gimbalPitch, gimbalYaw, gimbalRoll, hasGimbal,
       ];
 }

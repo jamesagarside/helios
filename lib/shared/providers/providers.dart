@@ -80,6 +80,23 @@ final gpsFixLabelProvider = Provider<String>((ref) {
   };
 });
 
+// ---------------------------------------------------------------------------
+// Multi-vehicle registry
+// ---------------------------------------------------------------------------
+
+/// All known vehicles keyed by systemId.
+final vehicleRegistryProvider = StateProvider<Map<int, VehicleState>>(
+  (ref) => {},
+);
+
+/// Currently selected vehicle systemId (0 = auto-select first).
+final activeVehicleIdProvider = StateProvider<int>((ref) => 0);
+
+/// Number of known vehicles.
+final vehicleCountProvider = Provider<int>(
+  (ref) => ref.watch(vehicleRegistryProvider).length,
+);
+
 /// TelemetryStore singleton provider.
 final telemetryStoreProvider = Provider<TelemetryStore>((ref) {
   final store = TelemetryStore();
@@ -139,27 +156,69 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     });
 
     // Wire all messages to VehicleStateNotifier + TelemetryStore
+    final Set<int> _knownSystems = {};
     bool streamsRequested = false;
     _messageSub = _service!.messageStream.listen((msg) {
-      _ref.read(vehicleStateProvider.notifier).handleMessage(msg);
+      // Route to active vehicle's state notifier
+      final activeId = _ref.read(activeVehicleIdProvider);
+      if (activeId == 0 || msg.systemId == activeId) {
+        _ref.read(vehicleStateProvider.notifier).handleMessage(msg);
+      }
+
       // Buffer to DuckDB if recording
       final store = _ref.read(telemetryStoreProvider);
       if (store.isRecording) {
         store.buffer(msg);
       }
-      // Request stream rates after first heartbeat identifies the vehicle
-      if (!streamsRequested && msg is HeartbeatMessage) {
-        streamsRequested = true;
-        final rates = _ref.read(streamRateProvider);
-        _service!.requestStreamRates(
-          targetSystem: msg.systemId,
-          targetComponent: msg.componentId,
-          attitudeHz: rates.attitudeHz,
-          positionHz: rates.positionHz,
-          vfrHz: rates.vfrHudHz,
-          statusHz: rates.statusHz,
-          rcHz: rates.rcChannelsHz,
-        );
+
+      // Track vehicle registry + request streams on first heartbeat per vehicle
+      if (msg is HeartbeatMessage && msg.systemId > 0) {
+        // Register new vehicle in registry
+        if (!_knownSystems.contains(msg.systemId)) {
+          _knownSystems.add(msg.systemId);
+          final registry = Map<int, VehicleState>.from(
+            _ref.read(vehicleRegistryProvider),
+          );
+          registry[msg.systemId] = const VehicleState();
+          _ref.read(vehicleRegistryProvider.notifier).state = registry;
+
+          // Auto-select first vehicle
+          if (_ref.read(activeVehicleIdProvider) == 0) {
+            _ref.read(activeVehicleIdProvider.notifier).state = msg.systemId;
+          }
+        }
+
+        // Update registry with latest state for this vehicle
+        final current = _ref.read(vehicleStateProvider);
+        if (msg.systemId == current.systemId) {
+          final registry = Map<int, VehicleState>.from(
+            _ref.read(vehicleRegistryProvider),
+          );
+          registry[msg.systemId] = current;
+          _ref.read(vehicleRegistryProvider.notifier).state = registry;
+        }
+
+        // Request stream rates + firmware version after first heartbeat
+        if (!streamsRequested) {
+          streamsRequested = true;
+          final rates = _ref.read(streamRateProvider);
+          _service!.requestStreamRates(
+            targetSystem: msg.systemId,
+            targetComponent: msg.componentId,
+            attitudeHz: rates.attitudeHz,
+            positionHz: rates.positionHz,
+            vfrHz: rates.vfrHudHz,
+            statusHz: rates.statusHz,
+            rcHz: rates.rcChannelsHz,
+          );
+          // Request AUTOPILOT_VERSION (msg_id 148)
+          _service!.sendCommand(
+            targetSystem: msg.systemId,
+            targetComponent: msg.componentId,
+            command: MavCmd.requestMessage,
+            param1: 148,
+          );
+        }
       }
     });
 
@@ -237,6 +296,8 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
 
     _ref.read(vehicleStateProvider.notifier).reset();
     _ref.read(missionStateProvider.notifier).state = const MissionState();
+    _ref.read(vehicleRegistryProvider.notifier).state = {};
+    _ref.read(activeVehicleIdProvider.notifier).state = 0;
     state = const ConnectionStatus();
     _ref.read(connectionStatusProvider.notifier).state = state;
   }
@@ -275,6 +336,37 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       command: MavCmd.doSetMode,
       param1: 1.0, // MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
       param2: customMode.toDouble(),
+    );
+  }
+
+  /// Control gimbal pitch and yaw via MAV_CMD_DO_MOUNT_CONTROL.
+  Future<void> controlGimbal({
+    double pitch = 0,
+    double yaw = 0,
+    double roll = 0,
+  }) async {
+    if (_service == null) return;
+    final vehicle = _ref.read(vehicleStateProvider);
+    await _service!.sendCommand(
+      targetSystem: vehicle.systemId,
+      targetComponent: vehicle.componentId,
+      command: MavCmd.doMountControl,
+      param1: pitch,
+      param2: roll,
+      param3: yaw,
+      param7: 2, // MAV_MOUNT_MODE_MAVLINK_TARGETING
+    );
+  }
+
+  /// Trigger camera single capture via MAV_CMD_DO_DIGICAM_CONTROL.
+  Future<void> triggerCamera() async {
+    if (_service == null) return;
+    final vehicle = _ref.read(vehicleStateProvider);
+    await _service!.sendCommand(
+      targetSystem: vehicle.systemId,
+      targetComponent: vehicle.componentId,
+      command: MavCmd.doDigicamControl,
+      param5: 1, // shot = 1 (single capture)
     );
   }
 

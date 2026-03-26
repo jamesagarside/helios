@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import '../../../core/telemetry/telemetry_store.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
+import 'replay_map.dart';
+import 'synced_line_chart.dart';
+import 'timeline_bar.dart';
 
-/// Pre-built visual analytics dashboard — no SQL required.
+/// Pre-built visual analytics dashboard with synchronised crosshair, timeline
+/// scrub bar, and scroll-to-zoom.
 ///
 /// When [liveMode] is true, refreshes every 2 seconds for real-time updates.
 class FlightCharts extends StatefulWidget {
@@ -27,6 +31,12 @@ class _FlightChartsState extends State<FlightCharts> {
   bool _loading = true;
   String? _error;
 
+  // Synchronised crosshair & zoom state
+  final _crosshairX = ValueNotifier<double?>(null);
+  final _viewMinX = ValueNotifier<double>(0);
+  final _viewMaxX = ValueNotifier<double>(1);
+  double _totalDuration = 1;
+
   // Chart data
   List<FlSpot> _altitudeRel = [];
   List<FlSpot> _altitudeMsl = [];
@@ -43,6 +53,9 @@ class _FlightChartsState extends State<FlightCharts> {
   List<FlSpot> _roll = [];
   List<FlSpot> _pitch = [];
 
+  // Events detected from flight data
+  List<ChartEvent> _events = [];
+
   // Summary stats
   double _maxAlt = 0;
   double _maxSpeed = 0;
@@ -51,12 +64,22 @@ class _FlightChartsState extends State<FlightCharts> {
   int _totalRows = 0;
   Duration _duration = Duration.zero;
 
+  // Map visibility
+  bool _showMap = true;
+
+  // Chart manager panel visibility
+  bool _showChartManager = false;
+
+  // Chart visibility & order
+  late List<_ChartDef> _chartDefs;
+
+  // Hidden chart IDs (user can toggle)
+  final Set<String> _hiddenCharts = {};
+
   @override
   void initState() {
     super.initState();
     _loadData();
-
-    // Live mode: refresh every 2 seconds
     if (widget.liveMode) {
       _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
         if (mounted) _loadData();
@@ -67,14 +90,23 @@ class _FlightChartsState extends State<FlightCharts> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _crosshairX.dispose();
+    _viewMinX.dispose();
+    _viewMaxX.dispose();
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // Data loading
+  // ---------------------------------------------------------------------------
+
   Future<void> _loadData() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
-      // Load all data in parallel-ish (sequential but fast since it's local DuckDB)
       await Future.wait([
         _loadAltitudeSpeed(),
         _loadBattery(),
@@ -82,36 +114,45 @@ class _FlightChartsState extends State<FlightCharts> {
         _loadVibration(),
         _loadAttitude(),
         _loadSummary(),
+        _loadEvents(),
       ]);
+
+      // Set total duration and initial zoom to full extent
+      if (_duration.inSeconds > 0) {
+        _totalDuration = _duration.inSeconds.toDouble();
+        _viewMinX.value = 0;
+        _viewMaxX.value = _totalDuration;
+      }
+
+      _buildChartDefs();
       setState(() => _loading = false);
     } catch (e) {
-      setState(() { _loading = false; _error = e.toString(); });
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
   }
 
   Future<void> _loadAltitudeSpeed() async {
-    final result = await widget.store.query(
-      'SELECT ts, airspeed, groundspeed, climb FROM vfr_hud ORDER BY ts'
-    );
+    final result = await widget.store
+        .query('SELECT ts, airspeed, groundspeed, climb FROM vfr_hud ORDER BY ts');
     if (result.rowCount == 0) return;
-
     final startTime = _parseTimestamp(result.rows.first[0]);
     _airspeed = _toSpots(result.rows, 0, 1, startTime);
     _groundspeed = _toSpots(result.rows, 0, 2, startTime);
     _climbRate = _toSpots(result.rows, 0, 3, startTime);
 
-    final altResult = await widget.store.query(
-      'SELECT ts, alt_rel, alt_msl FROM gps ORDER BY ts'
-    );
+    final altResult = await widget.store
+        .query('SELECT ts, alt_rel, alt_msl FROM gps ORDER BY ts');
     if (altResult.rowCount == 0) return;
     _altitudeRel = _toSpots(altResult.rows, 0, 1, startTime);
     _altitudeMsl = _toSpots(altResult.rows, 0, 2, startTime);
   }
 
   Future<void> _loadBattery() async {
-    final result = await widget.store.query(
-      'SELECT ts, voltage, remaining_pct FROM battery ORDER BY ts'
-    );
+    final result = await widget.store
+        .query('SELECT ts, voltage, remaining_pct FROM battery ORDER BY ts');
     if (result.rowCount == 0) return;
     final startTime = _parseTimestamp(result.rows.first[0]);
     _voltage = _toSpots(result.rows, 0, 1, startTime);
@@ -119,9 +160,8 @@ class _FlightChartsState extends State<FlightCharts> {
   }
 
   Future<void> _loadGps() async {
-    final result = await widget.store.query(
-      'SELECT ts, satellites, hdop FROM gps ORDER BY ts'
-    );
+    final result = await widget.store
+        .query('SELECT ts, satellites, hdop FROM gps ORDER BY ts');
     if (result.rowCount == 0) return;
     final startTime = _parseTimestamp(result.rows.first[0]);
     _satellites = _toSpots(result.rows, 0, 1, startTime);
@@ -129,9 +169,8 @@ class _FlightChartsState extends State<FlightCharts> {
   }
 
   Future<void> _loadVibration() async {
-    final result = await widget.store.query(
-      'SELECT ts, vibe_x, vibe_y, vibe_z FROM vibration ORDER BY ts'
-    );
+    final result = await widget.store
+        .query('SELECT ts, vibe_x, vibe_y, vibe_z FROM vibration ORDER BY ts');
     if (result.rowCount == 0) return;
     final startTime = _parseTimestamp(result.rows.first[0]);
     _vibeX = _toSpots(result.rows, 0, 1, startTime);
@@ -140,10 +179,9 @@ class _FlightChartsState extends State<FlightCharts> {
   }
 
   Future<void> _loadAttitude() async {
-    // Downsample attitude (high frequency) — take every 10th row
     final result = await widget.store.query(
       'SELECT ts, roll * 57.2958 AS roll_deg, pitch * 57.2958 AS pitch_deg '
-      'FROM attitude WHERE rowid % 10 = 0 ORDER BY ts'
+      'FROM attitude WHERE rowid % 10 = 0 ORDER BY ts',
     );
     if (result.rowCount == 0) return;
     final startTime = _parseTimestamp(result.rows.first[0]);
@@ -170,9 +208,8 @@ class _FlightChartsState extends State<FlightCharts> {
         _minVoltage = (row[4] as num?)?.toDouble() ?? 0;
       }
 
-      final timeResult = await widget.store.query(
-        'SELECT MIN(ts), MAX(ts) FROM gps'
-      );
+      final timeResult =
+          await widget.store.query('SELECT MIN(ts), MAX(ts) FROM gps');
       if (timeResult.rowCount > 0 && timeResult.rows.first[0] != null) {
         final start = _parseTimestamp(timeResult.rows.first[0]);
         final end = _parseTimestamp(timeResult.rows.first[1]);
@@ -181,12 +218,257 @@ class _FlightChartsState extends State<FlightCharts> {
     } catch (_) {}
   }
 
+  Future<void> _loadEvents() async {
+    final detected = <ChartEvent>[];
+    try {
+      // Auto-detect takeoff: first point where alt_rel > 2m
+      final takeoff = await widget.store.query(
+        'SELECT ts FROM gps WHERE alt_rel > 2 ORDER BY ts LIMIT 1',
+      );
+      DateTime? flightStart;
+      if (takeoff.rowCount > 0) {
+        flightStart = _parseTimestamp(takeoff.rows.first[0]);
+      }
+
+      // Get flight start time for relative calculation
+      final startResult =
+          await widget.store.query('SELECT MIN(ts) FROM gps');
+      if (startResult.rowCount == 0 || startResult.rows.first[0] == null) {
+        _events = [];
+        return;
+      }
+      final start = _parseTimestamp(startResult.rows.first[0]);
+
+      if (flightStart != null) {
+        detected.add(ChartEvent(
+          timeSeconds:
+              flightStart.difference(start).inMilliseconds / 1000.0,
+          label: 'Takeoff',
+          color: HeliosColors.accent,
+        ));
+      }
+
+      // Auto-detect landing: last point where alt_rel drops below 2m after takeoff
+      if (flightStart != null) {
+        final landing = await widget.store.query(
+          "SELECT ts FROM gps WHERE alt_rel < 2 AND ts > '${_ts(flightStart)}' "
+          'ORDER BY ts DESC LIMIT 1',
+        );
+        if (landing.rowCount > 0) {
+          final landTime = _parseTimestamp(landing.rows.first[0]);
+          detected.add(ChartEvent(
+            timeSeconds:
+                landTime.difference(start).inMilliseconds / 1000.0,
+            label: 'Landing',
+            color: HeliosColors.warning,
+          ));
+        }
+      }
+
+      // Mode changes from events table
+      final modeEvents = await widget.store.query(
+        "SELECT ts, detail FROM events WHERE type = 'statustext' "
+        "AND (detail LIKE '%mode%' OR detail LIKE '%Mode%' "
+        "OR detail LIKE '%ARM%' OR detail LIKE '%DISARM%') "
+        'ORDER BY ts',
+      );
+      for (final row in modeEvents.rows) {
+        final ts = _parseTimestamp(row[0]);
+        final detail = row[1].toString();
+        final isArm = detail.toUpperCase().contains('ARM');
+        detected.add(ChartEvent(
+          timeSeconds: ts.difference(start).inMilliseconds / 1000.0,
+          label: detail.length > 12 ? detail.substring(0, 12) : detail,
+          color: isArm ? HeliosColors.success : HeliosColors.textSecondary,
+        ));
+      }
+    } catch (_) {
+      // Events are optional — don't fail the whole load
+    }
+
+    _events = detected;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zoom handler
+  // ---------------------------------------------------------------------------
+
+  void _handleZoom(double scrollDelta, double centerX) {
+    final currentMin = _viewMinX.value;
+    final currentMax = _viewMaxX.value;
+    final currentRange = currentMax - currentMin;
+
+    // Scroll up (negative delta) = zoom in, scroll down = zoom out
+    final factor = scrollDelta > 0 ? 1.15 : 0.87;
+    final newRange =
+        (currentRange * factor).clamp(2.0, _totalDuration);
+
+    // Keep centerX at the same relative position
+    final centerFrac = currentRange > 0
+        ? (centerX - currentMin) / currentRange
+        : 0.5;
+    var newMin = centerX - centerFrac * newRange;
+    var newMax = newMin + newRange;
+
+    // Clamp to total range
+    if (newMin < 0) {
+      newMin = 0;
+      newMax = newRange.clamp(0.0, _totalDuration);
+    }
+    if (newMax > _totalDuration) {
+      newMax = _totalDuration;
+      newMin = (_totalDuration - newRange).clamp(0.0, _totalDuration);
+    }
+
+    _viewMinX.value = newMin;
+    _viewMaxX.value = newMax;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chart definitions
+  // ---------------------------------------------------------------------------
+
+  void _buildChartDefs() {
+    _chartDefs = [
+      if (_altitudeRel.isNotEmpty)
+        _ChartDef(
+          id: 'altitude',
+          title: 'Altitude (Relative)',
+          series: [
+            ChartSeries('Relative', _altitudeRel, HeliosColors.accent),
+          ],
+          yLabel: 'm',
+          minY: 0,
+        ),
+      if (_altitudeMsl.isNotEmpty)
+        _ChartDef(
+          id: 'altitude_msl',
+          title: 'Altitude (MSL)',
+          series: [
+            ChartSeries('MSL', _altitudeMsl, HeliosColors.textTertiary),
+          ],
+          yLabel: 'm',
+        ),
+      if (_airspeed.isNotEmpty)
+        _ChartDef(
+          id: 'speed',
+          title: 'Speed',
+          series: [
+            ChartSeries('Airspeed', _airspeed, HeliosColors.accent),
+            ChartSeries('Groundspeed', _groundspeed, HeliosColors.success),
+          ],
+          yLabel: 'm/s',
+        ),
+      if (_climbRate.isNotEmpty)
+        _ChartDef(
+          id: 'climb',
+          title: 'Climb Rate',
+          series: [ChartSeries('VS', _climbRate, HeliosColors.warning)],
+          yLabel: 'm/s',
+        ),
+      if (_roll.isNotEmpty)
+        _ChartDef(
+          id: 'attitude',
+          title: 'Attitude',
+          series: [
+            ChartSeries('Roll', _roll, HeliosColors.accent),
+            ChartSeries('Pitch', _pitch, HeliosColors.warning),
+          ],
+          yLabel: 'deg',
+        ),
+      if (_voltage.isNotEmpty)
+        _ChartDef(
+          id: 'battery',
+          title: 'Battery',
+          series: [ChartSeries('Voltage', _voltage, HeliosColors.warning)],
+          yLabel: 'V',
+          minY: 0,
+          referenceLines: _batteryReferenceLines(),
+        ),
+      if (_batteryPct.isNotEmpty)
+        _ChartDef(
+          id: 'battery_pct',
+          title: 'Battery %',
+          series: [ChartSeries('%', _batteryPct, HeliosColors.success)],
+          yLabel: '%',
+          minY: 0,
+          maxY: 100,
+        ),
+      if (_satellites.isNotEmpty)
+        _ChartDef(
+          id: 'gps_sats',
+          title: 'GPS Satellites',
+          series: [ChartSeries('Sats', _satellites, HeliosColors.success)],
+          yLabel: '',
+          minY: 0,
+        ),
+      if (_hdop.isNotEmpty)
+        _ChartDef(
+          id: 'hdop',
+          title: 'HDOP',
+          series: [ChartSeries('HDOP', _hdop, HeliosColors.accent)],
+          yLabel: '',
+          minY: 0,
+        ),
+      if (_vibeX.isNotEmpty)
+        _ChartDef(
+          id: 'vibration',
+          title: 'Vibration',
+          series: [
+            ChartSeries('X', _vibeX, HeliosColors.danger),
+            ChartSeries('Y', _vibeY, HeliosColors.warning),
+            ChartSeries('Z', _vibeZ, HeliosColors.accent),
+          ],
+          yLabel: 'm/s\u00B2',
+        ),
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
   DateTime _parseTimestamp(dynamic value) {
     if (value is DateTime) return value;
     return DateTime.tryParse(value.toString()) ?? DateTime.now();
   }
 
-  List<FlSpot> _toSpots(List<List<dynamic>> rows, int tsCol, int valCol, DateTime startTime) {
+  String _ts(DateTime dt) => dt.toIso8601String().replaceFirst('T', ' ');
+
+  /// Auto-detect cell count from peak voltage and return labelled reference
+  /// lines at standard LiPo per-cell thresholds.
+  List<ChartReferenceLine> _batteryReferenceLines() {
+    if (_voltage.isEmpty) return [];
+    final peakV = _voltage.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    // Detect cell count: 4.2 V per cell fully charged
+    final cells = (peakV / 4.2).ceil().clamp(1, 14);
+
+    return [
+      ChartReferenceLine(
+        y: 4.20 * cells,
+        label: 'Full (${cells}S)',
+        color: HeliosColors.success,
+      ),
+      ChartReferenceLine(
+        y: 3.70 * cells,
+        label: 'Nominal',
+        color: HeliosColors.accent,
+      ),
+      ChartReferenceLine(
+        y: 3.50 * cells,
+        label: 'Low',
+        color: HeliosColors.warning,
+      ),
+      ChartReferenceLine(
+        y: 3.30 * cells,
+        label: 'Critical',
+        color: HeliosColors.danger,
+      ),
+    ];
+  }
+
+  List<FlSpot> _toSpots(
+      List<List<dynamic>> rows, int tsCol, int valCol, DateTime startTime) {
     final spots = <FlSpot>[];
     for (final row in rows) {
       try {
@@ -201,236 +483,331 @@ class _FlightChartsState extends State<FlightCharts> {
     return spots;
   }
 
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(child: Text('Error: $_error', style: const TextStyle(color: HeliosColors.danger)));
+      return Center(
+        child: Text('Error: $_error',
+            style: const TextStyle(color: HeliosColors.danger)),
+      );
     }
     if (_totalRows == 0 && _airspeed.isEmpty) {
       return const Center(
-        child: Text('No telemetry data in this flight', style: TextStyle(color: HeliosColors.textTertiary)),
+        child: Text('No telemetry data in this flight',
+            style: TextStyle(color: HeliosColors.textTertiary)),
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(12),
+    return Column(
       children: [
-        // Summary cards
-        _SummaryRow(
-          duration: _duration,
-          maxAlt: _maxAlt,
-          maxSpeed: _maxSpeed,
-          avgSpeed: _avgGroundspeed,
-          minVoltage: _minVoltage,
+        // Map replay + collapse toggle
+        Container(
+          height: 28,
+          color: HeliosColors.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _showMap = !_showMap),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _showMap
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_right,
+                      size: 16,
+                      color: HeliosColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Flight Map',
+                      style: HeliosTypography.caption.copyWith(
+                        color: HeliosColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 16),
+        if (_showMap)
+          ReplayMap(
+            store: widget.store,
+            crosshairX: _crosshairX,
+          ),
 
-        // Altitude
-        if (_altitudeRel.isNotEmpty)
-          _ChartCard(
-            title: 'Altitude',
-            chart: _buildLineChart(
-              series: [
-                _Series('Relative', _altitudeRel, HeliosColors.accent),
-                _Series('MSL', _altitudeMsl, HeliosColors.textTertiary),
+        // Timeline scrub bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: TimelineBar(
+            crosshairX: _crosshairX,
+            viewMinX: _viewMinX,
+            viewMaxX: _viewMaxX,
+            totalDuration: _totalDuration,
+            referenceSeries: _altitudeRel.isNotEmpty
+                ? _altitudeRel
+                : _airspeed,
+            events: _events,
+            onZoom: _handleZoom,
+          ),
+        ),
+
+        // Zoom reset hint
+        ValueListenableBuilder(
+          valueListenable: _viewMinX,
+          builder: (context, minX, _) {
+            final isZoomed =
+                minX > 0.5 || _viewMaxX.value < _totalDuration - 0.5;
+            if (!isZoomed) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.zoom_in,
+                      size: 12, color: HeliosColors.textTertiary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Scroll to zoom \u2022 ',
+                    style: HeliosTypography.caption
+                        .copyWith(color: HeliosColors.textTertiary),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      _viewMinX.value = 0;
+                      _viewMaxX.value = _totalDuration;
+                    },
+                    child: Text(
+                      'Reset zoom',
+                      style: HeliosTypography.caption.copyWith(
+                        color: HeliosColors.accent,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 4),
+
+        // Summary cards
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _SummaryRow(
+            duration: _duration,
+            maxAlt: _maxAlt,
+            maxSpeed: _maxSpeed,
+            avgSpeed: _avgGroundspeed,
+            minVoltage: _minVoltage,
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Chart toolbar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Text(
+                '${_visibleDefs.length} of ${_chartDefs.length} charts',
+                style: HeliosTypography.caption
+                    .copyWith(color: HeliosColors.textTertiary),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () =>
+                    setState(() => _showChartManager = !_showChartManager),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _showChartManager ? Icons.close : Icons.tune,
+                      size: 14,
+                      color: _showChartManager
+                          ? HeliosColors.accent
+                          : HeliosColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _showChartManager ? 'Done' : 'Customise',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _showChartManager
+                            ? HeliosColors.accent
+                            : HeliosColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Chart manager panel (when open)
+        if (_showChartManager)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: HeliosColors.surface,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: HeliosColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      Text('Toggle & reorder charts',
+                          style: HeliosTypography.caption.copyWith(
+                              color: HeliosColors.textSecondary)),
+                      const Spacer(),
+                      if (_hiddenCharts.isNotEmpty)
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _hiddenCharts.clear()),
+                          child: Text('Show all',
+                              style: HeliosTypography.caption.copyWith(
+                                  color: HeliosColors.accent)),
+                        ),
+                    ],
+                  ),
+                ),
+                const Divider(
+                    height: 1, color: HeliosColors.border),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 250),
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    buildDefaultDragHandles: false,
+                    itemCount: _chartDefs.length,
+                    onReorder: _onReorderChart,
+                    itemBuilder: (context, index) {
+                      final def = _chartDefs[index];
+                      final visible =
+                          !_hiddenCharts.contains(def.id);
+                      return ListTile(
+                        key: ValueKey(def.id),
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        leading: Checkbox(
+                          value: visible,
+                          onChanged: (_) => setState(() {
+                            if (visible) {
+                              _hiddenCharts.add(def.id);
+                            } else {
+                              _hiddenCharts.remove(def.id);
+                            }
+                          }),
+                          activeColor: HeliosColors.accent,
+                          side: const BorderSide(
+                              color: HeliosColors.textTertiary),
+                        ),
+                        title: Text(def.title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: visible
+                                  ? HeliosColors.textPrimary
+                                  : HeliosColors.textTertiary,
+                            )),
+                        trailing: ReorderableDragStartListener(
+                          index: index,
+                          child: const Icon(Icons.drag_handle,
+                              size: 18,
+                              color: HeliosColors.textTertiary),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
-              yLabel: 'm',
             ),
           ),
 
-        // Speed
-        if (_airspeed.isNotEmpty)
-          _ChartCard(
-            title: 'Speed',
-            chart: _buildLineChart(
-              series: [
-                _Series('Airspeed', _airspeed, HeliosColors.accent),
-                _Series('Groundspeed', _groundspeed, HeliosColors.success),
-              ],
-              yLabel: 'm/s',
-            ),
+        // Synchronised chart cards (filtered by visibility)
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _visibleDefs.length,
+            itemBuilder: (context, index) {
+              final def = _visibleDefs[index];
+              return _ChartCard(
+                title: def.title,
+                chart: SyncedLineChart(
+                  series: def.series,
+                  yLabel: def.yLabel,
+                  crosshairX: _crosshairX,
+                  viewMinX: _viewMinX,
+                  viewMaxX: _viewMaxX,
+                  events: _events,
+                  onZoom: _handleZoom,
+                  minY: def.minY,
+                  maxY: def.maxY,
+                  referenceLines: def.referenceLines,
+                ),
+              );
+            },
           ),
-
-        // Climb Rate
-        if (_climbRate.isNotEmpty)
-          _ChartCard(
-            title: 'Climb Rate',
-            chart: _buildLineChart(
-              series: [_Series('VS', _climbRate, HeliosColors.warning)],
-              yLabel: 'm/s',
-            ),
-          ),
-
-        // Attitude
-        if (_roll.isNotEmpty)
-          _ChartCard(
-            title: 'Attitude',
-            chart: _buildLineChart(
-              series: [
-                _Series('Roll', _roll, HeliosColors.accent),
-                _Series('Pitch', _pitch, HeliosColors.warning),
-              ],
-              yLabel: 'deg',
-            ),
-          ),
-
-        // Battery
-        if (_voltage.isNotEmpty)
-          _ChartCard(
-            title: 'Battery',
-            chart: _buildLineChart(
-              series: [_Series('Voltage', _voltage, HeliosColors.warning)],
-              yLabel: 'V',
-            ),
-          ),
-
-        if (_batteryPct.isNotEmpty)
-          _ChartCard(
-            title: 'Battery %',
-            chart: _buildLineChart(
-              series: [_Series('%', _batteryPct, HeliosColors.success)],
-              yLabel: '%',
-            ),
-          ),
-
-        // GPS
-        if (_satellites.isNotEmpty)
-          _ChartCard(
-            title: 'GPS Satellites',
-            chart: _buildLineChart(
-              series: [_Series('Sats', _satellites, HeliosColors.success)],
-              yLabel: '',
-            ),
-          ),
-
-        if (_hdop.isNotEmpty)
-          _ChartCard(
-            title: 'HDOP',
-            chart: _buildLineChart(
-              series: [_Series('HDOP', _hdop, HeliosColors.accent)],
-              yLabel: '',
-            ),
-          ),
-
-        // Vibration
-        if (_vibeX.isNotEmpty)
-          _ChartCard(
-            title: 'Vibration',
-            chart: _buildLineChart(
-              series: [
-                _Series('X', _vibeX, HeliosColors.danger),
-                _Series('Y', _vibeY, HeliosColors.warning),
-                _Series('Z', _vibeZ, HeliosColors.accent),
-              ],
-              yLabel: 'm/s\u00B2',
-            ),
-          ),
+        ),
       ],
     );
   }
 
-  Widget _buildLineChart({
-    required List<_Series> series,
-    required String yLabel,
-  }) {
-    return SizedBox(
-      height: 180,
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: null,
-            getDrawingHorizontalLine: (_) => FlLine(
-              color: HeliosColors.border,
-              strokeWidth: 0.5,
-            ),
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 44,
-                getTitlesWidget: (value, meta) {
-                  if (meta.min == value || meta.max == value) return const SizedBox();
-                  return Text(
-                    value.toStringAsFixed(value.abs() < 10 ? 1 : 0),
-                    style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
-                  );
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 22,
-                getTitlesWidget: (value, meta) {
-                  if (meta.min == value || meta.max == value) return const SizedBox();
-                  final mins = (value / 60).floor();
-                  final secs = (value % 60).floor();
-                  return Text(
-                    '$mins:${secs.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
-                  );
-                },
-              ),
-            ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(
-            show: true,
-            border: const Border(
-              left: BorderSide(color: HeliosColors.border, width: 0.5),
-              bottom: BorderSide(color: HeliosColors.border, width: 0.5),
-            ),
-          ),
-          lineBarsData: series.map((s) {
-            return LineChartBarData(
-              spots: s.spots,
-              isCurved: true,
-              curveSmoothness: 0.2,
-              color: s.color,
-              barWidth: 1.5,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: series.length == 1
-                  ? BarAreaData(
-                      show: true,
-                      color: s.color.withValues(alpha: 0.08),
-                    )
-                  : BarAreaData(show: false),
-            );
-          }).toList(),
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => HeliosColors.surface,
-              getTooltipItems: (touchedSpots) {
-                return touchedSpots.map((spot) {
-                  final s = series[spot.barIndex];
-                  return LineTooltipItem(
-                    '${s.name}: ${spot.y.toStringAsFixed(2)} $yLabel',
-                    TextStyle(color: s.color, fontSize: 12),
-                  );
-                }).toList();
-              },
-            ),
-          ),
-        ),
-      ),
-    );
+  List<_ChartDef> get _visibleDefs =>
+      _chartDefs.where((d) => !_hiddenCharts.contains(d.id)).toList();
+
+  void _onReorderChart(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex--;
+      final item = _chartDefs.removeAt(oldIndex);
+      _chartDefs.insert(newIndex, item);
+    });
   }
 }
 
-class _Series {
-  _Series(this.name, this.spots, this.color);
-  final String name;
-  final List<FlSpot> spots;
-  final Color color;
+// -----------------------------------------------------------------------------
+// Chart definition (Phase 4 prep)
+// -----------------------------------------------------------------------------
+
+class _ChartDef {
+  const _ChartDef({
+    required this.id,
+    required this.title,
+    required this.series,
+    required this.yLabel,
+    this.minY,
+    this.maxY,
+    this.referenceLines = const [],
+  });
+
+  final String id;
+  final String title;
+  final List<ChartSeries> series;
+  final String yLabel;
+  final double? minY;
+  final double? maxY;
+  final List<ChartReferenceLine> referenceLines;
 }
+
+// -----------------------------------------------------------------------------
+// Summary widgets
+// -----------------------------------------------------------------------------
 
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
@@ -451,21 +828,36 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final mins = duration.inMinutes;
     final secs = duration.inSeconds % 60;
-
     return Row(
       children: [
-        _SummaryCard(label: 'Duration', value: '$mins:${secs.toString().padLeft(2, '0')}', unit: 'min'),
-        _SummaryCard(label: 'Max Alt', value: maxAlt.toStringAsFixed(0), unit: 'm'),
-        _SummaryCard(label: 'Max IAS', value: maxSpeed.toStringAsFixed(1), unit: 'm/s'),
-        _SummaryCard(label: 'Avg GS', value: avgSpeed.toStringAsFixed(1), unit: 'm/s'),
-        _SummaryCard(label: 'Min Batt', value: minVoltage.toStringAsFixed(1), unit: 'V'),
+        _SummaryCard(
+            label: 'Duration',
+            value: '$mins:${secs.toString().padLeft(2, '0')}',
+            unit: 'min'),
+        _SummaryCard(
+            label: 'Max Alt',
+            value: maxAlt.toStringAsFixed(0),
+            unit: 'm'),
+        _SummaryCard(
+            label: 'Max IAS',
+            value: maxSpeed.toStringAsFixed(1),
+            unit: 'm/s'),
+        _SummaryCard(
+            label: 'Avg GS',
+            value: avgSpeed.toStringAsFixed(1),
+            unit: 'm/s'),
+        _SummaryCard(
+            label: 'Min Batt',
+            value: minVoltage.toStringAsFixed(1),
+            unit: 'V'),
       ],
     );
   }
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.label, required this.value, required this.unit});
+  const _SummaryCard(
+      {required this.label, required this.value, required this.unit});
 
   final String label;
   final String value;
@@ -482,7 +874,9 @@ class _SummaryCard extends StatelessWidget {
               Text(label, style: HeliosTypography.caption),
               const SizedBox(height: 2),
               Text(value, style: HeliosTypography.telemetryMedium),
-              Text(unit, style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary)),
+              Text(unit,
+                  style: const TextStyle(
+                      fontSize: 12, color: HeliosColors.textTertiary)),
             ],
           ),
         ),
@@ -506,7 +900,8 @@ class _ChartCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: HeliosTypography.heading2.copyWith(fontSize: 14)),
+            Text(title,
+                style: HeliosTypography.heading2.copyWith(fontSize: 14)),
             const SizedBox(height: 8),
             chart,
           ],

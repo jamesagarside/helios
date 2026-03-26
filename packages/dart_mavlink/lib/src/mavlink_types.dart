@@ -145,8 +145,14 @@ abstract final class MavCmd {
   static const int doSetRelay = 181;
   static const int doSetServo = 183;
   static const int doJump = 177;
-  static const int componentArmDisarm = 400;
+  static const int doSetRoiNone = 197;
+  static const int doSetRoi = 201;
+  static const int doDigicamControl = 203;
+  static const int doMountConfigure = 204;
+  static const int doMountControl = 205;
   static const int missionStart = 300;
+  static const int componentArmDisarm = 400;
+  static const int requestMessage = 512;
 }
 
 /// MAV_SEVERITY for STATUSTEXT.

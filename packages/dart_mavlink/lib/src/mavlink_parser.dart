@@ -233,6 +233,8 @@ class MavlinkParser {
         192 => MagCalReportMessage.fromPayload(payload, sysId, compId, seq),
         193 => EkfStatusReportMessage.fromPayload(payload, sysId, compId, seq),
         77 => CommandAckMessage.fromPayload(payload, sysId, compId, seq),
+        148 => AutopilotVersionMessage.fromPayload(payload, sysId, compId, seq),
+        158 => MountStatusMessage.fromPayload(payload, sysId, compId, seq),
         241 => VibrationMessage.fromPayload(payload, sysId, compId, seq),
         253 => StatusTextMessage.fromPayload(payload, sysId, compId, seq),
         _ => UnknownMessage(

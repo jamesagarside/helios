@@ -46,6 +46,10 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
         _handleMissionCurrent(msg);
       case EkfStatusReportMessage():
         _handleEkfStatus(msg);
+      case AutopilotVersionMessage():
+        _handleAutopilotVersion(msg);
+      case MountStatusMessage():
+        _handleMountStatus(msg);
       case VibrationMessage():
         break; // Recorded to DuckDB, no UI state update needed
       case StatusTextMessage():
@@ -187,6 +191,29 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       ekfPosVertVar: msg.posVertVariance,
       ekfCompassVar: msg.compassVariance,
       ekfTerrainVar: msg.terrainAltVariance,
+    );
+    _dirty = true;
+  }
+
+  void _handleAutopilotVersion(AutopilotVersionMessage msg) {
+    _pending = _pending.copyWith(
+      firmwareVersion: msg.versionString,
+      firmwareVersionMajor: msg.versionMajor,
+      firmwareVersionMinor: msg.versionMinor,
+      firmwareVersionPatch: msg.versionPatch,
+      boardVersion: msg.boardVersion,
+      capabilities: msg.capabilities,
+      vehicleUid: msg.uid,
+    );
+    _dirty = true;
+  }
+
+  void _handleMountStatus(MountStatusMessage msg) {
+    _pending = _pending.copyWith(
+      gimbalPitch: msg.pitchDeg,
+      gimbalYaw: msg.yawDeg,
+      gimbalRoll: msg.rollDeg,
+      hasGimbal: true,
     );
     _dirty = true;
   }

@@ -24,8 +24,29 @@ run-android: ## Run debug on connected Android device
 run-ios: ## Run debug on connected iOS device
 	flutter run -d ios
 
-run-sim: ## Run Dart telemetry simulator (no SITL needed)
+run-sim: ## Run basic telemetry simulator (no SITL needed)
 	dart run scripts/sim_telemetry.dart
+
+run-sim-full: install-sim-deps ## Run full simulator (telemetry + video)
+	@echo "Starting telemetry simulator..."
+	@dart run scripts/sim_full.dart &
+	@sleep 2
+	@echo "Starting video stream (rtsp://127.0.0.1:8554/stream)..."
+	@./scripts/sim_video.sh
+
+run-sim-telem: ## Run telemetry simulator only (no video)
+	dart run scripts/sim_full.dart
+
+run-sim-multi: ## Run full simulator with 2 vehicles
+	dart run scripts/sim_full.dart --multi
+
+install-sim-deps: ## Install simulation dependencies (ffmpeg, mediamtx)
+	@command -v ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+	@command -v mediamtx >/dev/null 2>&1 || brew install mediamtx
+
+run-sim-video: install-sim-deps ## Stream test pattern video via RTSP
+	./scripts/sim_video.sh
+
 
 # ── Testing ──────────────────────────────────────────────────
 

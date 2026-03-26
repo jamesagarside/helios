@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/telemetry/analytics_templates.dart';
 import '../../core/telemetry/telemetry_store.dart';
+import '../../shared/models/flight_metadata.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
+import '../../shared/widgets/confirm_dialog.dart';
 import 'widgets/flight_charts.dart';
 
 /// Analyse View — visual charts (default) + SQL editor for advanced users.
@@ -25,6 +27,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   String? _errorMessage;
   bool _isQuerying = false;
   bool _showSql = false; // false = Charts, true = SQL
+  Map<String, FlightMetadata> _metadata = {};
 
   /// Whether the selected flight is the currently recording one.
   bool get _isLive {
@@ -54,6 +57,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     if (!mounted) return;
 
     setState(() => _flights = flights);
+    _loadAllMetadata(store, flights);
 
     if (_selectedFlight != null) return; // already selected
 
@@ -81,6 +85,167 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     final flights = await store.listFlights();
     if (!mounted) return;
     setState(() => _flights = flights);
+    await _loadAllMetadata(store, flights);
+  }
+
+  Future<void> _loadAllMetadata(
+      TelemetryStore store, List<FlightSummary> flights) async {
+    final map = <String, FlightMetadata>{};
+    for (final flight in flights) {
+      try {
+        map[flight.filePath] = await store.getFlightMetadata(flight.filePath);
+      } catch (_) {
+        map[flight.filePath] = const FlightMetadata();
+      }
+    }
+    if (mounted) setState(() => _metadata = map);
+  }
+
+  Future<void> _renameFlight(FlightSummary flight) async {
+    final store = ref.read(telemetryStoreProvider);
+    final meta =
+        _metadata[flight.filePath] ?? const FlightMetadata();
+    final controller = TextEditingController(text: meta.name ?? '');
+
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: HeliosColors.border),
+        ),
+        title: const Text('Rename Flight',
+            style: TextStyle(
+                color: HeliosColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: HeliosColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: _formatFlightDate(flight),
+            hintStyle:
+                const TextStyle(color: HeliosColors.textTertiary),
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (name == null || !mounted) return;
+    final updated = meta.copyWith(name: name);
+    await store.setFlightMetadata(flight.filePath, updated);
+    setState(() => _metadata[flight.filePath] = updated);
+  }
+
+  Future<void> _editNotes(FlightSummary flight) async {
+    final store = ref.read(telemetryStoreProvider);
+    final meta =
+        _metadata[flight.filePath] ?? const FlightMetadata();
+    final controller = TextEditingController(text: meta.notes ?? '');
+
+    final notes = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: HeliosColors.border),
+        ),
+        title: const Text('Flight Notes',
+            style: TextStyle(
+                color: HeliosColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600)),
+        content: SizedBox(
+          width: 300,
+          height: 150,
+          child: TextField(
+            controller: controller,
+            maxLines: null,
+            expands: true,
+            textAlignVertical: TextAlignVertical.top,
+            style: const TextStyle(
+                color: HeliosColors.textPrimary, fontSize: 13),
+            decoration: const InputDecoration(
+              hintText: 'Add notes about this flight...',
+              hintStyle: TextStyle(color: HeliosColors.textTertiary),
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (notes == null || !mounted) return;
+    final updated = meta.copyWith(notes: notes);
+    await store.setFlightMetadata(flight.filePath, updated);
+    setState(() => _metadata[flight.filePath] = updated);
+  }
+
+  Future<void> _deleteFlight(FlightSummary flight) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Delete Flight',
+      message:
+          'Permanently delete "${_displayName(flight)}"?\nThis cannot be undone.',
+      confirmLabel: 'Delete',
+      isDangerous: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    final store = ref.read(telemetryStoreProvider);
+    await store.deleteFlight(flight.filePath);
+    _metadata.remove(flight.filePath);
+    if (_selectedFlight?.filePath == flight.filePath) {
+      _selectedFlight = null;
+      _queryResult = null;
+    }
+    await _refreshFlights();
+  }
+
+  String _displayName(FlightSummary flight) {
+    final meta = _metadata[flight.filePath];
+    if (meta != null && meta.hasName) return meta.name!;
+    return _formatFlightDate(flight);
+  }
+
+  String _formatFlightDate(FlightSummary flight) {
+    if (flight.startTime != null) {
+      final t = flight.startTime!;
+      return '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+          '${t.day.toString().padLeft(2, '0')} '
+          '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}';
+    }
+    return flight.fileName.replaceAll('.duckdb', '');
   }
 
   Future<void> _openFlight(FlightSummary flight) async {
@@ -169,12 +334,16 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
             width: 260,
             child: _FlightBrowser(
               flights: _flights,
+              metadata: _metadata,
               selectedFlight: _selectedFlight,
               liveFilePath: ref.read(telemetryStoreProvider).isRecording
                   ? ref.read(telemetryStoreProvider).currentFilePath
                   : null,
               onRefresh: _refreshFlights,
               onSelect: _openFlight,
+              onRename: _renameFlight,
+              onEditNotes: _editNotes,
+              onDelete: _deleteFlight,
             ),
           ),
         if (showBrowser)
@@ -293,17 +462,25 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 class _FlightBrowser extends StatelessWidget {
   const _FlightBrowser({
     required this.flights,
+    required this.metadata,
     required this.selectedFlight,
     this.liveFilePath,
     required this.onRefresh,
     required this.onSelect,
+    required this.onRename,
+    required this.onEditNotes,
+    required this.onDelete,
   });
 
   final List<FlightSummary> flights;
+  final Map<String, FlightMetadata> metadata;
   final FlightSummary? selectedFlight;
   final String? liveFilePath;
   final VoidCallback onRefresh;
   final ValueChanged<FlightSummary> onSelect;
+  final ValueChanged<FlightSummary> onRename;
+  final ValueChanged<FlightSummary> onEditNotes;
+  final ValueChanged<FlightSummary> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -316,6 +493,10 @@ class _FlightBrowser extends StatelessWidget {
           child: Row(
             children: [
               Text('Flights', style: HeliosTypography.heading2),
+              const SizedBox(width: 4),
+              Text('(${flights.length})',
+                  style: HeliosTypography.caption
+                      .copyWith(color: HeliosColors.textTertiary)),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 18),
@@ -336,7 +517,8 @@ class _FlightBrowser extends StatelessWidget {
                     child: Text(
                       'No recorded flights yet.\nConnect and start recording.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
+                      style: TextStyle(
+                          color: HeliosColors.textTertiary, fontSize: 13),
                     ),
                   ),
                 )
@@ -344,65 +526,201 @@ class _FlightBrowser extends StatelessWidget {
                   itemCount: flights.length,
                   itemBuilder: (context, index) {
                     final flight = flights[index];
-                    final isSelected = selectedFlight?.filePath == flight.filePath;
+                    final meta = metadata[flight.filePath];
+                    final isSelected =
+                        selectedFlight?.filePath == flight.filePath;
                     final isLive = flight.filePath == liveFilePath;
-                    final sizeKb = (flight.fileSizeBytes / 1024).toStringAsFixed(0);
+                    final sizeKb =
+                        (flight.fileSizeBytes / 1024).toStringAsFixed(0);
 
-                    return ListTile(
-                      dense: true,
-                      selected: isSelected,
-                      selectedTileColor: HeliosColors.accent.withValues(alpha: 0.1),
-                      leading: Icon(
-                        isLive ? Icons.fiber_manual_record : Icons.flight,
-                        size: isLive ? 14 : 18,
-                        color: isLive
-                            ? HeliosColors.danger
-                            : isSelected
-                                ? HeliosColors.accent
-                                : HeliosColors.textSecondary,
-                      ),
-                      title: Row(
-                        children: [
-                          if (isLive)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              margin: const EdgeInsets.only(right: 4),
-                              decoration: BoxDecoration(
-                                color: HeliosColors.danger.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: const Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  color: HeliosColors.danger,
+                    // Display name: user-assigned or formatted date
+                    final displayName = meta?.hasName == true
+                        ? meta!.name!
+                        : _formatDate(flight);
+
+                    // Subtitle: date + size (or just size if name is the date)
+                    final subtitle = meta?.hasName == true
+                        ? '${_formatDate(flight)} \u2022 $sizeKb KB'
+                        : '$sizeKb KB';
+
+                    return GestureDetector(
+                      onSecondaryTapDown: (details) {
+                        _showContextMenu(
+                            context, details.globalPosition, flight, isLive);
+                      },
+                      child: ListTile(
+                        dense: true,
+                        selected: isSelected,
+                        selectedTileColor:
+                            HeliosColors.accent.withValues(alpha: 0.1),
+                        leading: Icon(
+                          isLive ? Icons.fiber_manual_record : Icons.flight,
+                          size: isLive ? 14 : 18,
+                          color: isLive
+                              ? HeliosColors.danger
+                              : isSelected
+                                  ? HeliosColors.accent
+                                  : HeliosColors.textSecondary,
+                        ),
+                        title: Row(
+                          children: [
+                            if (isLive)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 1),
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: HeliosColors.danger
+                                      .withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                child: const Text(
+                                  'LIVE',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: HeliosColors.danger,
+                                  ),
                                 ),
                               ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              flight.fileName.replaceAll('.duckdb', ''),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isSelected ? HeliosColors.accent : HeliosColors.textPrimary,
+                            Expanded(
+                              child: Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: meta?.hasName == true
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? HeliosColors.accent
+                                      : HeliosColors.textPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(subtitle,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: HeliosColors.textTertiary)),
+                            if (meta?.hasNotes == true)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  meta!.notes!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: HeliosColors.textTertiary,
+                                      fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                            if (meta?.hasTags == true)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Wrap(
+                                  spacing: 4,
+                                  children: meta!.tags
+                                      .take(3)
+                                      .map((t) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: HeliosColors.accent
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              border: Border.all(
+                                                  color: HeliosColors.accent
+                                                      .withValues(alpha: 0.3)),
+                                            ),
+                                            child: Text(t,
+                                                style: const TextStyle(
+                                                    fontSize: 9,
+                                                    color:
+                                                        HeliosColors.accent)),
+                                          ))
+                                      .toList(),
+                                ),
+                              ),
+                          ],
+                        ),
+                        onTap: () => onSelect(flight),
                       ),
-                      subtitle: Text(
-                        '$sizeKb KB',
-                        style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
-                      ),
-                      onTap: () => onSelect(flight),
                     );
                   },
                 ),
         ),
       ],
     );
+  }
+
+  void _showContextMenu(BuildContext context, Offset position,
+      FlightSummary flight, bool isLive) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+          position.dx, position.dy, position.dx, position.dy),
+      color: HeliosColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: const BorderSide(color: HeliosColors.border),
+      ),
+      items: [
+        const PopupMenuItem(
+          value: 'rename',
+          child: Row(
+            children: [
+              Icon(Icons.edit, size: 14, color: HeliosColors.textSecondary),
+              SizedBox(width: 8),
+              Text('Rename', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'notes',
+          child: Row(
+            children: [
+              Icon(Icons.note_add, size: 14, color: HeliosColors.textSecondary),
+              SizedBox(width: 8),
+              Text('Edit Notes', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        if (!isLive)
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline, size: 14, color: HeliosColors.danger),
+                SizedBox(width: 8),
+                Text('Delete',
+                    style: TextStyle(fontSize: 13, color: HeliosColors.danger)),
+              ],
+            ),
+          ),
+      ],
+    ).then((value) {
+      if (value == 'rename') onRename(flight);
+      if (value == 'notes') onEditNotes(flight);
+      if (value == 'delete') onDelete(flight);
+    });
+  }
+
+  String _formatDate(FlightSummary flight) {
+    if (flight.startTime != null) {
+      final t = flight.startTime!;
+      return '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+          '${t.day.toString().padLeft(2, '0')} '
+          '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}';
+    }
+    return flight.fileName.replaceAll('.duckdb', '');
   }
 }
 

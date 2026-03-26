@@ -7,6 +7,7 @@ import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/layout_provider.dart';
 import '../../shared/providers/providers.dart';
 import 'widgets/chart_toolbar.dart';
+import 'widgets/gimbal_control.dart';
 import 'widgets/layout_toolbar.dart';
 import 'widgets/live_chart_widget.dart';
 import 'widgets/vehicle_map.dart';
@@ -59,6 +60,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
       children: [
         Expanded(
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               const VehicleMap(),
               // Edit mode grid overlay
@@ -91,6 +93,12 @@ class _DesktopFlyLayout extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // Gimbal control — bottom-right
+              const Positioned(
+                right: 16,
+                bottom: 16,
+                child: GimbalControl(),
+              ),
               // Connection badge + quick reconnect — top-right
               Positioned(
                 top: 12,
@@ -214,9 +222,12 @@ class _DesktopFlyLayout extends ConsumerWidget {
   Offset _chartPosition(LayoutProfile layout, ChartType type) {
     final config = layout.charts[type.name];
     if (config != null) return Offset(config.x, config.y);
-    // Fallback: stacked position
-    final index = ChartType.values.indexOf(type);
-    return Offset(350, 50.0 + index * 160.0);
+    // Fallback: tile in 2 columns so charts stay on-screen
+    final activeTypes = layout.activeCharts.toList();
+    final index = activeTypes.indexOf(type).clamp(0, 5);
+    final col = index % 2;
+    final row = index ~/ 2;
+    return Offset(350.0 + col * 300, 50.0 + row * 170.0);
   }
 }
 
@@ -330,6 +341,10 @@ class _TabletFlyLayout extends ConsumerWidget {
                   roll: vehicle.roll,
                   pitch: vehicle.pitch,
                   heading: vehicle.heading,
+                  airspeed: vehicle.airspeed,
+                  altitude: vehicle.altitudeMsl,
+                  altitudeRel: vehicle.altitudeRel,
+                  climbRate: vehicle.climbRate,
                 ),
               ),
               Expanded(child: _TelemetryStrip(vehicle: vehicle)),
@@ -367,6 +382,10 @@ class _MobileFlyLayout extends ConsumerWidget {
               roll: vehicle.roll,
               pitch: vehicle.pitch,
               heading: vehicle.heading,
+              airspeed: vehicle.airspeed,
+              altitude: vehicle.altitudeMsl,
+              altitudeRel: vehicle.altitudeRel,
+              climbRate: vehicle.climbRate,
             ),
           ),
         ),
@@ -394,8 +413,8 @@ class _MobileFlyLayout extends ConsumerWidget {
                       : '--V',
                 ),
                 _MiniTelemetryItem(
-                  label: 'GPS',
-                  value: '${vehicle.satellites} sats',
+                  label: 'IAS',
+                  value: '${vehicle.airspeed.toStringAsFixed(1)} m/s',
                 ),
                 _MiniTelemetryItem(
                   label: 'ALT',

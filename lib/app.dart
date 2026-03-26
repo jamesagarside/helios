@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'shared/models/vehicle_state.dart';
 import 'shared/providers/display_provider.dart';
 import 'shared/providers/providers.dart';
+import 'shared/theme/helios_colors.dart';
 import 'shared/theme/helios_theme.dart';
 import 'shared/widgets/responsive_scaffold.dart';
 import 'shared/widgets/status_bar.dart';
@@ -48,6 +50,19 @@ class _HeliosShell extends ConsumerStatefulWidget {
 
 class _HeliosShellState extends ConsumerState<_HeliosShell> {
   int _selectedIndex = 0;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.requestFocus();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   // Views that don't need native libs — kept alive via IndexedStack.
   // Video and Setup (which references video provider) are lazy-loaded.
@@ -78,8 +93,15 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     // Don't capture shortcuts when a text field has focus
     final focusNode = FocusManager.instance.primaryFocus;
     if (focusNode != null && focusNode.context != null) {
-      final widget = focusNode.context!.widget;
-      if (widget is EditableText) return;
+      bool isTextField = false;
+      focusNode.context!.visitAncestorElements((element) {
+        if (element.widget is EditableText || element.widget is TextField) {
+          isTextField = true;
+          return false; // stop walking
+        }
+        return true;
+      });
+      if (isTextField || focusNode.context!.widget is EditableText) return;
     }
 
     final index = switch (event.logicalKey) {
@@ -103,11 +125,75 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     final gpsLabel = ref.watch(gpsFixLabelProvider);
     final missionState = ref.watch(missionStateProvider);
 
+    final vehicleCount = ref.watch(vehicleCountProvider);
+    final activeId = ref.watch(activeVehicleIdProvider);
+    final registry = ref.watch(vehicleRegistryProvider);
+
     return KeyboardListener(
-      focusNode: FocusNode()..requestFocus(),
+      focusNode: _focusNode,
       onKeyEvent: _handleKeyPress,
       child: Column(
         children: [
+          // Vehicle selector (only shown with 2+ vehicles)
+          if (vehicleCount > 1)
+            Container(
+              height: 32,
+              color: HeliosColors.surfaceDim,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.multiple_stop,
+                      size: 14, color: HeliosColors.textTertiary),
+                  const SizedBox(width: 6),
+                  Text('$vehicleCount vehicles',
+                      style: const TextStyle(
+                          fontSize: 12, color: HeliosColors.textTertiary)),
+                  const SizedBox(width: 12),
+                  ...registry.entries.map((entry) {
+                    final isActive = entry.key == activeId;
+                    final v = entry.value;
+                    final label = v.vehicleType != VehicleType.unknown
+                        ? 'V${entry.key} (${v.vehicleType.name})'
+                        : 'Vehicle ${entry.key}';
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GestureDetector(
+                        onTap: () => ref
+                            .read(activeVehicleIdProvider.notifier)
+                            .state = entry.key,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? HeliosColors.accent.withValues(alpha: 0.15)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isActive
+                                  ? HeliosColors.accent
+                                  : HeliosColors.border,
+                            ),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isActive
+                                  ? HeliosColors.accent
+                                  : HeliosColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
           Expanded(
             child: ResponsiveScaffold(
               selectedIndex: _selectedIndex,

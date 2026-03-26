@@ -132,10 +132,14 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
     if (charts.containsKey(key) && charts[key]!.visible) {
       charts[key] = charts[key]!.copyWith(visible: false);
     } else {
-      final index = ChartType.values.indexOf(type);
+      // Count currently visible charts to tile new ones sensibly
+      final visibleCount =
+          charts.values.where((c) => c.visible).length;
+      final col = visibleCount % 2;
+      final row = visibleCount ~/ 2;
       charts[key] = (charts[key] ?? WidgetConfig(
-        x: 350,
-        y: 50.0 + index * 160.0,
+        x: 350.0 + col * 300,
+        y: 50.0 + row * 170.0,
       )).copyWith(visible: true);
     }
 

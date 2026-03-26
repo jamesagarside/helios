@@ -29,6 +29,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
   LatLng? _homePosition;
   bool _followVehicle = true;
   bool _mapReady = false;
+  bool _initialCenterDone = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +38,8 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
     final currentWp = ref.watch(currentWaypointProvider);
     final fenceZones = ref.watch(fenceEditProvider).zones;
     final hasPosition = vehicle.hasPosition;
+    final registry = ref.watch(vehicleRegistryProvider);
+    final activeId = ref.watch(activeVehicleIdProvider);
 
     // Update trail
     if (hasPosition) {
@@ -53,13 +56,19 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
         }
       }
 
+      // Center on vehicle on first GPS fix
+      if (!_initialCenterDone && _mapReady) {
+        _initialCenterDone = true;
+        try {
+          _mapController.move(pos, 16);
+        } catch (_) {}
+      }
+
       // Follow vehicle
       if (_followVehicle && _mapReady) {
         try {
           _mapController.move(pos, _mapController.camera.zoom);
-        } catch (_) {
-          // Map not ready yet
-        }
+        } catch (_) {}
       }
     }
 
@@ -167,7 +176,32 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                 ],
               ),
 
-            // Vehicle marker
+            // Non-active vehicle markers (multi-vehicle)
+            if (registry.length > 1)
+              MarkerLayer(
+                markers: registry.entries
+                    .where((e) => e.key != activeId && e.value.hasPosition)
+                    .map((e) => Marker(
+                          point: LatLng(e.value.latitude, e.value.longitude),
+                          width: 28,
+                          height: 28,
+                          child: GestureDetector(
+                            onTap: () => ref
+                                .read(activeVehicleIdProvider.notifier)
+                                .state = e.key,
+                            child: Opacity(
+                              opacity: 0.5,
+                              child: _VehicleMarker(
+                                heading: e.value.heading.toDouble(),
+                                armed: e.value.armed,
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+
+            // Active vehicle marker
             if (hasPosition)
               MarkerLayer(
                 markers: [

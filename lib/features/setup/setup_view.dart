@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/mavlink/transports/serial_transport.dart';
 import '../../shared/models/connection_state.dart';
 import '../../shared/providers/connection_settings_provider.dart';
@@ -347,6 +350,21 @@ class _SetupViewState extends ConsumerState<SetupView> {
                       ? vehicle.autopilotType.name
                       : '--',
                 ),
+                if (vehicle.firmwareVersionString.isNotEmpty)
+                  _StatusRow(
+                    label: 'Firmware',
+                    value: vehicle.firmwareVersionString,
+                  ),
+                if (vehicle.boardVersion > 0)
+                  _StatusRow(
+                    label: 'Board',
+                    value: 'v${vehicle.boardVersion}',
+                  ),
+                if (vehicle.vehicleUid > 0)
+                  _StatusRow(
+                    label: 'UID',
+                    value: vehicle.vehicleUid.toRadixString(16).toUpperCase(),
+                  ),
                 _StatusRow(
                   label: 'Messages/s',
                   value: connection.messageRate.toStringAsFixed(0),
@@ -461,6 +479,18 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
         const SizedBox(height: 24),
 
+        // Reset
+        Text('Reset', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _ResetSection(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // About
         Text('About', style: HeliosTypography.heading2),
         const SizedBox(height: 12),
@@ -498,6 +528,7 @@ class _VideoSettings extends ConsumerStatefulWidget {
 
 class _VideoSettingsState extends ConsumerState<_VideoSettings> {
   late TextEditingController _urlController;
+  bool _urlFocused = false;
 
   @override
   void initState() {
@@ -517,20 +548,28 @@ class _VideoSettingsState extends ConsumerState<_VideoSettings> {
     final settings = ref.watch(videoPlayerProvider);
     final videoCtrl = ref.watch(videoPlayerProvider.notifier);
 
+    // Sync from provider when not actively editing
+    if (!_urlFocused && _urlController.text != settings.rtspUrl) {
+      _urlController.text = settings.rtspUrl;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _urlController,
-          decoration: const InputDecoration(
-            labelText: 'RTSP URL',
-            hintText: 'rtsp://192.168.0.10:8554/main',
+        Focus(
+          onFocusChange: (focused) => _urlFocused = focused,
+          child: TextField(
+            controller: _urlController,
+            decoration: const InputDecoration(
+              labelText: 'RTSP URL',
+              hintText: 'rtsp://192.168.0.10:8554/main',
+            ),
+            onChanged: (url) {
+              ref.read(videoPlayerProvider.notifier).updateSettings(
+                settings.copyWith(rtspUrl: url),
+              );
+            },
           ),
-          onChanged: (url) {
-            ref.read(videoPlayerProvider.notifier).updateSettings(
-              settings.copyWith(rtspUrl: url),
-            );
-          },
         ),
         const SizedBox(height: 12),
         SwitchListTile(
@@ -1190,6 +1229,179 @@ class _RateSlider extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ResetSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Clear all saved settings, recorded flights, and cached data. '
+          'The app will restart in its default state.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _resetSettings(context, ref),
+              icon: const Icon(Icons.settings_backup_restore, size: 16),
+              label: const Text('Reset Settings'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: HeliosColors.warning,
+                side: const BorderSide(color: HeliosColors.warning),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _resetAll(context, ref),
+              icon: const Icon(Icons.delete_forever, size: 16),
+              label: const Text('Wipe All Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HeliosColors.dangerDim,
+                foregroundColor: HeliosColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _resetSettings(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: HeliosColors.border),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: HeliosColors.warning, size: 20),
+            SizedBox(width: 8),
+            Text('Reset Settings',
+                style: TextStyle(
+                    color: HeliosColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: const Text(
+          'Reset all settings to defaults?\n\n'
+          'This clears connection history, stream rates, video URL, '
+          'layout profiles, and display preferences.\n\n'
+          'Recorded flights will NOT be deleted.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HeliosColors.warningDim,
+              foregroundColor: HeliosColors.textPrimary,
+            ),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Settings reset. Restart the app.')),
+      );
+    }
+  }
+
+  Future<void> _resetAll(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HeliosColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: HeliosColors.border),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever, color: HeliosColors.danger, size: 20),
+            SizedBox(width: 8),
+            Text('Wipe All Data',
+                style: TextStyle(
+                    color: HeliosColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: const Text(
+          'Delete ALL local data?\n\n'
+          'This permanently removes:\n'
+          '  \u2022 All settings and preferences\n'
+          '  \u2022 All recorded flights (.duckdb files)\n'
+          '  \u2022 Cached map tiles\n'
+          '  \u2022 Layout profiles\n\n'
+          'This cannot be undone.',
+          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: HeliosColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HeliosColors.dangerDim,
+              foregroundColor: HeliosColors.textPrimary,
+            ),
+            child: const Text('Wipe Everything'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // 1. Clear SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // 2. Delete recorded flights
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final flightsDir = Directory('${appDir.path}/flights');
+      if (flightsDir.existsSync()) {
+        flightsDir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
+
+    // 3. Clear map tile cache
+    try {
+      await CachedTileProvider.clearCache();
+    } catch (_) {}
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('All data wiped. Restart the app to continue.')),
+      );
+    }
   }
 }
 

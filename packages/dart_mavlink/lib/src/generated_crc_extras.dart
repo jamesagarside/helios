@@ -1,7 +1,7 @@
 /// AUTO-GENERATED from MAVLink XML definitions.
 /// Run: dart run scripts/generate_crc_extras.dart
 ///
-/// Contains CRC extras for 305 messages
+/// Contains CRC extras for 306 messages
 /// from common.xml and ardupilotmega.xml.
 const Map<int, int> mavlinkCrcExtras = {
   0: 50, // HEARTBEAT
@@ -26,6 +26,7 @@ const Map<int, int> mavlinkCrcExtras = {
   30: 39, // ATTITUDE
   31: 246, // ATTITUDE_QUATERNION
   32: 185, // LOCAL_POSITION_NED
+  33: 104, // GLOBAL_POSITION_INT
   34: 237, // RC_CHANNELS_SCALED
   35: 244, // RC_CHANNELS_RAW
   36: 222, // SERVO_OUTPUT_RAW

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:duckdb_dart/duckdb_dart.dart';
+import '../../shared/models/flight_metadata.dart';
 import '../../shared/models/mission_item.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -336,6 +337,89 @@ class TelemetryStore {
         fileSizeBytes: f.lengthSync(),
       );
     }).toList();
+  }
+
+  /// Read user-editable metadata from a flight database.
+  Future<FlightMetadata> getFlightMetadata(String filePath) async {
+    Connection? conn;
+    try {
+      conn = Connection(filePath);
+      final result = conn.fetch(
+        "SELECT key, value FROM flight_meta WHERE key LIKE 'user_%'",
+      );
+      final keys = result['key'] as List?;
+      final values = result['value'] as List?;
+      if (keys == null || values == null || keys.isEmpty) {
+        return const FlightMetadata();
+      }
+      final map = <String, String>{};
+      for (var i = 0; i < keys.length; i++) {
+        map[keys[i].toString()] = values[i].toString();
+      }
+      return FlightMetadata(
+        name: map['user_name'],
+        notes: map['user_notes'],
+        tags: map['user_tags']?.isNotEmpty == true
+            ? map['user_tags']!.split(',')
+            : const [],
+        rating: map['user_rating'] != null
+            ? int.tryParse(map['user_rating']!)
+            : null,
+      );
+    } catch (_) {
+      return const FlightMetadata();
+    } finally {
+      conn?.close();
+    }
+  }
+
+  /// Write user-editable metadata to a flight database.
+  ///
+  /// Uses INSERT OR REPLACE to upsert the key-value pairs.
+  Future<void> setFlightMetadata(
+      String filePath, FlightMetadata metadata) async {
+    // If this file is currently open (recording or analysis), use _conn.
+    final useExisting = _currentFilePath == filePath && _conn != null;
+    Connection? conn;
+    try {
+      conn = useExisting ? _conn : Connection(filePath);
+      void upsert(String key, String? value) {
+        if (value == null || value.isEmpty) {
+          conn!.execute(
+            "DELETE FROM flight_meta WHERE key = '$key'",
+          );
+        } else {
+          final escaped = value.replaceAll("'", "''");
+          conn!.execute(
+            "INSERT OR REPLACE INTO flight_meta VALUES ('$key', '$escaped')",
+          );
+        }
+      }
+
+      upsert('user_name', metadata.name);
+      upsert('user_notes', metadata.notes);
+      upsert('user_tags', metadata.tags.isNotEmpty ? metadata.tags.join(',') : null);
+      upsert('user_rating', metadata.rating?.toString());
+    } finally {
+      if (!useExisting) conn?.close();
+    }
+  }
+
+  /// Delete a recorded flight database file.
+  Future<void> deleteFlight(String filePath) async {
+    // Close if this is the currently open flight
+    if (_currentFilePath == filePath) {
+      await closeFlight();
+    }
+    final file = File(filePath);
+    if (file.existsSync()) {
+      file.deleteSync();
+    }
+    // Also delete WAL/tmp files if present
+    final wal = File('$filePath.wal');
+    if (wal.existsSync()) wal.deleteSync();
+    final tmp = File('$filePath.tmp');
+    if (tmp.existsSync()) tmp.deleteSync();
   }
 
   /// Dispose all resources.

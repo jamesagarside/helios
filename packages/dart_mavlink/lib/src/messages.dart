@@ -1220,6 +1220,136 @@ class MissionItemIntMessage extends MavlinkMessage {
   }
 }
 
+/// AUTOPILOT_VERSION (msg_id=148) — firmware version, capabilities, UIDs.
+class AutopilotVersionMessage extends MavlinkMessage {
+  AutopilotVersionMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.capabilities,
+    required this.flightSwVersion,
+    required this.middlewareSwVersion,
+    required this.osSwVersion,
+    required this.boardVersion,
+    required this.vendorId,
+    required this.productId,
+    required this.uid,
+  });
+
+  @override
+  final int messageId = 148;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int capabilities;
+  final int flightSwVersion;
+  final int middlewareSwVersion;
+  final int osSwVersion;
+  final int boardVersion;
+  final int vendorId;
+  final int productId;
+  final int uid;
+
+  /// Major version from packed flightSwVersion.
+  int get versionMajor => (flightSwVersion >> 24) & 0xFF;
+
+  /// Minor version from packed flightSwVersion.
+  int get versionMinor => (flightSwVersion >> 16) & 0xFF;
+
+  /// Patch version from packed flightSwVersion.
+  int get versionPatch => (flightSwVersion >> 8) & 0xFF;
+
+  /// Version type (0=dev, 64=alpha, 128=beta, 192=rc, 255=release).
+  int get versionType => flightSwVersion & 0xFF;
+
+  /// Human-readable version string (e.g. "4.5.1").
+  String get versionString => '$versionMajor.$versionMinor.$versionPatch';
+
+  factory AutopilotVersionMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return AutopilotVersionMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      capabilities: data.getUint64(0, Endian.little),
+      flightSwVersion: data.getUint32(8, Endian.little),
+      middlewareSwVersion: data.getUint32(12, Endian.little),
+      osSwVersion: data.getUint32(16, Endian.little),
+      boardVersion: data.getUint32(20, Endian.little),
+      // Bytes 24-43: flight_custom_version, middleware_custom_version, os_custom_version (8 bytes each)
+      vendorId: data.getUint16(48, Endian.little),
+      productId: data.getUint16(50, Endian.little),
+      uid: data.getUint64(52, Endian.little),
+    );
+  }
+}
+
+/// MOUNT_STATUS (msg_id=158) — gimbal orientation feedback.
+class MountStatusMessage extends MavlinkMessage {
+  MountStatusMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.pointingA,
+    required this.pointingB,
+    required this.pointingC,
+    required this.targetSystem,
+    required this.targetComponent,
+  });
+
+  @override
+  final int messageId = 158;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  /// Pitch in centidegrees.
+  final int pointingA;
+
+  /// Roll in centidegrees.
+  final int pointingB;
+
+  /// Yaw in centidegrees.
+  final int pointingC;
+
+  final int targetSystem;
+  final int targetComponent;
+
+  /// Pitch in degrees.
+  double get pitchDeg => pointingA / 100.0;
+
+  /// Roll in degrees.
+  double get rollDeg => pointingB / 100.0;
+
+  /// Yaw in degrees.
+  double get yawDeg => pointingC / 100.0;
+
+  factory MountStatusMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MountStatusMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      pointingA: data.getInt32(0, Endian.little),
+      pointingB: data.getInt32(4, Endian.little),
+      pointingC: data.getInt32(8, Endian.little),
+      targetSystem: payload.length > 12 ? data.getUint8(12) : 0,
+      targetComponent: payload.length > 13 ? data.getUint8(13) : 0,
+    );
+  }
+}
+
 /// Unrecognised message — payload preserved for inspection.
 class UnknownMessage extends MavlinkMessage {
   UnknownMessage({

@@ -21,11 +21,25 @@ class _VideoViewState extends ConsumerState<VideoView> {
   bool _showHud = true;
   bool _showControls = true;
   bool _initialized = false;
+  late TextEditingController _urlController;
+  bool _urlFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlController = TextEditingController();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _initialized = true;
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
   }
 
   @override
@@ -73,18 +87,73 @@ class _VideoViewState extends ConsumerState<VideoView> {
                   children: [
                     const Icon(Icons.videocam_off, color: HeliosColors.textTertiary, size: 64),
                     const SizedBox(height: 16),
-                    Text(
-                      isPlaying ? 'Connecting...' : 'No video stream',
-                      style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 16),
+                    const Text(
+                      'No video stream',
+                      style: TextStyle(color: HeliosColors.textTertiary, fontSize: 16),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      settings.rtspUrl,
-                      style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+                    const SizedBox(height: 16),
+                    // Editable RTSP URL
+                    Builder(builder: (_) {
+                      if (!_urlFocused && _urlController.text != settings.rtspUrl) {
+                        _urlController.text = settings.rtspUrl;
+                      }
+                      return const SizedBox.shrink();
+                    }),
+                    SizedBox(
+                      width: 360,
+                      child: Focus(
+                        onFocusChange: (f) => _urlFocused = f,
+                        child: TextField(
+                        controller: _urlController,
+                        style: const TextStyle(
+                            color: HeliosColors.textPrimary,
+                            fontSize: 13,
+                            fontFamily: 'monospace'),
+                        decoration: InputDecoration(
+                          labelText: 'RTSP URL',
+                          labelStyle: const TextStyle(
+                              color: HeliosColors.textTertiary, fontSize: 12),
+                          hintText: 'rtsp://127.0.0.1:8554/stream',
+                          hintStyle: const TextStyle(
+                              color: HeliosColors.textTertiary),
+                          filled: true,
+                          fillColor: HeliosColors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide:
+                                const BorderSide(color: HeliosColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide:
+                                const BorderSide(color: HeliosColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide:
+                                const BorderSide(color: HeliosColors.accent),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        onSubmitted: (url) {
+                          videoCtrl.updateSettings(
+                              settings.copyWith(rtspUrl: url));
+                          videoCtrl.connect(url);
+                        },
+                      ),
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
                     ElevatedButton.icon(
-                      onPressed: () => videoCtrl.connect(),
+                      onPressed: () {
+                        final url = _urlController.text.trim();
+                        if (url.isNotEmpty) {
+                          videoCtrl.updateSettings(
+                              settings.copyWith(rtspUrl: url));
+                          videoCtrl.connect(url);
+                        }
+                      },
                       icon: const Icon(Icons.play_arrow, size: 18),
                       label: const Text('Connect'),
                     ),
