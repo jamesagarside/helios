@@ -49,16 +49,17 @@ packages/*/build/
 packages/*/.dart_tool/
 packages/*/pubspec.lock
 
-# Claude tooling (not project code)
+# Claude / AI tooling
+CLAUDE.md
+.claude/
 .claude-flow/
-.claude/agents/
-.claude/commands/
-.claude/helpers/
-.claude/skills/
-.claude/settings.json
-
-# MCP config (local)
 .mcp.json
+
+# OpenSpec (internal planning docs)
+openspec/
+
+# MAVLink XML sources (downloaded at build time)
+scripts/mavlink_xml/
 
 # Flutter generated
 .flutter-plugins
