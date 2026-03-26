@@ -198,7 +198,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                                         _error!,
                                         style: const TextStyle(
                                           color: HeliosColors.danger,
-                                          fontSize: 10,
+                                          fontSize: 12,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -211,10 +211,10 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                                           height: 30,
                                           child: TextField(
                                             controller: _urlController,
-                                            style: HeliosTypography.sqlEditor.copyWith(fontSize: 11),
+                                            style: HeliosTypography.sqlEditor.copyWith(fontSize: 12),
                                             decoration: InputDecoration(
                                               hintText: 'rtsp://ip:port/stream',
-                                              hintStyle: const TextStyle(fontSize: 11),
+                                              hintStyle: const TextStyle(fontSize: 12),
                                               contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                                               border: OutlineInputBorder(
                                                 borderRadius: BorderRadius.circular(4),
@@ -229,13 +229,13 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                                         child: _isConnected
                                             ? OutlinedButton(
                                                 onPressed: _disconnect,
-                                                child: const Text('Stop', style: TextStyle(fontSize: 11)),
+                                                child: const Text('Stop', style: TextStyle(fontSize: 12)),
                                               )
                                             : ElevatedButton(
                                                 onPressed: _isConnecting ? null : _connect,
                                                 child: Text(
                                                   _isConnecting ? '...' : 'Play',
-                                                  style: const TextStyle(fontSize: 11),
+                                                  style: const TextStyle(fontSize: 12),
                                                 ),
                                               ),
                                       ),
@@ -317,7 +317,7 @@ class _VideoTitleBar extends StatelessWidget {
           Text(
             isConnected ? 'Video Stream' : 'Video (disconnected)',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: isConnected ? HeliosColors.textPrimary : HeliosColors.textTertiary,
             ),

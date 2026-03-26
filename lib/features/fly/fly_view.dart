@@ -148,7 +148,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
                                 Text(
                                   'VID',
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 12,
                                     fontWeight: showVideo ? FontWeight.w600 : FontWeight.w400,
                                     color: showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
                                   ),
@@ -285,7 +285,7 @@ class _WidgetToggle extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
             color: active ? HeliosColors.accent : HeliosColors.textTertiary,
           ),
@@ -454,7 +454,7 @@ class _ConnectionControls extends ConsumerWidget {
                         ref.read(connectionSettingsProvider.notifier).label,
                         style: const TextStyle(
                           color: HeliosColors.accent,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -489,7 +489,7 @@ class _ConnectionControls extends ConsumerWidget {
                     'Connecting...',
                     style: TextStyle(
                       color: HeliosColors.textSecondary,
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -679,7 +679,7 @@ class _PfdPainter extends CustomPainter {
 
   static const _tapeTextStyle = TextStyle(
     color: HeliosColors.textSecondary,
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: 'monospace',
   );
   static const _readoutTextStyle = TextStyle(
@@ -844,7 +844,7 @@ class _PfdPainter extends CustomPainter {
 
     // REL alt below readout
     _drawText(canvas, 'R ${altitudeRel.toStringAsFixed(0)}m',
-        _labelTextStyle.copyWith(color: HeliosColors.accent, fontSize: 9),
+        _labelTextStyle.copyWith(color: HeliosColors.accent, fontSize: 12),
         Offset(altTapeRect.center.dx, altTapeRect.center.dy + 16));
 
     // VS arrow
@@ -853,7 +853,7 @@ class _PfdPainter extends CustomPainter {
       final arrow = climbRate > 0 ? '\u25B2' : '\u25BC';
       final vsColor = climbRate > 0 ? HeliosColors.success : HeliosColors.warning;
       _drawText(canvas, '$arrow${climbRate.abs().toStringAsFixed(1)}',
-          _labelTextStyle.copyWith(color: vsColor, fontSize: 9),
+          _labelTextStyle.copyWith(color: vsColor, fontSize: 12),
           Offset(altTapeRect.center.dx, vsY));
     }
 
@@ -1129,7 +1129,7 @@ class _MiniTelemetryItem extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label, style: HeliosTypography.caption.copyWith(fontSize: 9)),
+        Text(label, style: HeliosTypography.caption.copyWith(fontSize: 12)),
         Text(value, style: HeliosTypography.telemetrySmall.copyWith(fontSize: 12)),
       ],
     );

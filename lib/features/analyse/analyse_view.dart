@@ -394,7 +394,7 @@ class _FlightBrowser extends StatelessWidget {
                       ),
                       subtitle: Text(
                         '$sizeKb KB',
-                        style: const TextStyle(fontSize: 11, color: HeliosColors.textTertiary),
+                        style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
                       ),
                       onTap: () => onSelect(flight),
                     );
@@ -535,7 +535,7 @@ class _ResultsTable extends StatelessWidget {
                     label: Text(
                       name,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: HeliosColors.accent,
                       ),
@@ -553,7 +553,7 @@ class _ResultsTable extends StatelessWidget {
                 return DataCell(
                   Text(
                     display,
-                    style: HeliosTypography.sqlEditor.copyWith(fontSize: 11),
+                    style: HeliosTypography.sqlEditor.copyWith(fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),
                 );

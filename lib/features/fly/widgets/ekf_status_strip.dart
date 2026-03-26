@@ -56,7 +56,7 @@ class _EkfStatusStripState extends ConsumerState<EkfStatusStrip> {
         const SizedBox(width: 4),
         Text(
           'EKF',
-          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -68,7 +68,7 @@ class _EkfStatusStripState extends ConsumerState<EkfStatusStrip> {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Text('EKF Status',
-            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 10, fontWeight: FontWeight.w600)),
+            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         _VarianceRow(label: 'Velocity', value: vehicle.ekfVelocityVar),
         _VarianceRow(label: 'Pos Horiz', value: vehicle.ekfPosHorizVar),
@@ -111,11 +111,11 @@ class _VarianceRow extends StatelessWidget {
           const SizedBox(width: 4),
           SizedBox(
             width: 55,
-            child: Text(label, style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 9)),
+            child: Text(label, style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 12)),
           ),
           Text(
             value.toStringAsFixed(2),
-            style: TextStyle(color: color, fontSize: 9, fontFamily: 'monospace', fontWeight: FontWeight.w600),
+            style: TextStyle(color: color, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600),
           ),
         ],
       ),

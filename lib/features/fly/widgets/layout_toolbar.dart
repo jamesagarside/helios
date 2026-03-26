@@ -72,7 +72,7 @@ class _ProfileDropdown extends StatelessWidget {
         dropdownColor: HeliosColors.surface,
         icon: const Icon(Icons.expand_more, size: 12, color: HeliosColors.textSecondary),
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
           color: HeliosColors.textPrimary,
         ),

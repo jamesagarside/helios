@@ -221,7 +221,7 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
     final hasData = _seriesData.any((s) => s.points.length >= 2);
     if (!hasData) {
       return const Center(
-        child: Text('Sampling...', style: TextStyle(color: HeliosColors.textTertiary, fontSize: 10)),
+        child: Text('Sampling...', style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12)),
       );
     }
 
@@ -316,13 +316,13 @@ class _TitleBar extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             title,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: HeliosColors.textPrimary),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: HeliosColors.textPrimary),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               latestValues,
-              style: HeliosTypography.telemetrySmall.copyWith(fontSize: 10),
+              style: HeliosTypography.telemetrySmall.copyWith(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),

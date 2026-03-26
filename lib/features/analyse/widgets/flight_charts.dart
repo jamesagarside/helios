@@ -358,7 +358,7 @@ class _FlightChartsState extends State<FlightCharts> {
                   if (meta.min == value || meta.max == value) return const SizedBox();
                   return Text(
                     value.toStringAsFixed(value.abs() < 10 ? 1 : 0),
-                    style: const TextStyle(fontSize: 9, color: HeliosColors.textTertiary),
+                    style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
                   );
                 },
               ),
@@ -373,7 +373,7 @@ class _FlightChartsState extends State<FlightCharts> {
                   final secs = (value % 60).floor();
                   return Text(
                     '$mins:${secs.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 9, color: HeliosColors.textTertiary),
+                    style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
                   );
                 },
               ),
@@ -413,7 +413,7 @@ class _FlightChartsState extends State<FlightCharts> {
                   final s = series[spot.barIndex];
                   return LineTooltipItem(
                     '${s.name}: ${spot.y.toStringAsFixed(2)} $yLabel',
-                    TextStyle(color: s.color, fontSize: 11),
+                    TextStyle(color: s.color, fontSize: 12),
                   );
                 }).toList();
               },
@@ -482,7 +482,7 @@ class _SummaryCard extends StatelessWidget {
               Text(label, style: HeliosTypography.caption),
               const SizedBox(height: 2),
               Text(value, style: HeliosTypography.telemetryMedium),
-              Text(unit, style: const TextStyle(fontSize: 10, color: HeliosColors.textTertiary)),
+              Text(unit, style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary)),
             ],
           ),
         ),

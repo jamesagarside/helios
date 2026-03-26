@@ -97,7 +97,7 @@ class _ChartToggle extends StatelessWidget {
             Text(
               type.label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                 color: active ? HeliosColors.accent : HeliosColors.textTertiary,
               ),

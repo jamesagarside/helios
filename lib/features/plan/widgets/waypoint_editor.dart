@@ -148,7 +148,7 @@ class WaypointEditor extends StatelessWidget {
               '${item.latitude.toStringAsFixed(6)}, ${item.longitude.toStringAsFixed(6)}',
               style: const TextStyle(
                 color: HeliosColors.textTertiary,
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: 'monospace',
               ),
             ),
@@ -192,7 +192,7 @@ class _EditorRow extends StatelessWidget {
           label,
           style: const TextStyle(
             color: HeliosColors.textTertiary,
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),

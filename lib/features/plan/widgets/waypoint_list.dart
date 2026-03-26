@@ -162,7 +162,7 @@ class _WaypointRow extends StatelessWidget {
                       '${item.latitude.toStringAsFixed(5)}, ${item.longitude.toStringAsFixed(5)}',
                       style: const TextStyle(
                         color: HeliosColors.textTertiary,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontFamily: 'monospace',
                       ),
                     ),
@@ -174,7 +174,7 @@ class _WaypointRow extends StatelessWidget {
               '${item.altitude.toStringAsFixed(0)}m',
               style: const TextStyle(
                 color: HeliosColors.textSecondary,
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: 'monospace',
               ),
             ),

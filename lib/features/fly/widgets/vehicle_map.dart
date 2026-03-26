@@ -372,7 +372,7 @@ class _MissionWaypointMarker extends StatelessWidget {
                 '$index',
                 style: TextStyle(
                   color: color,
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),

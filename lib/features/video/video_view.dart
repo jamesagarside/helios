@@ -92,7 +92,7 @@ class _VideoViewState extends ConsumerState<VideoView> {
                       const SizedBox(height: 12),
                       Text(
                         videoCtrl.lastError!,
-                        style: const TextStyle(color: HeliosColors.danger, fontSize: 11),
+                        style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -133,7 +133,7 @@ class _VideoViewState extends ConsumerState<VideoView> {
                     const SizedBox(width: 8),
                     Text(
                       settings.rtspUrl,
-                      style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 11),
+                      style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
                     ),
                     const Spacer(),
                     // HUD toggle
@@ -202,7 +202,7 @@ class _ControlButton extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: active ? HeliosColors.accent : HeliosColors.textSecondary,
               ),
             ),
@@ -371,7 +371,7 @@ class _HudTape extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: HeliosColors.textPrimary.withValues(alpha: 0.6),
               fontWeight: FontWeight.w500,
             ),
@@ -389,7 +389,7 @@ class _HudTape extends StatelessWidget {
           Text(
             unit,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: HeliosColors.textPrimary.withValues(alpha: 0.5),
             ),
           ),
@@ -464,7 +464,7 @@ class _HudBadge extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: color,
         ),

@@ -339,7 +339,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
                 'Modified',
                 style: TextStyle(
                   color: HeliosColors.warning,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -691,7 +691,7 @@ class _WaypointMarker extends StatelessWidget {
                 '$index',
                 style: TextStyle(
                   color: color,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),

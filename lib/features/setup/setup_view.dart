@@ -198,9 +198,12 @@ class _SetupViewState extends ConsumerState<SetupView> {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedSerialPort,
-                          decoration: const InputDecoration(labelText: 'Port'),
+                        child: DropdownButton<String>(
+                          value: _serialPorts.contains(_selectedSerialPort)
+                              ? _selectedSerialPort
+                              : null,
+                          hint: const Text('Select port', style: TextStyle(fontSize: 13)),
+                          isExpanded: true,
                           dropdownColor: HeliosColors.surfaceLight,
                           items: _serialPorts.map((port) {
                             final desc = SerialTransport.portDescription(port);
@@ -236,21 +239,25 @@ class _SetupViewState extends ConsumerState<SetupView> {
                     ),
                   const SizedBox(height: 12),
                   // Baud rate selector
-                  DropdownButtonFormField<int>(
-                    initialValue: _baudRate,
-                    decoration: const InputDecoration(labelText: 'Baud Rate'),
-                    dropdownColor: HeliosColors.surfaceLight,
-                    items: _baudRates
-                        .map((b) => DropdownMenuItem(
-                              value: b,
-                              child: Text('$b'),
-                            ))
-                        .toList(),
-                    onChanged: isConnected
-                        ? null
-                        : (v) {
-                            if (v != null) setState(() => _baudRate = v);
-                          },
+                  Row(
+                    children: [
+                      const Text('Baud Rate: ', style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13)),
+                      DropdownButton<int>(
+                        value: _baudRate,
+                        dropdownColor: HeliosColors.surfaceLight,
+                        items: _baudRates
+                            .map((b) => DropdownMenuItem(
+                                  value: b,
+                                  child: Text('$b', style: const TextStyle(fontSize: 13)),
+                                ))
+                            .toList(),
+                        onChanged: isConnected
+                            ? null
+                            : (v) {
+                                if (v != null) setState(() => _baudRate = v);
+                              },
+                      ),
+                    ],
                   ),
                 ],
 
@@ -568,7 +575,7 @@ class _VideoSettingsState extends ConsumerState<_VideoSettings> {
           const SizedBox(height: 8),
           Text(
             videoCtrl.lastError!,
-            style: const TextStyle(color: HeliosColors.danger, fontSize: 11),
+            style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
           ),
         ],
       ],
@@ -624,19 +631,19 @@ class _RecordingStatus extends ConsumerWidget {
                       isRecording ? 'RECORDING' : 'IDLE',
                       style: TextStyle(
                         color: isRecording ? HeliosColors.danger : HeliosColors.textSecondary,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (isRecording)
                       Text(
                         '${store.rowsWritten} rows written',
-                        style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 11),
+                        style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
                       )
                     else
                       const Text(
                         'Waiting for connection',
-                        style: TextStyle(color: HeliosColors.textTertiary, fontSize: 11),
+                        style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
                       ),
                   ],
                 ),
@@ -740,7 +747,7 @@ class _DisplaySettings extends ConsumerWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            const Text('A', style: TextStyle(fontSize: 11, color: HeliosColors.textTertiary)),
+            const Text('A', style: TextStyle(fontSize: 12, color: HeliosColors.textTertiary)),
             Expanded(
               child: Slider(
                 value: scale,
@@ -826,7 +833,7 @@ class _LayoutProfilesSection extends ConsumerWidget {
               ),
               subtitle: Text(
                 _profileSummary(profile),
-                style: const TextStyle(fontSize: 11, color: HeliosColors.textTertiary),
+                style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -841,7 +848,7 @@ class _LayoutProfilesSection extends ConsumerWidget {
                       child: const Text(
                         'ACTIVE',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: HeliosColors.accent,
                         ),
@@ -1115,14 +1122,14 @@ class _StreamRateSettings extends ConsumerWidget {
           'Est. ${rates.estimatedRowsPerMinute} rows/min to DuckDB',
           style: const TextStyle(
             color: HeliosColors.textTertiary,
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: 'monospace',
           ),
         ),
         const SizedBox(height: 4),
         const Text(
           'Changes take effect on next connect.',
-          style: TextStyle(color: HeliosColors.textTertiary, fontSize: 11),
+          style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
         ),
       ],
     );
