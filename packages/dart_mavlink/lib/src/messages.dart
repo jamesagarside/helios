@@ -554,6 +554,249 @@ class ServoOutputRawMessage extends MavlinkMessage {
   }
 }
 
+/// LOG_ENTRY (msg_id=118) — onboard log metadata.
+class LogEntryMessage extends MavlinkMessage {
+  LogEntryMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.id,
+    required this.numLogs,
+    required this.lastLogNum,
+    required this.timeUtc,
+    required this.size,
+  });
+
+  @override
+  final int messageId = 118;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int id;
+  final int numLogs;
+  final int lastLogNum;
+  final int timeUtc; // seconds since epoch, 0 if unavailable
+  final int size; // bytes
+
+  DateTime? get dateTime =>
+      timeUtc > 0 ? DateTime.fromMillisecondsSinceEpoch(timeUtc * 1000, isUtc: true) : null;
+
+  factory LogEntryMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return LogEntryMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeUtc: data.getUint32(0, Endian.little),
+      size: data.getUint32(4, Endian.little),
+      id: data.getUint16(8, Endian.little),
+      numLogs: data.getUint16(10, Endian.little),
+      lastLogNum: data.getUint16(12, Endian.little),
+    );
+  }
+}
+
+/// LOG_DATA (msg_id=120) — chunk of log data.
+class LogDataMessage extends MavlinkMessage {
+  LogDataMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.id,
+    required this.ofs,
+    required this.count,
+    required this.data,
+  });
+
+  @override
+  final int messageId = 120;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int id;
+  final int ofs;
+  final int count; // 0 = end of log
+  final Uint8List data; // up to 90 bytes
+
+  factory LogDataMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final bd = ByteData.sublistView(payload);
+    final ofs = bd.getUint32(0, Endian.little);
+    final id = bd.getUint16(4, Endian.little);
+    final count = payload[6];
+    final logData = count > 0 ? Uint8List.fromList(payload.sublist(7, 7 + count)) : Uint8List(0);
+
+    return LogDataMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      id: id,
+      ofs: ofs,
+      count: count,
+      data: logData,
+    );
+  }
+}
+
+/// MAG_CAL_PROGRESS (msg_id=191) — compass calibration progress.
+class MagCalProgressMessage extends MavlinkMessage {
+  MagCalProgressMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.compassId,
+    required this.calStatus,
+    required this.attempt,
+    required this.completionPct,
+    required this.directionX,
+    required this.directionY,
+    required this.directionZ,
+  });
+
+  @override
+  final int messageId = 191;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int compassId;
+  final int calStatus;
+  final int attempt;
+  final int completionPct;
+  final double directionX;
+  final double directionY;
+  final double directionZ;
+
+  factory MagCalProgressMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MagCalProgressMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      directionX: data.getFloat32(0, Endian.little),
+      directionY: data.getFloat32(4, Endian.little),
+      directionZ: data.getFloat32(8, Endian.little),
+      compassId: payload[12],
+      calStatus: payload[14],
+      attempt: payload[15],
+      completionPct: payload[16],
+    );
+  }
+}
+
+/// MAG_CAL_REPORT (msg_id=192) — compass calibration result.
+class MagCalReportMessage extends MavlinkMessage {
+  MagCalReportMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.compassId,
+    required this.calStatus,
+    required this.autosaved,
+    required this.fitness,
+  });
+
+  @override
+  final int messageId = 192;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int compassId;
+  final int calStatus;
+  final int autosaved;
+  final double fitness; // RMS milligauss residuals
+
+  bool get success => calStatus == 4; // MAG_CAL_SUCCESS
+  bool get failed => calStatus == 5;  // MAG_CAL_FAILED
+
+  factory MagCalReportMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return MagCalReportMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      fitness: data.getFloat32(0, Endian.little),
+      compassId: payload[32],
+      calStatus: payload[34],
+      autosaved: payload[35],
+    );
+  }
+}
+
+/// EKF_STATUS_REPORT (msg_id=193) — EKF health variances.
+class EkfStatusReportMessage extends MavlinkMessage {
+  EkfStatusReportMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.flags,
+    required this.velocityVariance,
+    required this.posHorizVariance,
+    required this.posVertVariance,
+    required this.compassVariance,
+    required this.terrainAltVariance,
+  });
+
+  @override
+  final int messageId = 193;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int flags;
+  final double velocityVariance;
+  final double posHorizVariance;
+  final double posVertVariance;
+  final double compassVariance;
+  final double terrainAltVariance;
+
+  /// Variance health: <0.5 good, 0.5-0.8 warning, >0.8 bad.
+  int healthLevel(double variance) =>
+      variance < 0.5 ? 0 : variance < 0.8 ? 1 : 2;
+
+  factory EkfStatusReportMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return EkfStatusReportMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      velocityVariance: data.getFloat32(0, Endian.little),
+      posHorizVariance: data.getFloat32(4, Endian.little),
+      posVertVariance: data.getFloat32(8, Endian.little),
+      compassVariance: data.getFloat32(12, Endian.little),
+      terrainAltVariance: data.getFloat32(16, Endian.little),
+      flags: data.getUint16(20, Endian.little),
+    );
+  }
+}
+
 /// PARAM_REQUEST_LIST (msg_id=21) — request all parameters.
 class ParamRequestListMessage extends MavlinkMessage {
   ParamRequestListMessage({

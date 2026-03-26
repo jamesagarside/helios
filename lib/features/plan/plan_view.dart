@@ -11,6 +11,8 @@ import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/widgets/confirm_dialog.dart';
+import '../../shared/models/fence_zone.dart';
+import 'providers/fence_edit_notifier.dart';
 import 'providers/mission_edit_notifier.dart';
 import 'widgets/waypoint_editor.dart';
 import 'widgets/waypoint_list.dart';
@@ -32,6 +34,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
   Widget build(BuildContext context) {
     final editState = ref.watch(missionEditProvider);
     final missionState = ref.watch(missionStateProvider);
+    final fenceState = ref.watch(fenceEditProvider);
     final width = MediaQuery.sizeOf(context).width;
     final showPanel = width >= 768;
 
@@ -74,10 +77,16 @@ class _PlanViewState extends ConsumerState<PlanView> {
         initialZoom: 15,
         onMapReady: () => _mapReady = true,
         onTap: (tapPos, latLng) {
-          ref.read(missionEditProvider.notifier).addWaypoint(
-            latLng.latitude,
-            latLng.longitude,
-          );
+          final fence = ref.read(fenceEditProvider);
+          if (fence.drawingMode) {
+            ref.read(fenceEditProvider.notifier).addVertex(
+              latLng.latitude, latLng.longitude,
+            );
+          } else {
+            ref.read(missionEditProvider.notifier).addWaypoint(
+              latLng.latitude, latLng.longitude,
+            );
+          }
         },
       ),
       children: [
@@ -88,6 +97,9 @@ class _PlanViewState extends ConsumerState<PlanView> {
           tileProvider: CachedTileProvider(),
           tileBuilder: _darkTileBuilder,
         ),
+
+        // Fence zones
+        ..._buildFenceLayers(ref.watch(fenceEditProvider)),
 
         // Mission path polyline
         if (items.length >= 2)
@@ -194,6 +206,86 @@ class _PlanViewState extends ConsumerState<PlanView> {
     return math.atan2(y, x);
   }
 
+  List<Widget> _buildFenceLayers(FenceEditState fenceState) {
+    final layers = <Widget>[];
+
+    // Existing zones
+    for (final zone in fenceState.zones) {
+      if (zone.shape == FenceShape.polygon && zone.vertices.length >= 3) {
+        final color = zone.type == FenceZoneType.inclusion
+            ? HeliosColors.success
+            : HeliosColors.danger;
+        layers.add(PolygonLayer(
+          polygons: [
+            Polygon(
+              points: zone.vertices.map((v) => LatLng(v.lat, v.lon)).toList(),
+              color: color.withValues(alpha: 0.15),
+              borderColor: color.withValues(alpha: 0.6),
+              borderStrokeWidth: 2,
+            ),
+          ],
+        ));
+      } else if (zone.shape == FenceShape.circle) {
+        final color = zone.type == FenceZoneType.inclusion
+            ? HeliosColors.success
+            : HeliosColors.danger;
+        // Approximate circle with 36 points
+        final points = <LatLng>[];
+        for (var deg = 0; deg < 360; deg += 10) {
+          final rad = deg * math.pi / 180;
+          final dLat = zone.radius / 111320 * math.cos(rad);
+          final dLon = zone.radius / (111320 * math.cos(zone.centerLat * math.pi / 180)) * math.sin(rad);
+          points.add(LatLng(zone.centerLat + dLat, zone.centerLon + dLon));
+        }
+        layers.add(PolygonLayer(
+          polygons: [
+            Polygon(
+              points: points,
+              color: color.withValues(alpha: 0.15),
+              borderColor: color.withValues(alpha: 0.6),
+              borderStrokeWidth: 2,
+            ),
+          ],
+        ));
+      }
+    }
+
+    // Drawing-in-progress polyline
+    if (fenceState.drawingMode && fenceState.drawingVertices.isNotEmpty) {
+      final drawColor = fenceState.drawingType == FenceZoneType.inclusion
+          ? HeliosColors.success
+          : HeliosColors.danger;
+      final points = fenceState.drawingVertices.map((v) => LatLng(v.lat, v.lon)).toList();
+      layers.add(PolylineLayer(
+        polylines: [
+          Polyline(
+            points: points,
+            color: drawColor,
+            strokeWidth: 2,
+            pattern: StrokePattern.dashed(segments: [6, 4]),
+          ),
+        ],
+      ));
+      // Vertex markers
+      layers.add(MarkerLayer(
+        markers: points.asMap().entries.map((e) => Marker(
+          point: e.value,
+          width: 12,
+          height: 12,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: drawColor,
+              border: Border.all(color: Colors.white, width: 1),
+            ),
+          ),
+        )).toList(),
+      ));
+    }
+
+    return layers;
+  }
+
   Widget _buildInfoBar(MissionEditState editState) {
     final count = editState.waypointCount;
     // Calculate total distance
@@ -259,6 +351,8 @@ class _PlanViewState extends ConsumerState<PlanView> {
 
   Widget _buildMapControls() {
     final notifier = ref.read(missionEditProvider.notifier);
+    final fenceNotifier = ref.read(fenceEditProvider.notifier);
+    final fenceState = ref.watch(fenceEditProvider);
 
     return Positioned(
       right: 12,
@@ -290,6 +384,25 @@ class _PlanViewState extends ConsumerState<PlanView> {
             icon: Icons.redo,
             onPressed: notifier.canRedo ? () => notifier.redo() : null,
           ),
+          const SizedBox(height: 12),
+          // Fence drawing tools
+          _MapButton(
+            icon: fenceState.drawingMode ? Icons.check : Icons.fence,
+            onPressed: () {
+              if (fenceState.drawingMode) {
+                fenceNotifier.finishDrawing();
+              } else {
+                fenceNotifier.startDrawing(FenceZoneType.inclusion);
+              }
+            },
+          ),
+          if (fenceState.drawingMode) ...[
+            const SizedBox(height: 4),
+            _MapButton(
+              icon: Icons.close,
+              onPressed: () => fenceNotifier.cancelDrawing(),
+            ),
+          ],
         ],
       ),
     );

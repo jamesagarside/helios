@@ -96,6 +96,51 @@ class MavlinkFrameBuilder {
     return buildFrame(messageId: 76, payload: payload);
   }
 
+  /// Build a LOG_REQUEST_LIST frame (msg_id=117).
+  Uint8List buildLogRequestList({
+    required int targetSystem,
+    required int targetComponent,
+    int start = 0,
+    int end = 0xFFFF,
+  }) {
+    final payload = Uint8List(6);
+    final data = ByteData.sublistView(payload);
+    data.setUint16(0, start, Endian.little);
+    data.setUint16(2, end, Endian.little);
+    payload[4] = targetSystem;
+    payload[5] = targetComponent;
+    return buildFrame(messageId: 117, payload: payload);
+  }
+
+  /// Build a LOG_REQUEST_DATA frame (msg_id=119).
+  Uint8List buildLogRequestData({
+    required int targetSystem,
+    required int targetComponent,
+    required int logId,
+    required int offset,
+    required int count,
+  }) {
+    final payload = Uint8List(12);
+    final data = ByteData.sublistView(payload);
+    data.setUint32(0, offset, Endian.little);
+    data.setUint32(4, count, Endian.little);
+    data.setUint16(8, logId, Endian.little);
+    payload[10] = targetSystem;
+    payload[11] = targetComponent;
+    return buildFrame(messageId: 119, payload: payload);
+  }
+
+  /// Build a LOG_REQUEST_END frame (msg_id=122).
+  Uint8List buildLogRequestEnd({
+    required int targetSystem,
+    required int targetComponent,
+  }) {
+    final payload = Uint8List(2);
+    payload[0] = targetSystem;
+    payload[1] = targetComponent;
+    return buildFrame(messageId: 122, payload: payload);
+  }
+
   /// Build a PARAM_REQUEST_LIST frame (msg_id=21).
   Uint8List buildParamRequestList({
     required int targetSystem,

@@ -15,6 +15,7 @@ import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/providers/connection_settings_provider.dart';
 import '../../shared/widgets/connection_badge.dart';
+import 'widgets/ekf_status_strip.dart';
 
 /// Fly View — primary in-flight screen with live telemetry.
 class FlyView extends ConsumerWidget {
@@ -94,7 +95,14 @@ class _DesktopFlyLayout extends ConsumerWidget {
               Positioned(
                 top: 12,
                 right: 12,
-                child: _ConnectionControls(linkState: linkState),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _ConnectionControls(linkState: linkState),
+                    const SizedBox(height: 4),
+                    const EkfStatusStrip(),
+                  ],
+                ),
               ),
               // Toolbars — top-left
               Positioned(

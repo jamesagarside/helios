@@ -250,6 +250,9 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
   /// The parameter service for reading/writing FC params.
   ParameterService? get paramService => _paramService;
 
+  /// The underlying MAVLink service (for calibration, etc.).
+  MavlinkService? get mavlinkService => _service;
+
   /// Send an arm/disarm command.
   Future<void> setArmed(bool arm) async {
     if (_service == null) return;

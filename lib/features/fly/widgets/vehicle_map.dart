@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+import '../../../shared/models/fence_zone.dart';
 import '../../../shared/models/mission_item.dart';
 import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../core/map/cached_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';
+import '../../plan/providers/fence_edit_notifier.dart';
 
 /// Maximum number of trail points to display.
 const int _maxTrailPoints = 300;
@@ -33,6 +35,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
     final vehicle = ref.watch(vehicleStateProvider);
     final missionItems = ref.watch(missionItemsProvider);
     final currentWp = ref.watch(currentWaypointProvider);
+    final fenceZones = ref.watch(fenceEditProvider).zones;
     final hasPosition = vehicle.hasPosition;
 
     // Update trail
@@ -86,6 +89,24 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
               tileProvider: CachedTileProvider(),
               tileBuilder: _darkTileBuilder,
             ),
+
+            // Fence zones
+            if (fenceZones.isNotEmpty)
+              PolygonLayer(
+                polygons: fenceZones
+                    .where((z) => z.shape == FenceShape.polygon && z.vertices.length >= 3)
+                    .map((z) {
+                      final color = z.type == FenceZoneType.inclusion
+                          ? HeliosColors.success
+                          : HeliosColors.danger;
+                      return Polygon(
+                        points: z.vertices.map((v) => LatLng(v.lat, v.lon)).toList(),
+                        color: color.withValues(alpha: 0.1),
+                        borderColor: color.withValues(alpha: 0.5),
+                        borderStrokeWidth: 1.5,
+                      );
+                    }).toList(),
+              ),
 
             // Vehicle trail
             if (_trail.length >= 2)

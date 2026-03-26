@@ -4,6 +4,7 @@ import '../../core/mavlink/transports/serial_transport.dart';
 import '../../shared/models/connection_state.dart';
 import '../../shared/providers/connection_settings_provider.dart';
 import '../../shared/providers/stream_rate_provider.dart';
+import 'widgets/calibration_wizard.dart';
 import 'widgets/parameter_editor.dart';
 import '../../shared/models/layout_profile.dart' as layout;
 import '../../shared/models/vehicle_state.dart';
@@ -361,6 +362,18 @@ class _SetupViewState extends ConsumerState<SetupView> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: _StreamRateSettings(),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Sensor Calibration
+        Text('Sensor Calibration', style: HeliosTypography.heading2),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: const CalibrationWizard(),
           ),
         ),
 

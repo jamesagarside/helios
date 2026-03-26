@@ -77,6 +77,12 @@ class VehicleState extends Equatable {
     this.lastHeartbeat,
     this.rssi = 0,
     this.currentWaypoint = -1,
+    this.ekfVelocityVar = 0.0,
+    this.ekfPosHorizVar = 0.0,
+    this.ekfPosVertVar = 0.0,
+    this.ekfCompassVar = 0.0,
+    this.ekfTerrainVar = 0.0,
+    this.sensorHealth = 0,
   });
 
   // Identity
@@ -123,6 +129,23 @@ class VehicleState extends Equatable {
   final int rssi;
   final int currentWaypoint; // -1 = no mission active
 
+  // EKF status (variance: <0.5 good, 0.5-0.8 warn, >0.8 bad)
+  final double ekfVelocityVar;
+  final double ekfPosHorizVar;
+  final double ekfPosVertVar;
+  final double ekfCompassVar;
+  final double ekfTerrainVar;
+  final int sensorHealth; // SYS_STATUS bitmask
+
+  /// EKF overall health: 0=good, 1=warning, 2=bad
+  int get ekfHealth {
+    final maxVar = [ekfVelocityVar, ekfPosHorizVar, ekfPosVertVar, ekfCompassVar]
+        .reduce((a, b) => a > b ? a : b);
+    if (maxVar > 0.8) return 2;
+    if (maxVar > 0.5) return 1;
+    return 0;
+  }
+
   /// Convenience — whether we have a valid GPS position.
   bool get hasPosition => latitude != 0.0 || longitude != 0.0;
 
@@ -160,6 +183,12 @@ class VehicleState extends Equatable {
     DateTime? lastHeartbeat,
     int? rssi,
     int? currentWaypoint,
+    double? ekfVelocityVar,
+    double? ekfPosHorizVar,
+    double? ekfPosVertVar,
+    double? ekfCompassVar,
+    double? ekfTerrainVar,
+    int? sensorHealth,
   }) {
     return VehicleState(
       systemId: systemId ?? this.systemId,
@@ -194,6 +223,12 @@ class VehicleState extends Equatable {
       lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
       rssi: rssi ?? this.rssi,
       currentWaypoint: currentWaypoint ?? this.currentWaypoint,
+      ekfVelocityVar: ekfVelocityVar ?? this.ekfVelocityVar,
+      ekfPosHorizVar: ekfPosHorizVar ?? this.ekfPosHorizVar,
+      ekfPosVertVar: ekfPosVertVar ?? this.ekfPosVertVar,
+      ekfCompassVar: ekfCompassVar ?? this.ekfCompassVar,
+      ekfTerrainVar: ekfTerrainVar ?? this.ekfTerrainVar,
+      sensorHealth: sensorHealth ?? this.sensorHealth,
     );
   }
 
@@ -205,5 +240,7 @@ class VehicleState extends Equatable {
         airspeed, groundspeed, heading, climbRate, throttle,
         batteryVoltage, batteryCurrent, batteryRemaining, batteryConsumed,
         flightMode, armed, lastHeartbeat, rssi, currentWaypoint,
+        ekfVelocityVar, ekfPosHorizVar, ekfPosVertVar, ekfCompassVar,
+        ekfTerrainVar, sensorHealth,
       ];
 }

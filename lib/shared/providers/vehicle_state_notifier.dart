@@ -44,6 +44,8 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
         _handleRcChannels(msg);
       case MissionCurrentMessage():
         _handleMissionCurrent(msg);
+      case EkfStatusReportMessage():
+        _handleEkfStatus(msg);
       case VibrationMessage():
         break; // Recorded to DuckDB, no UI state update needed
       case StatusTextMessage():
@@ -175,6 +177,17 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
 
   void _handleMissionCurrent(MissionCurrentMessage msg) {
     _pending = _pending.copyWith(currentWaypoint: msg.seq);
+    _dirty = true;
+  }
+
+  void _handleEkfStatus(EkfStatusReportMessage msg) {
+    _pending = _pending.copyWith(
+      ekfVelocityVar: msg.velocityVariance,
+      ekfPosHorizVar: msg.posHorizVariance,
+      ekfPosVertVar: msg.posVertVariance,
+      ekfCompassVar: msg.compassVariance,
+      ekfTerrainVar: msg.terrainAltVariance,
+    );
     _dirty = true;
   }
 
