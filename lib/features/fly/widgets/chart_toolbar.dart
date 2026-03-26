@@ -28,17 +28,18 @@ class ChartToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+        color: hc.surfaceDim.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: HeliosColors.border.withValues(alpha: 0.5)),
+        border: Border.all(color: hc.border.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.bar_chart, size: 14, color: HeliosColors.textSecondary),
+          Icon(Icons.bar_chart, size: 14, color: hc.textSecondary),
           const SizedBox(width: 4),
           ...ChartType.values.map((type) {
             final active = activeCharts.contains(type);
@@ -70,19 +71,20 @@ class _ChartToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
           color: active
-              ? HeliosColors.accent.withValues(alpha: 0.2)
+              ? hc.accent.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(3),
           border: Border.all(
             color: active
-                ? HeliosColors.accent.withValues(alpha: 0.4)
-                : HeliosColors.border.withValues(alpha: 0.3),
+                ? hc.accent.withValues(alpha: 0.4)
+                : hc.border.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -91,7 +93,7 @@ class _ChartToggle extends StatelessWidget {
             Icon(
               type.icon,
               size: 11,
-              color: active ? HeliosColors.accent : HeliosColors.textTertiary,
+              color: active ? hc.accent : hc.textTertiary,
             ),
             const SizedBox(width: 3),
             Text(
@@ -99,7 +101,7 @@ class _ChartToggle extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                color: active ? HeliosColors.accent : HeliosColors.textTertiary,
+                color: active ? hc.accent : hc.textTertiary,
               ),
             ),
           ],

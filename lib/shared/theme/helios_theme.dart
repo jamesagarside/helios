@@ -1,50 +1,142 @@
 import 'package:flutter/material.dart';
 import 'helios_colors.dart';
 
-/// Helios GCS dark theme — optimised for outdoor tablet use.
-ThemeData heliosTheme() {
+/// Helios GCS light theme — clean appearance for indoor / desk use.
+ThemeData heliosLightTheme() {
+  const c = HeliosColors.light;
+
   return ThemeData(
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: HeliosColors.background,
-    colorScheme: const ColorScheme.dark(
-      primary: HeliosColors.accent,
-      onPrimary: HeliosColors.textPrimary,
-      secondary: HeliosColors.accentDim,
-      surface: HeliosColors.surface,
-      onSurface: HeliosColors.textPrimary,
-      error: HeliosColors.danger,
-      onError: HeliosColors.textPrimary,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: c.background,
+    extensions: const [HeliosColors.light],
+    colorScheme: ColorScheme.light(
+      primary: c.accent,
+      onPrimary: Colors.white,
+      secondary: c.accentDim,
+      surface: c.surface,
+      onSurface: c.textPrimary,
+      error: c.danger,
+      onError: Colors.white,
     ),
-    cardColor: HeliosColors.surface,
-    dividerColor: HeliosColors.border,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: HeliosColors.surface,
-      foregroundColor: HeliosColors.textPrimary,
+    cardColor: c.surface,
+    dividerColor: c.border,
+    appBarTheme: AppBarTheme(
+      backgroundColor: c.surface,
+      foregroundColor: c.textPrimary,
       elevation: 0,
       centerTitle: false,
     ),
-    navigationRailTheme: const NavigationRailThemeData(
-      backgroundColor: HeliosColors.surface,
-      selectedIconTheme: IconThemeData(color: HeliosColors.accent),
-      unselectedIconTheme: IconThemeData(color: HeliosColors.textSecondary),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: c.surface,
+      selectedIconTheme: IconThemeData(color: c.accent),
+      unselectedIconTheme: IconThemeData(color: c.textSecondary),
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: HeliosColors.surface,
-      selectedItemColor: HeliosColors.accent,
-      unselectedItemColor: HeliosColors.textSecondary,
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: c.surface,
+      selectedItemColor: c.accent,
+      unselectedItemColor: c.textSecondary,
     ),
     cardTheme: CardThemeData(
-      color: HeliosColors.surface,
+      color: c.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: HeliosColors.border),
+        side: BorderSide(color: c.border),
       ),
       elevation: 0,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: HeliosColors.accent,
-        foregroundColor: HeliosColors.textPrimary,
+        backgroundColor: c.accent,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: c.textPrimary,
+        side: BorderSide(color: c.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: c.surfaceLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: c.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: c.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: c.accent),
+      ),
+      labelStyle: TextStyle(color: c.textSecondary),
+      hintStyle: TextStyle(color: c.textTertiary),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: c.surfaceLight,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: c.border),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: c.textPrimary,
+      contentTextStyle: const TextStyle(color: Colors.white),
+    ),
+  );
+}
+
+/// Helios GCS dark theme — optimised for outdoor tablet use.
+ThemeData heliosTheme() {
+  const c = HeliosColors.dark;
+
+  return ThemeData(
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: c.background,
+    extensions: const [HeliosColors.dark],
+    colorScheme: ColorScheme.dark(
+      primary: c.accent,
+      onPrimary: c.textPrimary,
+      secondary: c.accentDim,
+      surface: c.surface,
+      onSurface: c.textPrimary,
+      error: c.danger,
+      onError: c.textPrimary,
+    ),
+    cardColor: c.surface,
+    dividerColor: c.border,
+    appBarTheme: AppBarTheme(
+      backgroundColor: c.surface,
+      foregroundColor: c.textPrimary,
+      elevation: 0,
+      centerTitle: false,
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: c.surface,
+      selectedIconTheme: IconThemeData(color: c.accent),
+      unselectedIconTheme: IconThemeData(color: c.textSecondary),
+    ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: c.surface,
+      selectedItemColor: c.accent,
+      unselectedItemColor: c.textSecondary,
+    ),
+    cardTheme: CardThemeData(
+      color: c.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: c.border),
+      ),
+      elevation: 0,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: c.accent,
+        foregroundColor: c.textPrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
         ),
@@ -52,8 +144,8 @@ ThemeData heliosTheme() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: HeliosColors.textPrimary,
-        side: const BorderSide(color: HeliosColors.border),
+        foregroundColor: c.textPrimary,
+        side: BorderSide(color: c.border),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
         ),
@@ -61,32 +153,32 @@ ThemeData heliosTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: HeliosColors.surfaceDim,
+      fillColor: c.surfaceDim,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: HeliosColors.border),
+        borderSide: BorderSide(color: c.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: HeliosColors.border),
+        borderSide: BorderSide(color: c.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: HeliosColors.accent),
+        borderSide: BorderSide(color: c.accent),
       ),
-      labelStyle: const TextStyle(color: HeliosColors.textSecondary),
-      hintStyle: const TextStyle(color: HeliosColors.textTertiary),
+      labelStyle: TextStyle(color: c.textSecondary),
+      hintStyle: TextStyle(color: c.textTertiary),
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: HeliosColors.surfaceLight,
+        color: c.surfaceLight,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: HeliosColors.border),
+        border: Border.all(color: c.border),
       ),
     ),
-    snackBarTheme: const SnackBarThemeData(
-      backgroundColor: HeliosColors.surfaceLight,
-      contentTextStyle: TextStyle(color: HeliosColors.textPrimary),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: c.surfaceLight,
+      contentTextStyle: TextStyle(color: c.textPrimary),
     ),
   );
 }

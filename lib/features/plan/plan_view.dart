@@ -32,6 +32,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final editState = ref.watch(missionEditProvider);
     final missionState = ref.watch(missionStateProvider);
     final width = MediaQuery.sizeOf(context).width;
@@ -46,19 +47,19 @@ class _PlanViewState extends ConsumerState<PlanView> {
           Expanded(
             child: Stack(
               children: [
-                _buildMap(editState),
-                _buildInfoBar(editState),
-                _buildMapControls(),
+                _buildMap(editState, hc),
+                _buildInfoBar(editState, hc),
+                _buildMapControls(hc),
                 if (missionState.isTransferring)
-                  _buildTransferOverlay(missionState),
+                  _buildTransferOverlay(missionState, hc),
               ],
             ),
           ),
           if (showPanel) ...[
-            const VerticalDivider(width: 1, color: HeliosColors.border),
+            VerticalDivider(width: 1, color: hc.border),
             SizedBox(
               width: 300,
-              child: _buildSidePanel(editState, missionState),
+              child: _buildSidePanel(editState, missionState, hc),
             ),
           ],
         ],
@@ -66,7 +67,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
     );
   }
 
-  Widget _buildMap(MissionEditState editState) {
+  Widget _buildMap(MissionEditState editState, HeliosColors hc) {
     final items = editState.items;
 
     return FlutterMap(
@@ -98,7 +99,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
         ),
 
         // Fence zones
-        ..._buildFenceLayers(ref.watch(fenceEditProvider)),
+        ..._buildFenceLayers(ref.watch(fenceEditProvider), hc),
 
         // Mission path polyline
         if (items.length >= 2)
@@ -109,7 +110,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
                     .where((i) => i.isNavCommand)
                     .map((i) => LatLng(i.latitude, i.longitude))
                     .toList(),
-                color: HeliosColors.accent,
+                color: hc.accent,
                 strokeWidth: 2.5,
                 pattern: const StrokePattern.solid(),
               ),
@@ -119,7 +120,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
         // Direction arrows on path segments
         if (items.length >= 2)
           MarkerLayer(
-            markers: _buildDirectionArrows(items),
+            markers: _buildDirectionArrows(items, hc),
           ),
 
         // Waypoint markers
@@ -161,7 +162,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
     );
   }
 
-  List<Marker> _buildDirectionArrows(List<MissionItem> items) {
+  List<Marker> _buildDirectionArrows(List<MissionItem> items, HeliosColors hc) {
     final navItems = items.where((i) => i.isNavCommand).toList();
     final markers = <Marker>[];
 
@@ -183,10 +184,10 @@ class _PlanViewState extends ConsumerState<PlanView> {
         height: 16,
         child: Transform.rotate(
           angle: bearing,
-          child: const Icon(
+          child: Icon(
             Icons.play_arrow,
             size: 16,
-            color: HeliosColors.accent,
+            color: hc.accent,
           ),
         ),
       ));
@@ -205,15 +206,15 @@ class _PlanViewState extends ConsumerState<PlanView> {
     return math.atan2(y, x);
   }
 
-  List<Widget> _buildFenceLayers(FenceEditState fenceState) {
+  List<Widget> _buildFenceLayers(FenceEditState fenceState, HeliosColors hc) {
     final layers = <Widget>[];
 
     // Existing zones
     for (final zone in fenceState.zones) {
       if (zone.shape == FenceShape.polygon && zone.vertices.length >= 3) {
         final color = zone.type == FenceZoneType.inclusion
-            ? HeliosColors.success
-            : HeliosColors.danger;
+            ? hc.success
+            : hc.danger;
         layers.add(PolygonLayer(
           polygons: [
             Polygon(
@@ -226,8 +227,8 @@ class _PlanViewState extends ConsumerState<PlanView> {
         ));
       } else if (zone.shape == FenceShape.circle) {
         final color = zone.type == FenceZoneType.inclusion
-            ? HeliosColors.success
-            : HeliosColors.danger;
+            ? hc.success
+            : hc.danger;
         // Approximate circle with 36 points
         final points = <LatLng>[];
         for (var deg = 0; deg < 360; deg += 10) {
@@ -252,8 +253,8 @@ class _PlanViewState extends ConsumerState<PlanView> {
     // Drawing-in-progress polyline
     if (fenceState.drawingMode && fenceState.drawingVertices.isNotEmpty) {
       final drawColor = fenceState.drawingType == FenceZoneType.inclusion
-          ? HeliosColors.success
-          : HeliosColors.danger;
+          ? hc.success
+          : hc.danger;
       final points = fenceState.drawingVertices.map((v) => LatLng(v.lat, v.lon)).toList();
       layers.add(PolylineLayer(
         polylines: [
@@ -285,7 +286,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
     return layers;
   }
 
-  Widget _buildInfoBar(MissionEditState editState) {
+  Widget _buildInfoBar(MissionEditState editState, HeliosColors hc) {
     final count = editState.waypointCount;
     // Calculate total distance
     final missionState = MissionState(items: editState.items);
@@ -301,14 +302,14 @@ class _PlanViewState extends ConsumerState<PlanView> {
       bottom: 0,
       child: Container(
         height: 36,
-        color: HeliosColors.surface.withValues(alpha: 0.9),
+        color: hc.surface.withValues(alpha: 0.9),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
             Text(
               'Waypoints: $count',
-              style: const TextStyle(
-                color: HeliosColors.textSecondary,
+              style: TextStyle(
+                color: hc.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -317,8 +318,8 @@ class _PlanViewState extends ConsumerState<PlanView> {
               count >= 2
                   ? 'Distance: ${distKm.toStringAsFixed(1)} km'
                   : 'Distance: -- km',
-              style: const TextStyle(
-                color: HeliosColors.textSecondary,
+              style: TextStyle(
+                color: hc.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -327,17 +328,17 @@ class _PlanViewState extends ConsumerState<PlanView> {
               estMin > 0
                   ? 'Est: ${estMin.toStringAsFixed(0)} min'
                   : 'Est: -- min',
-              style: const TextStyle(
-                color: HeliosColors.textSecondary,
+              style: TextStyle(
+                color: hc.textSecondary,
                 fontSize: 12,
               ),
             ),
             const Spacer(),
             if (editState.isDirty)
-              const Text(
+              Text(
                 'Modified',
                 style: TextStyle(
-                  color: HeliosColors.warning,
+                  color: hc.warning,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -348,7 +349,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
     );
   }
 
-  Widget _buildMapControls() {
+  Widget _buildMapControls(HeliosColors hc) {
     final notifier = ref.read(missionEditProvider.notifier);
     final fenceNotifier = ref.read(fenceEditProvider.notifier);
     final fenceState = ref.watch(fenceEditProvider);
@@ -407,7 +408,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
     );
   }
 
-  Widget _buildTransferOverlay(MissionState missionState) {
+  Widget _buildTransferOverlay(MissionState missionState, HeliosColors hc) {
     final label = missionState.transferState == MissionTransferState.uploading
         ? 'Uploading...'
         : 'Downloading...';
@@ -419,9 +420,9 @@ class _PlanViewState extends ConsumerState<PlanView> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: HeliosColors.surface,
+              color: hc.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: HeliosColors.border),
+              border: Border.all(color: hc.border),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -432,8 +433,8 @@ class _PlanViewState extends ConsumerState<PlanView> {
                   width: 200,
                   child: LinearProgressIndicator(
                     value: missionState.transferProgress,
-                    backgroundColor: HeliosColors.surfaceLight,
-                    valueColor: const AlwaysStoppedAnimation(HeliosColors.accent),
+                    backgroundColor: hc.surfaceLight,
+                    valueColor: AlwaysStoppedAnimation(hc.accent),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -452,6 +453,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
   Widget _buildSidePanel(
     MissionEditState editState,
     MissionState missionState,
+    HeliosColors hc,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -459,7 +461,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
         // Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: HeliosColors.surface,
+          color: hc.surface,
           child: Row(
             children: [
               const Text('Mission', style: HeliosTypography.heading2),
@@ -467,7 +469,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
               if (editState.items.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  color: HeliosColors.textTertiary,
+                  color: hc.textTertiary,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onPressed: () async {
@@ -479,17 +481,17 @@ class _PlanViewState extends ConsumerState<PlanView> {
             ],
           ),
         ),
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
 
         // Waypoint list
         Expanded(
           child: editState.items.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     'Tap map to add waypoints',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: HeliosColors.textTertiary,
+                      color: hc.textTertiary,
                       fontSize: 13,
                     ),
                   ),
@@ -510,7 +512,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
 
         // Waypoint editor (when selected)
         if (editState.hasSelection) ...[
-          const Divider(height: 1, color: HeliosColors.border),
+          Divider(height: 1, color: hc.border),
           WaypointEditor(
             item: editState.selectedItem!,
             onChanged: (updated) => ref
@@ -521,14 +523,14 @@ class _PlanViewState extends ConsumerState<PlanView> {
 
         // Error message
         if (missionState.errorMessage != null) ...[
-          const Divider(height: 1, color: HeliosColors.border),
+          Divider(height: 1, color: hc.border),
           Container(
             padding: const EdgeInsets.all(8),
-            color: HeliosColors.dangerDim.withValues(alpha: 0.2),
+            color: hc.dangerDim.withValues(alpha: 0.2),
             child: Text(
               missionState.errorMessage!,
-              style: const TextStyle(
-                color: HeliosColors.danger,
+              style: TextStyle(
+                color: hc.danger,
                 fontSize: 12,
               ),
             ),
@@ -536,7 +538,7 @@ class _PlanViewState extends ConsumerState<PlanView> {
         ],
 
         // Upload / Download / Clear buttons
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
         Padding(
           padding: const EdgeInsets.all(8),
           child: Row(
@@ -652,10 +654,11 @@ class _WaypointMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? HeliosColors.accent : HeliosColors.textPrimary;
+    final hc = context.hc;
+    final color = isSelected ? hc.accent : hc.textPrimary;
     final bgColor = isSelected
-        ? HeliosColors.accentDim
-        : HeliosColors.surface;
+        ? hc.accentDim
+        : hc.surface;
 
     // Special icons for non-waypoint commands
     final icon = switch (command) {
@@ -708,20 +711,21 @@ class _MapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return SizedBox(
       width: 32,
       height: 32,
       child: FloatingActionButton.small(
         heroTag: null,
         onPressed: onPressed,
-        backgroundColor: HeliosColors.surface.withValues(alpha: 0.85),
+        backgroundColor: hc.surface.withValues(alpha: 0.85),
         elevation: 2,
         child: Icon(
           icon,
           size: 16,
           color: onPressed != null
-              ? HeliosColors.textPrimary
-              : HeliosColors.textTertiary,
+              ? hc.textPrimary
+              : hc.textTertiary,
         ),
       ),
     );

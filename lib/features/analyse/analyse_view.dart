@@ -113,25 +113,26 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+        backgroundColor: hc.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: HeliosColors.border),
+          side: BorderSide(color: hc.border),
         ),
-        title: const Text('Rename Flight',
+        title: Text('Rename Flight',
             style: TextStyle(
-                color: HeliosColors.textPrimary,
+                color: hc.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: HeliosColors.textPrimary),
+          style: TextStyle(color: hc.textPrimary),
           decoration: InputDecoration(
             hintText: _formatFlightDate(flight),
-            hintStyle:
-                const TextStyle(color: HeliosColors.textTertiary),
+            hintStyle: TextStyle(color: hc.textTertiary),
             border: const OutlineInputBorder(),
           ),
           onSubmitted: (v) => Navigator.of(ctx).pop(v),
@@ -139,15 +140,15 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary)),
+            child: Text('Cancel',
+                style: TextStyle(color: hc.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text),
             child: const Text('Save'),
           ),
         ],
-      ),
+      );},
     );
     controller.dispose();
 
@@ -165,15 +166,17 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 
     final notes = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+        backgroundColor: hc.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: HeliosColors.border),
+          side: BorderSide(color: hc.border),
         ),
-        title: const Text('Flight Notes',
+        title: Text('Flight Notes',
             style: TextStyle(
-                color: HeliosColors.textPrimary,
+                color: hc.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600)),
         content: SizedBox(
@@ -184,27 +187,26 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
             maxLines: null,
             expands: true,
             textAlignVertical: TextAlignVertical.top,
-            style: const TextStyle(
-                color: HeliosColors.textPrimary, fontSize: 13),
-            decoration: const InputDecoration(
+            style: TextStyle(color: hc.textPrimary, fontSize: 13),
+            decoration: InputDecoration(
               hintText: 'Add notes about this flight...',
-              hintStyle: TextStyle(color: HeliosColors.textTertiary),
-              border: OutlineInputBorder(),
+              hintStyle: TextStyle(color: hc.textTertiary),
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary)),
+            child: Text('Cancel',
+                style: TextStyle(color: hc.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text),
             child: const Text('Save'),
           ),
         ],
-      ),
+      );},
     );
     controller.dispose();
 
@@ -222,13 +224,14 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     }
 
     // Show loading indicator briefly
+    final hc = context.hc;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           'Loading replay: ${_displayName(flight)}',
-          style: const TextStyle(color: HeliosColors.textPrimary),
+          style: TextStyle(color: hc.textPrimary),
         ),
-        backgroundColor: HeliosColors.surface,
+        backgroundColor: hc.surface,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -367,6 +370,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final width = MediaQuery.sizeOf(context).width;
     final showBrowser = width >= 768;
 
@@ -392,7 +396,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
             ),
           ),
         if (showBrowser)
-          const VerticalDivider(width: 1, color: HeliosColors.border),
+          VerticalDivider(width: 1, color: hc.border),
 
         // Main area
         Expanded(
@@ -401,7 +405,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
               // Mode toggle: Charts / SQL / Compare
               Container(
                 height: 40,
-                color: HeliosColors.surface,
+                color: hc.surface,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
@@ -436,7 +440,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: HeliosColors.border),
+              Divider(height: 1, color: hc.border),
 
               // Content based on mode
               if (_mode == _AnalyseMode.charts) ...[
@@ -449,11 +453,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                           store: ref.read(telemetryStoreProvider),
                           liveMode: _isLive,
                         )
-                      : const Center(
+                      : Center(
                           child: Text(
                             'Select a flight to view charts',
                             style: TextStyle(
-                                color: HeliosColors.textTertiary, fontSize: 13),
+                                color: hc.textTertiary, fontSize: 13),
                           ),
                         ),
                 ),
@@ -462,23 +466,23 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                 _TemplateBar(
                   onSelect: _selectedFlight != null ? _loadTemplate : null,
                 ),
-                const Divider(height: 1, color: HeliosColors.border),
+                Divider(height: 1, color: hc.border),
                 _SqlEditor(
                   controller: _sqlController,
                   onExecute: _selectedFlight != null ? _executeQuery : null,
                   onExport: _selectedFlight != null ? _exportParquet : null,
                   isQuerying: _isQuerying,
                 ),
-                const Divider(height: 1, color: HeliosColors.border),
+                Divider(height: 1, color: hc.border),
                 if (_errorMessage != null)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    color: HeliosColors.danger.withValues(alpha: 0.1),
+                    color: hc.danger.withValues(alpha: 0.1),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                          color: HeliosColors.danger,
+                      style: TextStyle(
+                          color: hc.danger,
                           fontSize: 12,
                           fontFamily: 'monospace'),
                     ),
@@ -491,15 +495,15 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                             _selectedFlight == null
                                 ? 'Select a flight to begin analysis'
                                 : 'Run a query to see results',
-                            style: const TextStyle(
-                                color: HeliosColors.textTertiary, fontSize: 13),
+                            style: TextStyle(
+                                color: hc.textTertiary, fontSize: 13),
                           ),
                         ),
                 ),
                 if (_queryResult != null)
                   Container(
                     height: 24,
-                    color: HeliosColors.surface,
+                    color: hc.surface,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
@@ -556,19 +560,20 @@ class _FlightBrowser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          color: HeliosColors.surface,
+          color: hc.surface,
           child: Row(
             children: [
               const Text('Flights', style: HeliosTypography.heading2),
               const SizedBox(width: 4),
               Text('(${flights.length})',
                   style: HeliosTypography.caption
-                      .copyWith(color: HeliosColors.textTertiary)),
+                      .copyWith(color: hc.textTertiary)),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 18),
@@ -580,23 +585,24 @@ class _FlightBrowser extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
         Expanded(
           child: flights.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Text(
                       'No recorded flights yet.\nConnect and start recording.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          color: HeliosColors.textTertiary, fontSize: 13),
+                          color: hc.textTertiary, fontSize: 13),
                     ),
                   ),
                 )
               : ListView.builder(
                   itemCount: flights.length,
                   itemBuilder: (context, index) {
+                    final hc = context.hc;
                     final flight = flights[index];
                     final meta = metadata[flight.filePath];
                     final isSelected =
@@ -624,15 +630,15 @@ class _FlightBrowser extends StatelessWidget {
                         dense: true,
                         selected: isSelected,
                         selectedTileColor:
-                            HeliosColors.accent.withValues(alpha: 0.1),
+                            hc.accent.withValues(alpha: 0.1),
                         leading: Icon(
                           isLive ? Icons.fiber_manual_record : Icons.flight,
                           size: isLive ? 14 : 18,
                           color: isLive
-                              ? HeliosColors.danger
+                              ? hc.danger
                               : isSelected
-                                  ? HeliosColors.accent
-                                  : HeliosColors.textSecondary,
+                                  ? hc.accent
+                                  : hc.textSecondary,
                         ),
                         title: Row(
                           children: [
@@ -642,16 +648,15 @@ class _FlightBrowser extends StatelessWidget {
                                     horizontal: 4, vertical: 1),
                                 margin: const EdgeInsets.only(right: 4),
                                 decoration: BoxDecoration(
-                                  color: HeliosColors.danger
-                                      .withValues(alpha: 0.2),
+                                  color: hc.danger.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'LIVE',
                                   style: TextStyle(
                                     fontSize: 8,
                                     fontWeight: FontWeight.w700,
-                                    color: HeliosColors.danger,
+                                    color: hc.danger,
                                   ),
                                 ),
                               ),
@@ -664,8 +669,8 @@ class _FlightBrowser extends StatelessWidget {
                                       ? FontWeight.w600
                                       : FontWeight.w400,
                                   color: isSelected
-                                      ? HeliosColors.accent
-                                      : HeliosColors.textPrimary,
+                                      ? hc.accent
+                                      : hc.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -676,9 +681,9 @@ class _FlightBrowser extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(subtitle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 11,
-                                    color: HeliosColors.textTertiary)),
+                                    color: hc.textTertiary)),
                             if (meta?.hasNotes == true)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
@@ -686,9 +691,9 @@ class _FlightBrowser extends StatelessWidget {
                                   meta!.notes!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 10,
-                                      color: HeliosColors.textTertiary,
+                                      color: hc.textTertiary,
                                       fontStyle: FontStyle.italic),
                                 ),
                               ),
@@ -703,19 +708,18 @@ class _FlightBrowser extends StatelessWidget {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 4, vertical: 1),
                                             decoration: BoxDecoration(
-                                              color: HeliosColors.accent
+                                              color: hc.accent
                                                   .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(2),
                                               border: Border.all(
-                                                  color: HeliosColors.accent
+                                                  color: hc.accent
                                                       .withValues(alpha: 0.3)),
                                             ),
                                             child: Text(t,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                     fontSize: 9,
-                                                    color:
-                                                        HeliosColors.accent)),
+                                                    color: hc.accent)),
                                           ))
                                       .toList(),
                                 ),
@@ -728,12 +732,12 @@ class _FlightBrowser extends StatelessWidget {
                                 child: InkWell(
                                   onTap: () => onReplay(flight),
                                   borderRadius: BorderRadius.circular(4),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
                                     child: Icon(
                                       Icons.play_circle_outline,
                                       size: 16,
-                                      color: HeliosColors.textTertiary,
+                                      color: hc.textTertiary,
                                     ),
                                   ),
                                 ),
@@ -751,57 +755,58 @@ class _FlightBrowser extends StatelessWidget {
 
   void _showContextMenu(BuildContext context, Offset position,
       FlightSummary flight, bool isLive) {
+    final hc = context.hc;
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
           position.dx, position.dy, position.dx, position.dy),
-      color: HeliosColors.surface,
+      color: hc.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
-        side: const BorderSide(color: HeliosColors.border),
+        side: BorderSide(color: hc.border),
       ),
       items: [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'rename',
           child: Row(
             children: [
-              Icon(Icons.edit, size: 14, color: HeliosColors.textSecondary),
-              SizedBox(width: 8),
-              Text('Rename', style: TextStyle(fontSize: 13)),
+              Icon(Icons.edit, size: 14, color: hc.textSecondary),
+              const SizedBox(width: 8),
+              const Text('Rename', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'notes',
           child: Row(
             children: [
-              Icon(Icons.note_add, size: 14, color: HeliosColors.textSecondary),
-              SizedBox(width: 8),
-              Text('Edit Notes', style: TextStyle(fontSize: 13)),
+              Icon(Icons.note_add, size: 14, color: hc.textSecondary),
+              const SizedBox(width: 8),
+              const Text('Edit Notes', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
         if (!isLive)
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'replay',
             child: Row(
               children: [
-                Icon(Icons.play_circle_outline, size: 14, color: HeliosColors.accent),
-                SizedBox(width: 8),
+                Icon(Icons.play_circle_outline, size: 14, color: hc.accent),
+                const SizedBox(width: 8),
                 Text('Replay in Fly View',
-                    style: TextStyle(fontSize: 13, color: HeliosColors.accent)),
+                    style: TextStyle(fontSize: 13, color: hc.accent)),
               ],
             ),
           ),
         if (!isLive)
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'delete',
             child: Row(
               children: [
-                Icon(Icons.delete_outline, size: 14, color: HeliosColors.danger),
-                SizedBox(width: 8),
+                Icon(Icons.delete_outline, size: 14, color: hc.danger),
+                const SizedBox(width: 8),
                 Text('Delete',
-                    style: TextStyle(fontSize: 13, color: HeliosColors.danger)),
+                    style: TextStyle(fontSize: 13, color: hc.danger)),
               ],
             ),
           ),
@@ -843,9 +848,10 @@ class _TemplateBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       height: 44,
-      color: HeliosColors.surface,
+      color: hc.surface,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -853,10 +859,10 @@ class _TemplateBar extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(right: 6, top: 6, bottom: 6),
             child: ActionChip(
-              avatar: Icon(_icons[t] ?? Icons.query_stats, size: 14, color: HeliosColors.accent),
+              avatar: Icon(_icons[t] ?? Icons.query_stats, size: 14, color: hc.accent),
               label: Text(t.name, style: const TextStyle(fontSize: 12)),
-              backgroundColor: HeliosColors.surfaceLight,
-              side: const BorderSide(color: HeliosColors.border),
+              backgroundColor: hc.surfaceLight,
+              side: BorderSide(color: hc.border),
               onPressed: onSelect != null ? () => onSelect!(t) : null,
             ),
           );
@@ -881,9 +887,10 @@ class _SqlEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       height: 140,
-      color: HeliosColors.surfaceDim,
+      color: hc.surfaceDim,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -933,9 +940,10 @@ class _ResultsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     if (result.rowCount == 0) {
-      return const Center(
-        child: Text('Query returned 0 rows', style: TextStyle(color: HeliosColors.textTertiary)),
+      return Center(
+        child: Text('Query returned 0 rows', style: TextStyle(color: hc.textTertiary)),
       );
     }
 
@@ -943,9 +951,9 @@ class _ResultsTable extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(HeliosColors.surface),
-          dataRowColor: WidgetStateProperty.all(HeliosColors.background),
-          border: TableBorder.all(color: HeliosColors.border, width: 0.5),
+          headingRowColor: WidgetStateProperty.all(hc.surface),
+          dataRowColor: WidgetStateProperty.all(hc.background),
+          border: TableBorder.all(color: hc.border, width: 0.5),
           columnSpacing: 16,
           headingRowHeight: 32,
           dataRowMinHeight: 28,
@@ -954,10 +962,10 @@ class _ResultsTable extends StatelessWidget {
               .map((name) => DataColumn(
                     label: Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: HeliosColors.accent,
+                        color: hc.accent,
                       ),
                     ),
                   ))
@@ -1001,28 +1009,29 @@ class _ModeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? HeliosColors.accent.withValues(alpha: 0.15) : Colors.transparent,
+          color: selected ? hc.accent.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: selected ? HeliosColors.accent.withValues(alpha: 0.3) : HeliosColors.border,
+            color: selected ? hc.accent.withValues(alpha: 0.3) : hc.border,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: selected ? HeliosColors.accent : HeliosColors.textSecondary),
+            Icon(icon, size: 14, color: selected ? hc.accent : hc.textSecondary),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? HeliosColors.accent : HeliosColors.textSecondary,
+                color: selected ? hc.accent : hc.textSecondary,
               ),
             ),
           ],

@@ -97,7 +97,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: HeliosColors.danger),
+          SnackBar(content: Text('Failed: $e'), backgroundColor: context.hc.danger),
         );
       }
     }
@@ -123,7 +123,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved to $fileName'), backgroundColor: HeliosColors.success),
+        SnackBar(content: Text('Saved to $fileName'), backgroundColor: context.hc.success),
       );
     }
   }
@@ -148,6 +148,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final isConnected = ref.watch(connectionControllerProvider).transportState ==
         TransportState.connected;
 
@@ -160,9 +161,9 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
             ElevatedButton.icon(
               onPressed: isConnected && !_fetching ? _fetchParams : null,
               icon: _fetching
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14, height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 1.5, color: HeliosColors.textPrimary),
+                      child: CircularProgressIndicator(strokeWidth: 1.5, color: hc.textPrimary),
                     )
                   : const Icon(Icons.download, size: 16),
               label: Text(_fetching
@@ -176,7 +177,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                 icon: const Icon(Icons.upload, size: 16),
                 label: Text('Write ${_modified.length} Changes'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: HeliosColors.warningDim,
+                  backgroundColor: hc.warningDim,
                 ),
               ),
             const SizedBox(width: 8),
@@ -199,16 +200,16 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(_error!, style: const TextStyle(color: HeliosColors.danger, fontSize: 12)),
+            child: Text(_error!, style: TextStyle(color: hc.danger, fontSize: 12)),
           ),
 
         if (_params.isEmpty && !_fetching)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
                 'Connect to a vehicle and tap "Fetch All" to load parameters.',
-                style: TextStyle(color: HeliosColors.textTertiary, fontSize: 13),
+                style: TextStyle(color: hc.textTertiary, fontSize: 13),
               ),
             ),
           ),
@@ -223,16 +224,16 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                   height: 36,
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 13),
+                    style: TextStyle(color: hc.textPrimary, fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Search parameters...',
-                      hintStyle: const TextStyle(color: HeliosColors.textTertiary),
-                      prefixIcon: const Icon(Icons.search, size: 18, color: HeliosColors.textTertiary),
+                      hintStyle: TextStyle(color: hc.textTertiary),
+                      prefixIcon: Icon(Icons.search, size: 18, color: hc.textTertiary),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(6),
-                        borderSide: const BorderSide(color: HeliosColors.border),
+                        borderSide: BorderSide(color: hc.border),
                       ),
                     ),
                     onChanged: (v) => setState(() => _searchQuery = v),
@@ -247,16 +248,16 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                     initialValue: _selectedGroup,
                     decoration: InputDecoration(
                       hintText: 'Group',
-                      hintStyle: const TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+                      hintStyle: TextStyle(color: hc.textTertiary, fontSize: 12),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(6),
-                        borderSide: const BorderSide(color: HeliosColors.border),
+                        borderSide: BorderSide(color: hc.border),
                       ),
                     ),
-                    dropdownColor: HeliosColors.surfaceLight,
-                    style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 12),
+                    dropdownColor: hc.surfaceLight,
+                    style: TextStyle(color: hc.textPrimary, fontSize: 12),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('All Groups')),
                       ..._groups.map((g) => DropdownMenuItem(value: g, child: Text(g))),
@@ -284,6 +285,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
     return ListView.builder(
       itemCount: filtered.length,
       itemBuilder: (ctx, index) {
+        final hc = ctx.hc;
         final param = filtered[index];
         final isModified = _modified.containsKey(param.id);
         final displayValue = isModified ? _modified[param.id]! : param.value;
@@ -292,10 +294,10 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isModified
-                ? HeliosColors.warning.withValues(alpha: 0.08)
-                : (index.isEven ? Colors.transparent : HeliosColors.surfaceLight.withValues(alpha: 0.3)),
-            border: const Border(
-              bottom: BorderSide(color: HeliosColors.border, width: 0.3),
+                ? hc.warning.withValues(alpha: 0.08)
+                : (index.isEven ? Colors.transparent : hc.surfaceLight.withValues(alpha: 0.3)),
+            border: Border(
+              bottom: BorderSide(color: hc.border, width: 0.3),
             ),
           ),
           child: Row(
@@ -306,7 +308,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                 child: Text(
                   param.id,
                   style: TextStyle(
-                    color: isModified ? HeliosColors.warning : HeliosColors.textPrimary,
+                    color: isModified ? hc.warning : hc.textPrimary,
                     fontSize: 12,
                     fontFamily: 'monospace',
                     fontWeight: isModified ? FontWeight.w600 : FontWeight.w400,
@@ -338,7 +340,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                   height: 24,
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.check, size: 14, color: HeliosColors.success),
+                    icon: Icon(Icons.check, size: 14, color: hc.success),
                     onPressed: () => _writeParam(param.id, _modified[param.id]!),
                     tooltip: 'Write',
                   ),
@@ -395,12 +397,13 @@ class _ParamValueFieldState extends State<_ParamValueField> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return SizedBox(
       height: 26,
       child: TextField(
         controller: _ctrl,
-        style: const TextStyle(
-          color: HeliosColors.textPrimary,
+        style: TextStyle(
+          color: hc.textPrimary,
           fontSize: 12,
           fontFamily: 'monospace',
         ),
@@ -409,15 +412,15 @@ class _ParamValueFieldState extends State<_ParamValueField> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(3),
-            borderSide: const BorderSide(color: HeliosColors.border, width: 0.5),
+            borderSide: BorderSide(color: hc.border, width: 0.5),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(3),
-            borderSide: const BorderSide(color: HeliosColors.border, width: 0.5),
+            borderSide: BorderSide(color: hc.border, width: 0.5),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(3),
-            borderSide: const BorderSide(color: HeliosColors.accent, width: 1),
+            borderSide: BorderSide(color: hc.accent, width: 1),
           ),
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),

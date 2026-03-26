@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/helios_colors.dart';
+import '../theme/helios_colors.dart'; // needed for BuildContext.hc extension
 
 /// Helios logo — sun with radiating sight lines and constellation nodes.
 ///
@@ -20,7 +20,7 @@ class HeliosLogo extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _HeliosLogoPainter(color: color ?? HeliosColors.accent),
+        painter: _HeliosLogoPainter(color: color ?? context.hc.accent),
       ),
     );
   }

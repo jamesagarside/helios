@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/providers/video_provider.dart';
+import '../../shared/providers/video_recording_provider.dart';
 import '../../shared/theme/helios_colors.dart';
 
 /// Full-screen video view with transparent HUD overlay.
@@ -59,13 +61,16 @@ class _VideoViewState extends ConsumerState<VideoView> {
     } catch (_) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: Text('Video not available', style: TextStyle(color: HeliosColors.textTertiary)),
+        child: Center(
+          child: Text('Video not available', style: TextStyle(color: context.hc.textTertiary)),
         ),
       );
     }
 
+    final hc = context.hc;
     final vehicle = ref.watch(vehicleStateProvider);
+    final recordingState = ref.watch(videoRecordingProvider);
+    final recordingNotifier = ref.read(videoRecordingProvider.notifier);
 
     return GestureDetector(
       onTap: () => setState(() => _showControls = !_showControls),
@@ -85,11 +90,11 @@ class _VideoViewState extends ConsumerState<VideoView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.videocam_off, color: HeliosColors.textTertiary, size: 64),
+                    Icon(Icons.videocam_off, color: hc.textTertiary, size: 64),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'No video stream',
-                      style: TextStyle(color: HeliosColors.textTertiary, fontSize: 16),
+                      style: TextStyle(color: hc.textTertiary, fontSize: 16),
                     ),
                     const SizedBox(height: 16),
                     // Editable RTSP URL
@@ -105,33 +110,33 @@ class _VideoViewState extends ConsumerState<VideoView> {
                         onFocusChange: (f) => _urlFocused = f,
                         child: TextField(
                         controller: _urlController,
-                        style: const TextStyle(
-                            color: HeliosColors.textPrimary,
+                        style: TextStyle(
+                            color: hc.textPrimary,
                             fontSize: 13,
                             fontFamily: 'monospace'),
                         decoration: InputDecoration(
                           labelText: 'RTSP URL',
-                          labelStyle: const TextStyle(
-                              color: HeliosColors.textTertiary, fontSize: 12),
+                          labelStyle: TextStyle(
+                              color: hc.textTertiary, fontSize: 12),
                           hintText: 'rtsp://127.0.0.1:8554/stream',
-                          hintStyle: const TextStyle(
-                              color: HeliosColors.textTertiary),
+                          hintStyle: TextStyle(
+                              color: hc.textTertiary),
                           filled: true,
-                          fillColor: HeliosColors.surface,
+                          fillColor: hc.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
                             borderSide:
-                                const BorderSide(color: HeliosColors.border),
+                                BorderSide(color: hc.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
                             borderSide:
-                                const BorderSide(color: HeliosColors.border),
+                                BorderSide(color: hc.border),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(6),
                             borderSide:
-                                const BorderSide(color: HeliosColors.accent),
+                                BorderSide(color: hc.accent),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 10),
@@ -161,7 +166,15 @@ class _VideoViewState extends ConsumerState<VideoView> {
                       const SizedBox(height: 12),
                       Text(
                         videoCtrl.lastError!,
-                        style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
+                        style: TextStyle(color: hc.danger, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    if (recordingState.lastError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        recordingState.lastError!,
+                        style: TextStyle(color: hc.warning, fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -197,12 +210,12 @@ class _VideoViewState extends ConsumerState<VideoView> {
                     Icon(
                       isPlaying ? Icons.videocam : Icons.videocam_off,
                       size: 16,
-                      color: isPlaying ? HeliosColors.success : HeliosColors.textTertiary,
+                      color: isPlaying ? hc.success : hc.textTertiary,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       settings.rtspUrl,
-                      style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+                      style: TextStyle(color: hc.textSecondary, fontSize: 12),
                     ),
                     const Spacer(),
                     // HUD toggle
@@ -228,8 +241,39 @@ class _VideoViewState extends ConsumerState<VideoView> {
                         active: false,
                         onTap: () => videoCtrl.connect(),
                       ),
+                    const SizedBox(width: 8),
+                    if (isPlaying)
+                      _ControlButton(
+                        icon: recordingState.isRecording
+                            ? Icons.stop_circle
+                            : Icons.fiber_manual_record,
+                        label: recordingState.isRecording ? 'Stop Rec' : 'Record',
+                        active: recordingState.isRecording,
+                        onTap: () {
+                          if (recordingState.isRecording) {
+                            recordingNotifier.stopRecording();
+                          } else {
+                            recordingNotifier.startRecording(settings.rtspUrl);
+                          }
+                        },
+                      ),
                   ],
                 ),
+              ),
+            ),
+
+          // Recordings panel (when not streaming)
+          if (!isPlaying && _showControls)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _RecordingsPanel(
+                recordings: recordingState.recordings,
+                onDelete: recordingNotifier.deleteRecording,
+                onPlay: (file) {
+                  videoCtrl.connect(file.path);
+                },
               ),
             ),
         ],
@@ -253,26 +297,27 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: active
-              ? HeliosColors.accent.withValues(alpha: 0.2)
-              : HeliosColors.surfaceDim.withValues(alpha: 0.5),
+              ? hc.accent.withValues(alpha: 0.2)
+              : hc.surfaceDim.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: active ? HeliosColors.accent : HeliosColors.textSecondary),
+            Icon(icon, size: 12, color: active ? hc.accent : hc.textSecondary),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: active ? HeliosColors.accent : HeliosColors.textSecondary,
+                color: active ? hc.accent : hc.textSecondary,
               ),
             ),
           ],
@@ -290,6 +335,7 @@ class _HudOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Stack(
       children: [
         // Left column — speed
@@ -347,12 +393,12 @@ class _HudOverlay extends StatelessWidget {
               children: [
                 _HudBadge(
                   text: vehicle.flightMode.name,
-                  color: HeliosColors.accent,
+                  color: hc.accent,
                 ),
                 const SizedBox(width: 8),
                 _HudBadge(
                   text: vehicle.armed ? 'ARMED' : 'DISARMED',
-                  color: vehicle.armed ? HeliosColors.danger : HeliosColors.success,
+                  color: vehicle.armed ? hc.danger : hc.success,
                 ),
               ],
             ),
@@ -426,13 +472,14 @@ class _HudTape extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       width: 70,
       height: 200,
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: HeliosColors.textPrimary.withValues(alpha: 0.3)),
+        border: Border.all(color: hc.textPrimary.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -441,25 +488,25 @@ class _HudTape extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: HeliosColors.textPrimary.withValues(alpha: 0.6),
+              color: hc.textPrimary.withValues(alpha: 0.6),
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value.toStringAsFixed(1),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               fontFamily: 'monospace',
-              color: HeliosColors.textPrimary,
+              color: hc.textPrimary,
             ),
           ),
           Text(
             unit,
             style: TextStyle(
               fontSize: 12,
-              color: HeliosColors.textPrimary.withValues(alpha: 0.5),
+              color: hc.textPrimary.withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -481,6 +528,7 @@ class _HudValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -495,7 +543,7 @@ class _HudValue extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: large ? 11 : 9,
-                color: HeliosColors.textPrimary.withValues(alpha: 0.5),
+                color: hc.textPrimary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(width: 4),
@@ -506,7 +554,7 @@ class _HudValue extends StatelessWidget {
               fontSize: large ? 18 : 13,
               fontWeight: FontWeight.w700,
               fontFamily: 'monospace',
-              color: HeliosColors.textPrimary,
+              color: hc.textPrimary,
             ),
           ),
         ],
@@ -537,6 +585,128 @@ class _HudBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: color,
         ),
+      ),
+    );
+  }
+}
+
+class _RecordingsPanel extends StatelessWidget {
+  const _RecordingsPanel({
+    required this.recordings,
+    required this.onDelete,
+    required this.onPlay,
+  });
+
+  final List<File> recordings;
+  final void Function(File) onDelete;
+  final void Function(File) onPlay;
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.day}/${local.month}/${local.year} '
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (recordings.isEmpty) return const SizedBox.shrink();
+    final hc = context.hc;
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 200),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.85),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Text(
+              'Recordings',
+              style: TextStyle(
+                color: hc.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: recordings.length,
+              itemBuilder: (_, i) {
+                final file = recordings[i];
+                final name = file.path.split('/').last;
+                final size = file.existsSync() ? file.lengthSync() : 0;
+                final modified =
+                    file.existsSync() ? file.lastModifiedSync() : DateTime.now();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.movie_outlined,
+                          size: 14, color: hc.textTertiary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: TextStyle(
+                                  color: hc.textPrimary, fontSize: 12),
+                            ),
+                            Text(
+                              '${_formatDate(modified)} · ${_formatSize(size)}',
+                              style: TextStyle(
+                                  color: hc.textTertiary, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.play_circle_outline, size: 18),
+                        color: hc.accent,
+                        onPressed: () => onPlay(file),
+                        tooltip: 'Play recording',
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: hc.textTertiary,
+                        onPressed: () => onDelete(file),
+                        tooltip: 'Delete',
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

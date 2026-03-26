@@ -15,13 +15,6 @@ class ConnectionBadge extends StatelessWidget {
   final VehicleType? vehicleType;
   final double messageRate;
 
-  Color get _color => switch (linkState) {
-        LinkState.connected => HeliosColors.success,
-        LinkState.degraded => HeliosColors.warning,
-        LinkState.lost => HeliosColors.danger,
-        LinkState.disconnected => HeliosColors.textTertiary,
-      };
-
   String get _label => switch (linkState) {
         LinkState.connected => 'Connected',
         LinkState.degraded => 'Degraded',
@@ -36,26 +29,35 @@ class ConnectionBadge extends StatelessWidget {
         LinkState.disconnected => Icons.link_off,
       };
 
+  Color _color(HeliosColors hc) => switch (linkState) {
+        LinkState.connected => hc.success,
+        LinkState.degraded => hc.warning,
+        LinkState.lost => hc.danger,
+        LinkState.disconnected => hc.textTertiary,
+      };
+
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
+    final color = _color(hc);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: _color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_icon, size: 14, color: _color),
+          Icon(_icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             _label,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: _color,
+              color: color,
             ),
           ),
         ],

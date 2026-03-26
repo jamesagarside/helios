@@ -45,6 +45,7 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     late final VideoPlayerController videoCtrl;
     late final VideoSettings settings;
     late final bool isPlaying;
@@ -74,10 +75,10 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
           width: _width,
           height: _minimised ? 36 : _height,
           decoration: BoxDecoration(
-            color: HeliosColors.surfaceDim,
+            color: hc.surfaceDim,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-                color: HeliosColors.border.withValues(alpha: 0.6)),
+                color: hc.border.withValues(alpha: 0.6)),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -105,10 +106,10 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
                         else
                           Container(
                             color: Colors.black,
-                            child: const Center(
+                            child: Center(
                               child: Icon(
                                 Icons.videocam_off,
-                                color: HeliosColors.textTertiary,
+                                color: hc.textTertiary,
                                 size: 40,
                               ),
                             ),
@@ -121,7 +122,7 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
                             right: 0,
                             bottom: 0,
                             child: Container(
-                              color: HeliosColors.surfaceDim
+                              color: hc.surfaceDim
                                   .withValues(alpha: 0.85),
                               padding: const EdgeInsets.all(8),
                               child: Row(
@@ -129,8 +130,8 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
                                   Expanded(
                                     child: Text(
                                       settings.rtspUrl,
-                                      style: const TextStyle(
-                                        color: HeliosColors.textTertiary,
+                                      style: TextStyle(
+                                        color: hc.textTertiary,
                                         fontSize: 11,
                                         fontFamily: 'monospace',
                                       ),
@@ -178,10 +179,10 @@ class _VideoStreamWidgetState extends ConsumerState<VideoStreamWidget> {
                               width: 16,
                               height: 16,
                               alignment: Alignment.bottomRight,
-                              child: const Icon(
+                              child: Icon(
                                 Icons.drag_handle,
                                 size: 12,
-                                color: HeliosColors.textTertiary,
+                                color: hc.textTertiary,
                               ),
                             ),
                           ),
@@ -213,11 +214,12 @@ class _VideoTitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: HeliosColors.surface.withValues(alpha: 0.7),
+        color: hc.surface.withValues(alpha: 0.7),
         borderRadius: BorderRadius.vertical(
           top: const Radius.circular(6),
           bottom: minimised ? const Radius.circular(6) : Radius.zero,
@@ -228,9 +230,7 @@ class _VideoTitleBar extends StatelessWidget {
           Icon(
             isConnected ? Icons.videocam : Icons.videocam_off,
             size: 12,
-            color: isConnected
-                ? HeliosColors.success
-                : HeliosColors.textTertiary,
+            color: isConnected ? hc.success : hc.textTertiary,
           ),
           const SizedBox(width: 4),
           Text(
@@ -238,9 +238,7 @@ class _VideoTitleBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isConnected
-                  ? HeliosColors.textPrimary
-                  : HeliosColors.textTertiary,
+              color: isConnected ? hc.textPrimary : hc.textTertiary,
             ),
           ),
           const Spacer(),
@@ -249,15 +247,15 @@ class _VideoTitleBar extends StatelessWidget {
             child: Icon(
               minimised ? Icons.expand_more : Icons.expand_less,
               size: 14,
-              color: HeliosColors.textSecondary,
+              color: hc.textSecondary,
             ),
           ),
           const SizedBox(width: 4),
           if (onClose != null)
             GestureDetector(
               onTap: onClose,
-              child: const Icon(Icons.close,
-                  size: 12, color: HeliosColors.textSecondary),
+              child: Icon(Icons.close,
+                  size: 12, color: hc.textSecondary),
             ),
         ],
       ),

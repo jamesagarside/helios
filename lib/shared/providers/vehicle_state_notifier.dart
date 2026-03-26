@@ -218,6 +218,13 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
     _dirty = true;
   }
 
+  /// Apply a replay snapshot directly as the current state.
+  ///
+  /// Bypasses the MAVLink message pipeline and the 30Hz batch buffer.
+  void applyReplayState(VehicleState replayState) {
+    state = replayState;
+  }
+
   /// Reset state to defaults (on disconnect).
   void reset() {
     _frameTimer?.cancel();

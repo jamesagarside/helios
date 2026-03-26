@@ -244,7 +244,7 @@ class _FlightChartsState extends State<FlightCharts> {
           timeSeconds:
               flightStart.difference(start).inMilliseconds / 1000.0,
           label: 'Takeoff',
-          color: HeliosColors.accent,
+          color: HeliosColors.dark.accent,
         ));
       }
 
@@ -260,7 +260,7 @@ class _FlightChartsState extends State<FlightCharts> {
             timeSeconds:
                 landTime.difference(start).inMilliseconds / 1000.0,
             label: 'Landing',
-            color: HeliosColors.warning,
+            color: HeliosColors.dark.warning,
           ));
         }
       }
@@ -279,7 +279,7 @@ class _FlightChartsState extends State<FlightCharts> {
         detected.add(ChartEvent(
           timeSeconds: ts.difference(start).inMilliseconds / 1000.0,
           label: detail.length > 12 ? detail.substring(0, 12) : detail,
-          color: isArm ? HeliosColors.success : HeliosColors.textSecondary,
+          color: isArm ? HeliosColors.dark.success : HeliosColors.dark.textSecondary,
         ));
       }
     } catch (_) {
@@ -335,7 +335,7 @@ class _FlightChartsState extends State<FlightCharts> {
           id: 'altitude',
           title: 'Altitude (Relative)',
           series: [
-            ChartSeries('Relative', _altitudeRel, HeliosColors.accent),
+            ChartSeries('Relative', _altitudeRel, HeliosColors.dark.accent),
           ],
           yLabel: 'm',
           minY: 0,
@@ -345,7 +345,7 @@ class _FlightChartsState extends State<FlightCharts> {
           id: 'altitude_msl',
           title: 'Altitude (MSL)',
           series: [
-            ChartSeries('MSL', _altitudeMsl, HeliosColors.textTertiary),
+            ChartSeries('MSL', _altitudeMsl, HeliosColors.dark.textTertiary),
           ],
           yLabel: 'm',
         ),
@@ -354,8 +354,8 @@ class _FlightChartsState extends State<FlightCharts> {
           id: 'speed',
           title: 'Speed',
           series: [
-            ChartSeries('Airspeed', _airspeed, HeliosColors.accent),
-            ChartSeries('Groundspeed', _groundspeed, HeliosColors.success),
+            ChartSeries('Airspeed', _airspeed, HeliosColors.dark.accent),
+            ChartSeries('Groundspeed', _groundspeed, HeliosColors.dark.success),
           ],
           yLabel: 'm/s',
         ),
@@ -363,7 +363,7 @@ class _FlightChartsState extends State<FlightCharts> {
         _ChartDef(
           id: 'climb',
           title: 'Climb Rate',
-          series: [ChartSeries('VS', _climbRate, HeliosColors.warning)],
+          series: [ChartSeries('VS', _climbRate, HeliosColors.dark.warning)],
           yLabel: 'm/s',
         ),
       if (_roll.isNotEmpty)
@@ -371,8 +371,8 @@ class _FlightChartsState extends State<FlightCharts> {
           id: 'attitude',
           title: 'Attitude',
           series: [
-            ChartSeries('Roll', _roll, HeliosColors.accent),
-            ChartSeries('Pitch', _pitch, HeliosColors.warning),
+            ChartSeries('Roll', _roll, HeliosColors.dark.accent),
+            ChartSeries('Pitch', _pitch, HeliosColors.dark.warning),
           ],
           yLabel: 'deg',
         ),
@@ -380,7 +380,7 @@ class _FlightChartsState extends State<FlightCharts> {
         _ChartDef(
           id: 'battery',
           title: 'Battery',
-          series: [ChartSeries('Voltage', _voltage, HeliosColors.warning)],
+          series: [ChartSeries('Voltage', _voltage, HeliosColors.dark.warning)],
           yLabel: 'V',
           minY: 0,
           referenceLines: _batteryReferenceLines(),
@@ -389,7 +389,7 @@ class _FlightChartsState extends State<FlightCharts> {
         _ChartDef(
           id: 'battery_pct',
           title: 'Battery %',
-          series: [ChartSeries('%', _batteryPct, HeliosColors.success)],
+          series: [ChartSeries('%', _batteryPct, HeliosColors.dark.success)],
           yLabel: '%',
           minY: 0,
           maxY: 100,
@@ -398,7 +398,7 @@ class _FlightChartsState extends State<FlightCharts> {
         _ChartDef(
           id: 'gps_sats',
           title: 'GPS Satellites',
-          series: [ChartSeries('Sats', _satellites, HeliosColors.success)],
+          series: [ChartSeries('Sats', _satellites, HeliosColors.dark.success)],
           yLabel: '',
           minY: 0,
         ),
@@ -406,7 +406,7 @@ class _FlightChartsState extends State<FlightCharts> {
         _ChartDef(
           id: 'hdop',
           title: 'HDOP',
-          series: [ChartSeries('HDOP', _hdop, HeliosColors.accent)],
+          series: [ChartSeries('HDOP', _hdop, HeliosColors.dark.accent)],
           yLabel: '',
           minY: 0,
         ),
@@ -415,9 +415,9 @@ class _FlightChartsState extends State<FlightCharts> {
           id: 'vibration',
           title: 'Vibration',
           series: [
-            ChartSeries('X', _vibeX, HeliosColors.danger),
-            ChartSeries('Y', _vibeY, HeliosColors.warning),
-            ChartSeries('Z', _vibeZ, HeliosColors.accent),
+            ChartSeries('X', _vibeX, HeliosColors.dark.danger),
+            ChartSeries('Y', _vibeY, HeliosColors.dark.warning),
+            ChartSeries('Z', _vibeZ, HeliosColors.dark.accent),
           ],
           yLabel: 'm/s\u00B2',
         ),
@@ -447,22 +447,22 @@ class _FlightChartsState extends State<FlightCharts> {
       ChartReferenceLine(
         y: 4.20 * cells,
         label: 'Full (${cells}S)',
-        color: HeliosColors.success,
+        color: HeliosColors.dark.success,
       ),
       ChartReferenceLine(
         y: 3.70 * cells,
         label: 'Nominal',
-        color: HeliosColors.accent,
+        color: HeliosColors.dark.accent,
       ),
       ChartReferenceLine(
         y: 3.50 * cells,
         label: 'Low',
-        color: HeliosColors.warning,
+        color: HeliosColors.dark.warning,
       ),
       ChartReferenceLine(
         y: 3.30 * cells,
         label: 'Critical',
-        color: HeliosColors.danger,
+        color: HeliosColors.dark.danger,
       ),
     ];
   }
@@ -489,19 +489,20 @@ class _FlightChartsState extends State<FlightCharts> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
       return Center(
         child: Text('Error: $_error',
-            style: const TextStyle(color: HeliosColors.danger)),
+            style: TextStyle(color: hc.danger)),
       );
     }
     if (_totalRows == 0 && _airspeed.isEmpty) {
-      return const Center(
+      return Center(
         child: Text('No telemetry data in this flight',
-            style: TextStyle(color: HeliosColors.textTertiary)),
+            style: TextStyle(color: hc.textTertiary)),
       );
     }
 
@@ -510,7 +511,7 @@ class _FlightChartsState extends State<FlightCharts> {
         // Map replay + collapse toggle
         Container(
           height: 28,
-          color: HeliosColors.surface,
+          color: hc.surface,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
@@ -524,13 +525,13 @@ class _FlightChartsState extends State<FlightCharts> {
                           ? Icons.keyboard_arrow_down
                           : Icons.keyboard_arrow_right,
                       size: 16,
-                      color: HeliosColors.textSecondary,
+                      color: hc.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Flight Map',
                       style: HeliosTypography.caption.copyWith(
-                        color: HeliosColors.textSecondary,
+                        color: hc.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -569,17 +570,18 @@ class _FlightChartsState extends State<FlightCharts> {
             final isZoomed =
                 minX > 0.5 || _viewMaxX.value < _totalDuration - 0.5;
             if (!isZoomed) return const SizedBox.shrink();
+            final hc = context.hc;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.zoom_in,
-                      size: 12, color: HeliosColors.textTertiary),
+                  Icon(Icons.zoom_in,
+                      size: 12, color: hc.textTertiary),
                   const SizedBox(width: 4),
                   Text(
                     'Scroll to zoom \u2022 ',
                     style: HeliosTypography.caption
-                        .copyWith(color: HeliosColors.textTertiary),
+                        .copyWith(color: hc.textTertiary),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -589,7 +591,7 @@ class _FlightChartsState extends State<FlightCharts> {
                     child: Text(
                       'Reset zoom',
                       style: HeliosTypography.caption.copyWith(
-                        color: HeliosColors.accent,
+                        color: hc.accent,
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -623,7 +625,7 @@ class _FlightChartsState extends State<FlightCharts> {
               Text(
                 '${_visibleDefs.length} of ${_chartDefs.length} charts',
                 style: HeliosTypography.caption
-                    .copyWith(color: HeliosColors.textTertiary),
+                    .copyWith(color: hc.textTertiary),
               ),
               const Spacer(),
               GestureDetector(
@@ -636,8 +638,8 @@ class _FlightChartsState extends State<FlightCharts> {
                       _showChartManager ? Icons.close : Icons.tune,
                       size: 14,
                       color: _showChartManager
-                          ? HeliosColors.accent
-                          : HeliosColors.textSecondary,
+                          ? hc.accent
+                          : hc.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -645,8 +647,8 @@ class _FlightChartsState extends State<FlightCharts> {
                       style: TextStyle(
                         fontSize: 12,
                         color: _showChartManager
-                            ? HeliosColors.accent
-                            : HeliosColors.textSecondary,
+                            ? hc.accent
+                            : hc.textSecondary,
                       ),
                     ),
                   ],
@@ -662,9 +664,9 @@ class _FlightChartsState extends State<FlightCharts> {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: HeliosColors.surface,
+              color: hc.surface,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: HeliosColors.border),
+              border: Border.all(color: hc.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +678,7 @@ class _FlightChartsState extends State<FlightCharts> {
                     children: [
                       Text('Toggle & reorder charts',
                           style: HeliosTypography.caption.copyWith(
-                              color: HeliosColors.textSecondary)),
+                              color: hc.textSecondary)),
                       const Spacer(),
                       if (_hiddenCharts.isNotEmpty)
                         GestureDetector(
@@ -684,13 +686,13 @@ class _FlightChartsState extends State<FlightCharts> {
                               setState(() => _hiddenCharts.clear()),
                           child: Text('Show all',
                               style: HeliosTypography.caption.copyWith(
-                                  color: HeliosColors.accent)),
+                                  color: hc.accent)),
                         ),
                     ],
                   ),
                 ),
-                const Divider(
-                    height: 1, color: HeliosColors.border),
+                Divider(
+                    height: 1, color: hc.border),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 250),
                   child: ReorderableListView.builder(
@@ -715,22 +717,22 @@ class _FlightChartsState extends State<FlightCharts> {
                               _hiddenCharts.remove(def.id);
                             }
                           }),
-                          activeColor: HeliosColors.accent,
-                          side: const BorderSide(
-                              color: HeliosColors.textTertiary),
+                          activeColor: hc.accent,
+                          side: BorderSide(
+                              color: hc.textTertiary),
                         ),
                         title: Text(def.title,
                             style: TextStyle(
                               fontSize: 13,
                               color: visible
-                                  ? HeliosColors.textPrimary
-                                  : HeliosColors.textTertiary,
+                                  ? hc.textPrimary
+                                  : hc.textTertiary,
                             )),
                         trailing: ReorderableDragStartListener(
                           index: index,
-                          child: const Icon(Icons.drag_handle,
+                          child: Icon(Icons.drag_handle,
                               size: 18,
-                              color: HeliosColors.textTertiary),
+                              color: hc.textTertiary),
                         ),
                       );
                     },
@@ -865,6 +867,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Expanded(
       child: Card(
         child: Padding(
@@ -875,8 +878,8 @@ class _SummaryCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(value, style: HeliosTypography.telemetryMedium),
               Text(unit,
-                  style: const TextStyle(
-                      fontSize: 12, color: HeliosColors.textTertiary)),
+                  style: TextStyle(
+                      fontSize: 12, color: hc.textTertiary)),
             ],
           ),
         ),

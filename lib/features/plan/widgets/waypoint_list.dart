@@ -24,13 +24,14 @@ class WaypointList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return ReorderableListView.builder(
       itemCount: items.length,
       buildDefaultDragHandles: false,
       proxyDecorator: (child, index, animation) {
         return Material(
           elevation: 4,
-          color: HeliosColors.surfaceLight,
+          color: hc.surfaceLight,
           borderRadius: BorderRadius.circular(4),
           child: child,
         );
@@ -78,8 +79,9 @@ class _WaypointRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final bgColor = isSelected
-        ? HeliosColors.accentDim.withValues(alpha: 0.2)
+        ? hc.accentDim.withValues(alpha: 0.2)
         : Colors.transparent;
 
     final icon = switch (item.command) {
@@ -101,11 +103,11 @@ class _WaypointRow extends StatelessWidget {
           color: bgColor,
           border: Border(
             left: BorderSide(
-              color: isCurrent ? HeliosColors.success : Colors.transparent,
+              color: isCurrent ? hc.success : Colors.transparent,
               width: 3,
             ),
-            bottom: const BorderSide(
-              color: HeliosColors.border,
+            bottom: BorderSide(
+              color: hc.border,
               width: 0.5,
             ),
           ),
@@ -115,12 +117,12 @@ class _WaypointRow extends StatelessWidget {
             // Drag handle
             ReorderableDragStartListener(
               index: index,
-              child: const Padding(
-                padding: EdgeInsets.only(right: 4),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
                 child: Icon(
                   Icons.drag_indicator,
                   size: 16,
-                  color: HeliosColors.textTertiary,
+                  color: hc.textTertiary,
                 ),
               ),
             ),
@@ -131,8 +133,8 @@ class _WaypointRow extends StatelessWidget {
                 '$index',
                 style: TextStyle(
                   color: isSelected
-                      ? HeliosColors.accent
-                      : HeliosColors.textSecondary,
+                      ? hc.accent
+                      : hc.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'monospace',
@@ -140,7 +142,7 @@ class _WaypointRow extends StatelessWidget {
               ),
             ),
             // Command icon
-            Icon(icon, size: 14, color: HeliosColors.textSecondary),
+            Icon(icon, size: 14, color: hc.textSecondary),
             const SizedBox(width: 6),
             // Command label + coords
             Expanded(
@@ -151,8 +153,8 @@ class _WaypointRow extends StatelessWidget {
                     item.commandLabel,
                     style: TextStyle(
                       color: isSelected
-                          ? HeliosColors.textPrimary
-                          : HeliosColors.textSecondary,
+                          ? hc.textPrimary
+                          : hc.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -160,8 +162,8 @@ class _WaypointRow extends StatelessWidget {
                   if (item.isNavCommand)
                     Text(
                       '${item.latitude.toStringAsFixed(5)}, ${item.longitude.toStringAsFixed(5)}',
-                      style: const TextStyle(
-                        color: HeliosColors.textTertiary,
+                      style: TextStyle(
+                        color: hc.textTertiary,
                         fontSize: 12,
                         fontFamily: 'monospace',
                       ),
@@ -172,8 +174,8 @@ class _WaypointRow extends StatelessWidget {
             // Altitude
             Text(
               '${item.altitude.toStringAsFixed(0)}m',
-              style: const TextStyle(
-                color: HeliosColors.textSecondary,
+              style: TextStyle(
+                color: hc.textSecondary,
                 fontSize: 12,
                 fontFamily: 'monospace',
               ),
@@ -182,12 +184,12 @@ class _WaypointRow extends StatelessWidget {
             // Delete button
             GestureDetector(
               onTap: onRemove,
-              child: const Padding(
-                padding: EdgeInsets.all(2),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
                 child: Icon(
                   Icons.close,
                   size: 14,
-                  color: HeliosColors.textTertiary,
+                  color: hc.textTertiary,
                 ),
               ),
             ),

@@ -56,6 +56,7 @@ class TimelineBar extends StatelessWidget {
                 listenable:
                     Listenable.merge([crosshairX, viewMinX, viewMaxX]),
                 builder: (context, _) {
+                  final hc = context.hc;
                   return CustomPaint(
                     size: Size(barWidth, height),
                     painter: _TimelinePainter(
@@ -65,6 +66,10 @@ class TimelineBar extends StatelessWidget {
                       totalDuration: totalDuration,
                       referenceSeries: referenceSeries,
                       events: events,
+                      surfaceDimColor: hc.surfaceDim,
+                      backgroundDimColor: hc.background,
+                      accentColor: hc.accent,
+                      textTertiaryColor: hc.textTertiary,
                     ),
                   );
                 },
@@ -97,6 +102,10 @@ class _TimelinePainter extends CustomPainter {
     required this.totalDuration,
     required this.referenceSeries,
     required this.events,
+    required this.surfaceDimColor,
+    required this.backgroundDimColor,
+    required this.accentColor,
+    required this.textTertiaryColor,
   });
 
   final double? crosshairX;
@@ -105,6 +114,10 @@ class _TimelinePainter extends CustomPainter {
   final double totalDuration;
   final List<FlSpot> referenceSeries;
   final List<ChartEvent> events;
+  final Color surfaceDimColor;
+  final Color backgroundDimColor;
+  final Color accentColor;
+  final Color textTertiaryColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -119,7 +132,7 @@ class _TimelinePainter extends CustomPainter {
     // Background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w, h),
-      Paint()..color = HeliosColors.surfaceDim,
+      Paint()..color = surfaceDimColor,
     );
 
     // Mini altitude profile
@@ -131,7 +144,7 @@ class _TimelinePainter extends CustomPainter {
     final leftFrac = viewMinX / totalDuration;
     final rightFrac = viewMaxX / totalDuration;
     final dimPaint = Paint()
-      ..color = HeliosColors.background.withValues(alpha: 0.55);
+      ..color = backgroundDimColor.withValues(alpha: 0.55);
 
     if (leftFrac > 0) {
       canvas.drawRect(Rect.fromLTWH(0, 0, leftFrac * w, h), dimPaint);
@@ -148,13 +161,13 @@ class _TimelinePainter extends CustomPainter {
     canvas.drawRect(
       rangeRect,
       Paint()
-        ..color = HeliosColors.accent.withValues(alpha: 0.2)
+        ..color = accentColor.withValues(alpha: 0.2)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
 
     // Range handles (small rectangles at left/right edges)
-    final handlePaint = Paint()..color = HeliosColors.accent;
+    final handlePaint = Paint()..color = accentColor;
     const handleW = 3.0;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -188,7 +201,7 @@ class _TimelinePainter extends CustomPainter {
         Offset(cx, 0),
         Offset(cx, h - bottomPad),
         Paint()
-          ..color = HeliosColors.accent
+          ..color = accentColor
           ..strokeWidth = 1.5,
       );
 
@@ -198,7 +211,7 @@ class _TimelinePainter extends CustomPainter {
         text: TextSpan(
           text: timeStr,
           style: HeliosTypography.caption.copyWith(
-            color: HeliosColors.accent,
+            color: accentColor,
             fontSize: 10,
           ),
         ),
@@ -248,12 +261,12 @@ class _TimelinePainter extends CustomPainter {
 
     canvas.drawPath(
       fillPath,
-      Paint()..color = HeliosColors.accent.withValues(alpha: 0.08),
+      Paint()..color = accentColor.withValues(alpha: 0.08),
     );
     canvas.drawPath(
       path,
       Paint()
-        ..color = HeliosColors.accent.withValues(alpha: 0.25)
+        ..color = accentColor.withValues(alpha: 0.25)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -264,8 +277,8 @@ class _TimelinePainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-            fontSize: 10, color: HeliosColors.textTertiary),
+        style: TextStyle(
+            fontSize: 10, color: textTertiaryColor),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -284,5 +297,9 @@ class _TimelinePainter extends CustomPainter {
       crosshairX != old.crosshairX ||
       viewMinX != old.viewMinX ||
       viewMaxX != old.viewMaxX ||
-      totalDuration != old.totalDuration;
+      totalDuration != old.totalDuration ||
+      accentColor != old.accentColor ||
+      surfaceDimColor != old.surfaceDimColor ||
+      backgroundDimColor != old.backgroundDimColor ||
+      textTertiaryColor != old.textTertiaryColor;
 }

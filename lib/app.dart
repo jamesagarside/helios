@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'shared/models/vehicle_state.dart';
 import 'shared/providers/display_provider.dart';
 import 'shared/providers/providers.dart';
+import 'shared/providers/theme_mode_provider.dart';
 import 'shared/theme/helios_colors.dart';
 import 'shared/theme/helios_theme.dart';
 import 'shared/widgets/responsive_scaffold.dart';
@@ -13,6 +14,7 @@ import 'features/plan/plan_view.dart';
 import 'features/analyse/analyse_view.dart';
 import 'features/video/video_view.dart';
 import 'features/setup/setup_view.dart';
+import 'features/config/fc_config_view.dart';
 
 /// Helios GCS application root widget.
 class HeliosApp extends ConsumerWidget {
@@ -21,11 +23,14 @@ class HeliosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scale = ref.watch(displayScaleProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
       title: 'Helios GCS',
       debugShowCheckedModeBanner: false,
-      theme: heliosTheme(),
+      theme: heliosLightTheme(),
+      darkTheme: heliosTheme(),
+      themeMode: themeMode,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
@@ -79,10 +84,11 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
         children: _coreViews,
       );
     }
-    // Video and Setup are built on-demand (media_kit dependency)
+    // Video, Setup, and Config are built on-demand
     return switch (_selectedIndex) {
       3 => const VideoView(),
       4 => const SetupView(),
+      5 => const FcConfigView(),
       _ => const SizedBox(),
     };
   }
@@ -110,6 +116,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
       LogicalKeyboardKey.digit3 => 2,
       LogicalKeyboardKey.digit4 => 3,
       LogicalKeyboardKey.digit5 => 4,
+      LogicalKeyboardKey.digit6 => 5,
       _ => null,
     };
 
@@ -120,6 +127,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final vehicle = ref.watch(vehicleStateProvider);
     final connection = ref.watch(connectionStatusProvider);
     final gpsLabel = ref.watch(gpsFixLabelProvider);
@@ -139,16 +147,16 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
           if (vehicleCount > 1)
             Container(
               height: 32,
-              color: HeliosColors.surfaceDim,
+              color: hc.surfaceDim,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.multiple_stop,
-                      size: 14, color: HeliosColors.textTertiary),
+                  Icon(Icons.multiple_stop,
+                      size: 14, color: hc.textTertiary),
                   const SizedBox(width: 6),
                   Text('$vehicleCount vehicles',
-                      style: const TextStyle(
-                          fontSize: 12, color: HeliosColors.textTertiary)),
+                      style: TextStyle(
+                          fontSize: 12, color: hc.textTertiary)),
                   const SizedBox(width: 12),
                   ...registry.entries.map((entry) {
                     final isActive = entry.key == activeId;
@@ -167,13 +175,13 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: isActive
-                                ? HeliosColors.accent.withValues(alpha: 0.15)
+                                ? hc.accent.withValues(alpha: 0.15)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
                               color: isActive
-                                  ? HeliosColors.accent
-                                  : HeliosColors.border,
+                                  ? hc.accent
+                                  : hc.border,
                             ),
                           ),
                           child: Text(
@@ -184,8 +192,8 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
                                   ? FontWeight.w600
                                   : FontWeight.w400,
                               color: isActive
-                                  ? HeliosColors.accent
-                                  : HeliosColors.textSecondary,
+                                  ? hc.accent
+                                  : hc.textSecondary,
                             ),
                           ),
                         ),

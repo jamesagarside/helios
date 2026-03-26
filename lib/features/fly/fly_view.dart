@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/telemetry/replay_service.dart';
 import '../../shared/models/layout_profile.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/layout_provider.dart';
@@ -10,6 +11,7 @@ import 'widgets/chart_toolbar.dart';
 import 'widgets/gimbal_control.dart';
 import 'widgets/layout_toolbar.dart';
 import 'widgets/live_chart_widget.dart';
+import 'widgets/replay_controls.dart';
 import 'widgets/vehicle_map.dart';
 import 'widgets/video_stream_widget.dart';
 import '../../shared/theme/helios_colors.dart';
@@ -19,11 +21,39 @@ import '../../shared/widgets/connection_badge.dart';
 import 'widgets/ekf_status_strip.dart';
 
 /// Fly View — primary in-flight screen with live telemetry.
-class FlyView extends ConsumerWidget {
+///
+/// When [replayActiveProvider] is true, the [ReplayService] drives
+/// [vehicleStateProvider] instead of live MAVLink.
+class FlyView extends ConsumerStatefulWidget {
   const FlyView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FlyView> createState() => _FlyViewState();
+}
+
+class _FlyViewState extends ConsumerState<FlyView> {
+  @override
+  void initState() {
+    super.initState();
+    // Wire replay service → vehicle state provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final replay = ref.read(replayServiceProvider);
+      replay.onStateUpdate = (VehicleState s) {
+        if (mounted) {
+          ref.read(vehicleStateProvider.notifier).applyReplayState(s);
+        }
+      };
+      replay.onReplayStateChanged = (ReplayState rs) {
+        if (mounted) {
+          ref.read(replayActiveProvider.notifier).state =
+              rs == ReplayState.playing || rs == ReplayState.paused;
+        }
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
 
     return Column(
@@ -45,6 +75,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final linkState = ref.watch(connectionStatusProvider).linkState;
     final vehicle = ref.watch(vehicleStateProvider);
     final layout = ref.watch(activeLayoutProvider);
@@ -74,12 +105,12 @@ class _DesktopFlyLayout extends ConsumerWidget {
                     width: 320,
                     height: 240,
                     decoration: BoxDecoration(
-                      color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+                      color: hc.surfaceDim.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: editMode
-                            ? HeliosColors.accent.withValues(alpha: 0.3)
-                            : HeliosColors.border,
+                            ? hc.accent.withValues(alpha: 0.3)
+                            : hc.border,
                       ),
                     ),
                     child: _PfdWidget(
@@ -136,12 +167,12 @@ class _DesktopFlyLayout extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                             decoration: BoxDecoration(
-                              color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+                              color: hc.surfaceDim.withValues(alpha: 0.85),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
                                 color: showVideo
-                                    ? HeliosColors.accent.withValues(alpha: 0.4)
-                                    : HeliosColors.border.withValues(alpha: 0.5),
+                                    ? hc.accent.withValues(alpha: 0.4)
+                                    : hc.border.withValues(alpha: 0.5),
                               ),
                             ),
                             child: Row(
@@ -150,7 +181,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
                                 Icon(
                                   Icons.videocam,
                                   size: 13,
-                                  color: showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                                  color: showVideo ? hc.accent : hc.textTertiary,
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
@@ -158,7 +189,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: showVideo ? FontWeight.w600 : FontWeight.w400,
-                                    color: showVideo ? HeliosColors.accent : HeliosColors.textTertiary,
+                                    color: showVideo ? hc.accent : hc.textTertiary,
                                   ),
                                 ),
                               ],
@@ -207,6 +238,9 @@ class _DesktopFlyLayout extends ConsumerWidget {
                       notifier.updateVideoPosition(pos.dx, pos.dy),
                   onClose: () => notifier.toggleVideo(),
                 ),
+              // Replay controls bar (bottom of stack — visible when replaying)
+              if (ref.watch(replayActiveProvider))
+                const ReplayControls(),
             ],
           ),
         ),
@@ -237,10 +271,11 @@ class _GridOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Positioned.fill(
       child: IgnorePointer(
         child: CustomPaint(
-          painter: _GridPainter(),
+          painter: _GridPainter(accentColor: hc.accent),
         ),
       ),
     );
@@ -248,10 +283,13 @@ class _GridOverlay extends StatelessWidget {
 }
 
 class _GridPainter extends CustomPainter {
+  _GridPainter({required this.accentColor});
+  final Color accentColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = HeliosColors.accent.withValues(alpha: 0.06)
+      ..color = accentColor.withValues(alpha: 0.06)
       ..strokeWidth = 0.5;
 
     for (var x = 0.0; x < size.width; x += gridSize) {
@@ -263,7 +301,7 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GridPainter old) => accentColor != old.accentColor;
 }
 
 /// Small toggle button for PFD/Strip visibility in edit mode.
@@ -280,17 +318,18 @@ class _WidgetToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
-          color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+          color: hc.surfaceDim.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: active
-                ? HeliosColors.accent.withValues(alpha: 0.4)
-                : HeliosColors.border.withValues(alpha: 0.5),
+                ? hc.accent.withValues(alpha: 0.4)
+                : hc.border.withValues(alpha: 0.5),
           ),
         ),
         child: Text(
@@ -298,7 +337,7 @@ class _WidgetToggle extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: active ? HeliosColors.accent : HeliosColors.textTertiary,
+            color: active ? hc.accent : hc.textTertiary,
           ),
         ),
       ),
@@ -311,6 +350,7 @@ class _TabletFlyLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final linkState = ref.watch(connectionStatusProvider).linkState;
     final vehicle = ref.watch(vehicleStateProvider);
 
@@ -329,7 +369,7 @@ class _TabletFlyLayout extends ConsumerWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
         Expanded(
           flex: 4,
           child: Row(
@@ -361,6 +401,7 @@ class _MobileFlyLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final linkState = ref.watch(connectionStatusProvider).linkState;
     final vehicle = ref.watch(vehicleStateProvider);
 
@@ -374,9 +415,9 @@ class _MobileFlyLayout extends ConsumerWidget {
             width: 160,
             height: 120,
             decoration: BoxDecoration(
-              color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+              color: hc.surfaceDim.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: HeliosColors.border),
+              border: Border.all(color: hc.border),
             ),
             child: _PfdWidget(
               roll: vehicle.roll,
@@ -400,7 +441,7 @@ class _MobileFlyLayout extends ConsumerWidget {
           bottom: 0,
           child: Container(
             height: 44,
-            color: HeliosColors.surface.withValues(alpha: 0.9),
+            color: hc.surface.withValues(alpha: 0.9),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -439,6 +480,7 @@ class _ConnectionControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final connection = ref.watch(connectionStatusProvider);
     final savedConfig = ref.watch(connectionSettingsProvider);
     final isConnected =
@@ -454,7 +496,7 @@ class _ConnectionControls extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(right: 6),
             child: Material(
-              color: HeliosColors.surface.withValues(alpha: 0.85),
+              color: hc.surface.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(6),
               child: InkWell(
                 borderRadius: BorderRadius.circular(6),
@@ -467,12 +509,12 @@ class _ConnectionControls extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.link, size: 13, color: HeliosColors.accent),
+                      Icon(Icons.link, size: 13, color: hc.accent),
                       const SizedBox(width: 4),
                       Text(
                         ref.read(connectionSettingsProvider.notifier).label,
-                        style: const TextStyle(
-                          color: HeliosColors.accent,
+                        style: TextStyle(
+                          color: hc.accent,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -489,10 +531,10 @@ class _ConnectionControls extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: HeliosColors.surface.withValues(alpha: 0.85),
+                color: hc.surface.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
@@ -500,14 +542,14 @@ class _ConnectionControls extends ConsumerWidget {
                     height: 12,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: HeliosColors.accent,
+                      color: hc.accent,
                     ),
                   ),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
                     'Connecting...',
                     style: TextStyle(
-                      color: HeliosColors.textSecondary,
+                      color: hc.textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -653,6 +695,7 @@ class _PfdWidgetState extends State<_PfdWidget>
           altitude: _alt,
           altitudeRel: _altRel,
           climbRate: _vs,
+          colors: context.hc,
         ),
         child: const SizedBox.expand(),
       ),
@@ -669,46 +712,48 @@ class _PfdPainter extends CustomPainter {
     required this.altitude,
     required this.altitudeRel,
     required this.climbRate,
+    required this.colors,
   });
 
   final double roll, pitch, airspeed, altitude, altitudeRel, climbRate;
   final int heading;
+  final HeliosColors colors;
 
   // Layout constants — tape widths
   static const double _tapeWidth = 48.0;
 
-  // Paints
-  static final _skyPaint = Paint()..color = HeliosColors.sky;
-  static final _groundPaint = Paint()..color = HeliosColors.ground;
-  static final _horizonPaint = Paint()
-    ..color = HeliosColors.horizon
+  // Instance paints (theme-dependent)
+  Paint get _skyPaint => Paint()..color = colors.sky;
+  Paint get _groundPaint => Paint()..color = colors.ground;
+  Paint get _horizonPaint => Paint()
+    ..color = colors.horizon
     ..strokeWidth = 2
     ..style = PaintingStyle.stroke;
-  static final _tapeBgPaint = Paint()
-    ..color = HeliosColors.surfaceDim.withValues(alpha: 0.75);
-  static final _tapeLinePaint = Paint()
-    ..color = HeliosColors.textTertiary
+  Paint get _tapeBgPaint => Paint()
+    ..color = colors.surfaceDim.withValues(alpha: 0.75);
+  Paint get _tapeLinePaint => Paint()
+    ..color = colors.textTertiary
     ..strokeWidth = 0.5;
-  static final _readoutBgPaint = Paint()
-    ..color = HeliosColors.surfaceDim.withValues(alpha: 0.9);
-  static final _readoutBorderPaint = Paint()
-    ..color = HeliosColors.textPrimary
+  Paint get _readoutBgPaint => Paint()
+    ..color = colors.surfaceDim.withValues(alpha: 0.9);
+  Paint get _readoutBorderPaint => Paint()
+    ..color = colors.textPrimary
     ..strokeWidth = 1.5
     ..style = PaintingStyle.stroke;
 
-  static const _tapeTextStyle = TextStyle(
-    color: HeliosColors.textSecondary,
+  TextStyle get _tapeTextStyle => TextStyle(
+    color: colors.textSecondary,
     fontSize: 12,
     fontFamily: 'monospace',
   );
-  static const _readoutTextStyle = TextStyle(
-    color: HeliosColors.textPrimary,
+  TextStyle get _readoutTextStyle => TextStyle(
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: FontWeight.w700,
     fontFamily: 'monospace',
   );
-  static const _labelTextStyle = TextStyle(
-    color: HeliosColors.textTertiary,
+  TextStyle get _labelTextStyle => TextStyle(
+    color: colors.textTertiary,
     fontSize: 8,
     fontFamily: 'monospace',
   );
@@ -748,7 +793,7 @@ class _PfdPainter extends CustomPainter {
       final major = deg % 10 == 0;
       final hw = major ? 28.0 : 14.0;
       final paint = Paint()
-        ..color = HeliosColors.pitchLine
+        ..color = colors.pitchLine
         ..strokeWidth = major ? 1.0 : 0.5;
       canvas.drawLine(Offset(-hw, y), Offset(hw, y), paint);
 
@@ -756,7 +801,7 @@ class _PfdPainter extends CustomPainter {
         final tp = TextPainter(
           text: TextSpan(
             text: '${deg.abs()}',
-            style: TextStyle(color: HeliosColors.pitchLine, fontSize: 8),
+            style: TextStyle(color: colors.pitchLine, fontSize: 8),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -769,7 +814,7 @@ class _PfdPainter extends CustomPainter {
 
     // Aircraft symbol
     final acPaint = Paint()
-      ..color = HeliosColors.warning
+      ..color = colors.warning
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -782,7 +827,7 @@ class _PfdPainter extends CustomPainter {
         ..lineTo(cx + 35, cy),
       acPaint,
     );
-    canvas.drawCircle(Offset(cx, cy), 2.5, Paint()..color = HeliosColors.warning);
+    canvas.drawCircle(Offset(cx, cy), 2.5, Paint()..color = colors.warning);
 
     // Roll arc + pointer
     canvas.save();
@@ -794,7 +839,7 @@ class _PfdPainter extends CustomPainter {
       math.pi * 0.66,
       false,
       Paint()
-        ..color = HeliosColors.textPrimary.withValues(alpha: 0.4)
+        ..color = colors.textPrimary.withValues(alpha: 0.4)
         ..strokeWidth = 1
         ..style = PaintingStyle.stroke,
     );
@@ -807,7 +852,7 @@ class _PfdPainter extends CustomPainter {
         Offset(math.cos(a) * inner, math.sin(a) * inner),
         Offset(math.cos(a) * rr, math.sin(a) * rr),
         Paint()
-          ..color = HeliosColors.textPrimary.withValues(alpha: 0.5)
+          ..color = colors.textPrimary.withValues(alpha: 0.5)
           ..strokeWidth = deg == 0 ? 1.5 : 0.8,
       );
     }
@@ -819,7 +864,7 @@ class _PfdPainter extends CustomPainter {
         ..lineTo(-4, -rr + 3)
         ..lineTo(4, -rr + 3)
         ..close(),
-      Paint()..color = HeliosColors.warning,
+      Paint()..color = colors.warning,
     );
     canvas.restore();
 
@@ -830,7 +875,7 @@ class _PfdPainter extends CustomPainter {
     );
     canvas.drawRRect(hdgRect, _readoutBgPaint);
     canvas.drawRRect(hdgRect, Paint()
-      ..color = HeliosColors.border
+      ..color = colors.border
       ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke);
     _drawText(canvas, '${heading.toString().padLeft(3, '0')}\u00B0',
@@ -863,14 +908,14 @@ class _PfdPainter extends CustomPainter {
 
     // REL alt below readout
     _drawText(canvas, 'R ${altitudeRel.toStringAsFixed(0)}m',
-        _labelTextStyle.copyWith(color: HeliosColors.accent, fontSize: 12),
+        _labelTextStyle.copyWith(color: colors.accent, fontSize: 12),
         Offset(altTapeRect.center.dx, altTapeRect.center.dy + 16));
 
     // VS arrow
     if (climbRate.abs() > 0.3) {
       final vsY = altTapeRect.center.dy + 30;
       final arrow = climbRate > 0 ? '\u25B2' : '\u25BC';
-      final vsColor = climbRate > 0 ? HeliosColors.success : HeliosColors.warning;
+      final vsColor = climbRate > 0 ? colors.success : colors.warning;
       _drawText(canvas, '$arrow${climbRate.abs().toStringAsFixed(1)}',
           _labelTextStyle.copyWith(color: vsColor, fontSize: 12),
           Offset(altTapeRect.center.dx, vsY));
@@ -952,7 +997,8 @@ class _PfdPainter extends CustomPainter {
   bool shouldRepaint(covariant _PfdPainter old) {
     return roll != old.roll || pitch != old.pitch || heading != old.heading ||
         airspeed != old.airspeed || altitude != old.altitude ||
-        altitudeRel != old.altitudeRel || climbRate != old.climbRate;
+        altitudeRel != old.altitudeRel || climbRate != old.climbRate ||
+        colors != old.colors;
   }
 }
 
@@ -967,8 +1013,9 @@ class _TelemetryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
-      color: HeliosColors.surface,
+      color: hc.surface,
       child: ListView(
         padding: const EdgeInsets.all(8),
         children: [
@@ -978,7 +1025,7 @@ class _TelemetryStrip extends StatelessWidget {
                 ? '${vehicle.batteryVoltage.toStringAsFixed(1)}'
                 : '--',
             unit: 'V',
-            color: _batteryColor(vehicle.batteryVoltage),
+            color: _batteryColor(vehicle.batteryVoltage, hc),
           ),
           _TelemetryCard(
             label: 'BAT%',
@@ -986,23 +1033,23 @@ class _TelemetryStrip extends StatelessWidget {
                 ? '${vehicle.batteryRemaining}'
                 : '--',
             unit: '%',
-            color: _batteryPctColor(vehicle.batteryRemaining),
+            color: _batteryPctColor(vehicle.batteryRemaining, hc),
           ),
           _TelemetryCard(
             label: 'GPS',
             value: _gpsFixLabel(vehicle.gpsFix),
             unit: '',
-            color: _gpsColor(vehicle.gpsFix),
+            color: _gpsColor(vehicle.gpsFix, hc),
           ),
           _TelemetryCard(
             label: 'SATS',
             value: '${vehicle.satellites}',
             unit: '',
             color: vehicle.satellites >= 8
-                ? HeliosColors.success
+                ? hc.success
                 : vehicle.satellites >= 5
-                    ? HeliosColors.warning
-                    : HeliosColors.danger,
+                    ? hc.warning
+                    : hc.danger,
           ),
           _TelemetryCard(
             label: 'HDOP',
@@ -1052,28 +1099,28 @@ class _TelemetryStrip extends StatelessWidget {
               value: '${vehicle.rssi}',
               unit: '',
               color: vehicle.rssi > 150
-                  ? HeliosColors.success
+                  ? hc.success
                   : vehicle.rssi > 50
-                      ? HeliosColors.warning
-                      : HeliosColors.danger,
+                      ? hc.warning
+                      : hc.danger,
             ),
         ],
       ),
     );
   }
 
-  Color _batteryColor(double voltage) {
-    if (voltage <= 0) return HeliosColors.textSecondary;
-    if (voltage > 11.5) return HeliosColors.success;
-    if (voltage > 10.5) return HeliosColors.warning;
-    return HeliosColors.danger;
+  Color _batteryColor(double voltage, HeliosColors hc) {
+    if (voltage <= 0) return hc.textSecondary;
+    if (voltage > 11.5) return hc.success;
+    if (voltage > 10.5) return hc.warning;
+    return hc.danger;
   }
 
-  Color _batteryPctColor(int pct) {
-    if (pct < 0) return HeliosColors.textSecondary;
-    if (pct > 30) return HeliosColors.success;
-    if (pct > 15) return HeliosColors.warning;
-    return HeliosColors.danger;
+  Color _batteryPctColor(int pct, HeliosColors hc) {
+    if (pct < 0) return hc.textSecondary;
+    if (pct > 30) return hc.success;
+    if (pct > 15) return hc.warning;
+    return hc.danger;
   }
 
   String _gpsFixLabel(GpsFix fix) {
@@ -1087,11 +1134,11 @@ class _TelemetryStrip extends StatelessWidget {
     };
   }
 
-  Color _gpsColor(GpsFix fix) {
+  Color _gpsColor(GpsFix fix, HeliosColors hc) {
     return switch (fix) {
-      GpsFix.none || GpsFix.noFix => HeliosColors.danger,
-      GpsFix.fix2d => HeliosColors.warning,
-      GpsFix.fix3d || GpsFix.dgps || GpsFix.rtkFloat || GpsFix.rtkFixed => HeliosColors.success,
+      GpsFix.none || GpsFix.noFix => hc.danger,
+      GpsFix.fix2d => hc.warning,
+      GpsFix.fix3d || GpsFix.dgps || GpsFix.rtkFloat || GpsFix.rtkFixed => hc.success,
     };
   }
 }
@@ -1111,11 +1158,12 @@ class _TelemetryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: HeliosColors.surfaceLight,
+        color: hc.surfaceLight,
         borderRadius: BorderRadius.circular(4),
         border: color != null
             ? Border(left: BorderSide(color: color!, width: 3))
@@ -1128,7 +1176,7 @@ class _TelemetryCard extends StatelessWidget {
           Text(
             '$value $unit'.trim(),
             style: HeliosTypography.telemetrySmall.copyWith(
-              color: color ?? HeliosColors.textPrimary,
+              color: color ?? hc.textPrimary,
             ),
           ),
         ],

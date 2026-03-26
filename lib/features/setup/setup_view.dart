@@ -140,6 +140,7 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final connection = ref.watch(connectionControllerProvider);
     final vehicle = ref.watch(vehicleStateProvider);
     final isConnected = connection.transportState == TransportState.connected;
@@ -208,7 +209,7 @@ class _SetupViewState extends ConsumerState<SetupView> {
                               : null,
                           hint: const Text('Select port', style: TextStyle(fontSize: 13)),
                           isExpanded: true,
-                          dropdownColor: HeliosColors.surfaceLight,
+                          dropdownColor: hc.surfaceLight,
                           items: _serialPorts.map((port) {
                             final desc = SerialTransport.portDescription(port);
                             return DropdownMenuItem(
@@ -234,21 +235,21 @@ class _SetupViewState extends ConsumerState<SetupView> {
                     ],
                   ),
                   if (_serialPorts.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'No serial ports detected. Connect your flight controller via USB.',
-                        style: TextStyle(color: HeliosColors.warning, fontSize: 12),
+                        style: TextStyle(color: hc.warning, fontSize: 12),
                       ),
                     ),
                   const SizedBox(height: 12),
                   // Baud rate selector
                   Row(
                     children: [
-                      const Text('Baud Rate: ', style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13)),
+                      Text('Baud Rate: ', style: TextStyle(color: hc.textSecondary, fontSize: 13)),
                       DropdownButton<int>(
                         value: _baudRate,
-                        dropdownColor: HeliosColors.surfaceLight,
+                        dropdownColor: hc.surfaceLight,
                         items: _baudRates
                             .map((b) => DropdownMenuItem(
                                   value: b,
@@ -270,12 +271,12 @@ class _SetupViewState extends ConsumerState<SetupView> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: HeliosColors.danger.withValues(alpha: 0.1),
+                      color: hc.danger.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
+                      style: TextStyle(color: hc.danger, fontSize: 12),
                     ),
                   ),
                 ],
@@ -324,10 +325,10 @@ class _SetupViewState extends ConsumerState<SetupView> {
                     TransportState.error => 'Error',
                   },
                   color: switch (connection.linkState) {
-                    LinkState.connected => HeliosColors.success,
-                    LinkState.degraded => HeliosColors.warning,
-                    LinkState.lost => HeliosColors.danger,
-                    LinkState.disconnected => HeliosColors.textSecondary,
+                    LinkState.connected => hc.success,
+                    LinkState.degraded => hc.warning,
+                    LinkState.lost => hc.danger,
+                    LinkState.disconnected => hc.textSecondary,
                   },
                 ),
                 _StatusRow(
@@ -515,15 +516,15 @@ class _SetupViewState extends ConsumerState<SetupView> {
               children: [
                 Text('Helios GCS', style: HeliosTypography.heading2),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'v0.1.0 — Part of the Argus Platform',
-                  style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13),
+                  style: TextStyle(color: hc.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Open-source ground control station for MAVLink UAVs.\n'
                   'Apache 2.0 Licence.',
-                  style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+                  style: TextStyle(color: hc.textTertiary, fontSize: 12),
                 ),
               ],
             ),
@@ -540,6 +541,7 @@ class _MaintenancePanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final asyncAlerts = ref.watch(maintenanceAlertsProvider);
 
     return asyncAlerts.when(
@@ -549,19 +551,19 @@ class _MaintenancePanel extends ConsumerWidget {
       ),
       error: (e, _) => Text(
         'Analysis error: $e',
-        style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
+        style: TextStyle(color: hc.danger, fontSize: 12),
       ),
       data: (alerts) {
         if (alerts.isEmpty) {
-          return const Row(
+          return Row(
             children: [
               Icon(Icons.check_circle_outline,
-                  size: 18, color: HeliosColors.success),
-              SizedBox(width: 8),
+                  size: 18, color: hc.success),
+              const SizedBox(width: 8),
               Text(
                 'No maintenance concerns detected.',
                 style: TextStyle(
-                    color: HeliosColors.textSecondary, fontSize: 13),
+                    color: hc.textSecondary, fontSize: 13),
               ),
             ],
           );
@@ -581,12 +583,6 @@ class _AlertTile extends StatelessWidget {
 
   final MaintenanceAlert alert;
 
-  Color get _color => switch (alert.severity) {
-        MaintenanceSeverity.critical => HeliosColors.danger,
-        MaintenanceSeverity.warning => HeliosColors.warning,
-        MaintenanceSeverity.info => HeliosColors.accent,
-      };
-
   IconData get _icon => switch (alert.severity) {
         MaintenanceSeverity.critical => Icons.error_outline,
         MaintenanceSeverity.warning => Icons.warning_amber_outlined,
@@ -595,18 +591,24 @@ class _AlertTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
+    final color = switch (alert.severity) {
+      MaintenanceSeverity.critical => hc.danger,
+      MaintenanceSeverity.warning => hc.warning,
+      MaintenanceSeverity.info => hc.accent,
+    };
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.07),
+        color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(_icon, size: 16, color: _color),
+          Icon(_icon, size: 16, color: color),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -619,7 +621,7 @@ class _AlertTile extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: _color,
+                          color: color,
                           letterSpacing: 0.5),
                     ),
                     const SizedBox(width: 6),
@@ -627,7 +629,7 @@ class _AlertTile extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
-                        color: _color.withValues(alpha: 0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(2),
                       ),
                       child: Text(
@@ -635,7 +637,7 @@ class _AlertTile extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
-                            color: _color),
+                            color: color),
                       ),
                     ),
                   ],
@@ -643,16 +645,16 @@ class _AlertTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   alert.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: HeliosColors.textPrimary),
+                      color: hc.textPrimary),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   alert.detail,
-                  style: const TextStyle(
-                      fontSize: 12, color: HeliosColors.textSecondary),
+                  style: TextStyle(
+                      fontSize: 12, color: hc.textSecondary),
                 ),
               ],
             ),
@@ -756,7 +758,7 @@ class _VideoSettingsState extends ConsumerState<_VideoSettings> {
           const SizedBox(height: 8),
           Text(
             videoCtrl.lastError!,
-            style: const TextStyle(color: HeliosColors.danger, fontSize: 12),
+            style: TextStyle(color: context.hc.danger, fontSize: 12),
           ),
         ],
       ],
@@ -771,29 +773,30 @@ class _RecordingStatus extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final store = ref.watch(telemetryStoreProvider);
     final isRecording = store.isRecording;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Telemetry is recorded automatically when a vehicle is connected '
           'and stops when disconnected. Each flight is saved as a DuckDB file.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: isRecording
-                ? HeliosColors.danger.withValues(alpha: 0.1)
-                : HeliosColors.surfaceLight,
+                ? hc.danger.withValues(alpha: 0.1)
+                : hc.surfaceLight,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: isRecording
-                  ? HeliosColors.danger.withValues(alpha: 0.3)
-                  : HeliosColors.border,
+                  ? hc.danger.withValues(alpha: 0.3)
+                  : hc.border,
             ),
           ),
           child: Row(
@@ -801,7 +804,7 @@ class _RecordingStatus extends ConsumerWidget {
               Icon(
                 isRecording ? Icons.fiber_manual_record : Icons.circle_outlined,
                 size: 14,
-                color: isRecording ? HeliosColors.danger : HeliosColors.textTertiary,
+                color: isRecording ? hc.danger : hc.textTertiary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -811,7 +814,7 @@ class _RecordingStatus extends ConsumerWidget {
                     Text(
                       isRecording ? 'RECORDING' : 'IDLE',
                       style: TextStyle(
-                        color: isRecording ? HeliosColors.danger : HeliosColors.textSecondary,
+                        color: isRecording ? hc.danger : hc.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -819,12 +822,12 @@ class _RecordingStatus extends ConsumerWidget {
                     if (isRecording)
                       Text(
                         '${store.rowsWritten} rows written',
-                        style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+                        style: TextStyle(color: hc.textSecondary, fontSize: 12),
                       )
                     else
-                      const Text(
+                      Text(
                         'Waiting for connection',
-                        style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+                        style: TextStyle(color: hc.textTertiary, fontSize: 12),
                       ),
                   ],
                 ),
@@ -868,25 +871,26 @@ class _MapCacheSettingsState extends State<_MapCacheSettings> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Map tiles are cached locally for offline use. '
           'Previously viewed areas will be available without internet.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            const Icon(Icons.map, size: 18, color: HeliosColors.textSecondary),
+            Icon(Icons.map, size: 18, color: hc.textSecondary),
             const SizedBox(width: 8),
             Text(
               'Cache size: ${_cacheBytes != null ? _formatBytes(_cacheBytes!) : '...'}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontFamily: 'monospace',
-                color: HeliosColors.textPrimary,
+                color: hc.textPrimary,
               ),
             ),
             const Spacer(),
@@ -915,20 +919,21 @@ class _MapCacheSettingsState extends State<_MapCacheSettings> {
 class _DisplaySettings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final scale = ref.watch(displayScaleProvider);
     final notifier = ref.read(displayScaleProvider.notifier);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Adjust the global text and widget scale for better readability.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 16),
         Row(
           children: [
-            const Text('A', style: TextStyle(fontSize: 12, color: HeliosColors.textTertiary)),
+            Text('A', style: TextStyle(fontSize: 12, color: hc.textTertiary)),
             Expanded(
               child: Slider(
                 value: scale,
@@ -939,15 +944,15 @@ class _DisplaySettings extends ConsumerWidget {
                 onChanged: (v) => notifier.setScale(v),
               ),
             ),
-            const Text('A', style: TextStyle(fontSize: 18, color: HeliosColors.textTertiary)),
+            Text('A', style: TextStyle(fontSize: 18, color: hc.textTertiary)),
             const SizedBox(width: 12),
             Text(
               '${(scale * 100).round()}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 fontFamily: 'monospace',
-                color: HeliosColors.textPrimary,
+                color: hc.textPrimary,
               ),
             ),
             const SizedBox(width: 8),
@@ -966,6 +971,7 @@ class _DisplaySettings extends ConsumerWidget {
 class _LayoutProfilesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final layoutState = ref.watch(layoutProvider);
     final profiles = layoutState.profiles;
     final activeName = layoutState.activeProfileName;
@@ -974,10 +980,10 @@ class _LayoutProfilesSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Manage widget layout profiles for the Fly View. '
           'Each profile saves chart positions, PFD visibility, and sidebar settings.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 16),
 
@@ -988,13 +994,13 @@ class _LayoutProfilesSection extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 6),
             decoration: BoxDecoration(
               color: isActive
-                  ? HeliosColors.accent.withValues(alpha: 0.08)
-                  : HeliosColors.surfaceLight,
+                  ? hc.accent.withValues(alpha: 0.08)
+                  : hc.surfaceLight,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: isActive
-                    ? HeliosColors.accent.withValues(alpha: 0.3)
-                    : HeliosColors.border,
+                    ? hc.accent.withValues(alpha: 0.3)
+                    : hc.border,
               ),
             ),
             child: ListTile(
@@ -1002,19 +1008,19 @@ class _LayoutProfilesSection extends ConsumerWidget {
               leading: Icon(
                 _vehicleIcon(profile.vehicleType),
                 size: 20,
-                color: isActive ? HeliosColors.accent : HeliosColors.textSecondary,
+                color: isActive ? hc.accent : hc.textSecondary,
               ),
               title: Text(
                 profile.name,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                  color: HeliosColors.textPrimary,
+                  color: hc.textPrimary,
                 ),
               ),
               subtitle: Text(
                 _profileSummary(profile),
-                style: const TextStyle(fontSize: 12, color: HeliosColors.textTertiary),
+                style: TextStyle(fontSize: 12, color: hc.textTertiary),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1023,43 +1029,43 @@ class _LayoutProfilesSection extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: HeliosColors.accent.withValues(alpha: 0.15),
+                        color: hc.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(3),
                       ),
-                      child: const Text(
+                      child: Text(
                         'ACTIVE',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: HeliosColors.accent,
+                          color: hc.accent,
                         ),
                       ),
                     ),
                   if (!isActive) ...[
                     IconButton(
                       icon: const Icon(Icons.check_circle_outline, size: 18),
-                      color: HeliosColors.textSecondary,
+                      color: hc.textSecondary,
                       tooltip: 'Set as active',
                       onPressed: () => notifier.selectProfile(profile.name),
                     ),
                   ],
                   IconButton(
                     icon: const Icon(Icons.copy, size: 16),
-                    color: HeliosColors.textSecondary,
+                    color: hc.textSecondary,
                     tooltip: 'Duplicate',
                     onPressed: () => _showDuplicateDialog(context, ref, profile),
                   ),
                   if (!profile.isDefault)
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 16),
-                      color: HeliosColors.danger,
+                      color: hc.danger,
                       tooltip: 'Delete',
                       onPressed: () => _confirmDelete(context, ref, profile.name),
                     ),
                   if (profile.isDefault)
                     IconButton(
                       icon: const Icon(Icons.restart_alt, size: 16),
-                      color: HeliosColors.textSecondary,
+                      color: hc.textSecondary,
                       tooltip: 'Reset to defaults',
                       onPressed: isActive
                           ? () => notifier.resetActiveProfile()
@@ -1108,44 +1114,47 @@ class _LayoutProfilesSection extends ConsumerWidget {
     final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
-        title: const Text('New Layout Profile',
-            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 13),
-          decoration: const InputDecoration(
-            hintText: 'Profile name',
-            hintStyle: TextStyle(color: HeliosColors.textTertiary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: HeliosColors.border),
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+          backgroundColor: hc.surface,
+          title: Text('New Layout Profile',
+              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: TextStyle(color: hc.textPrimary, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Profile name',
+              hintStyle: TextStyle(color: hc.textTertiary),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: hc.border),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: hc.accent),
+              ),
             ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: HeliosColors.accent),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel',
+                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                ref.read(layoutProvider.notifier).createProfile(name);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Create',
-                style: TextStyle(color: HeliosColors.accent, fontSize: 12)),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isNotEmpty) {
+                  ref.read(layoutProvider.notifier).createProfile(name);
+                  Navigator.pop(ctx);
+                }
+              },
+              child: Text('Create',
+                  style: TextStyle(color: hc.accent, fontSize: 12)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1153,80 +1162,86 @@ class _LayoutProfilesSection extends ConsumerWidget {
     final controller = TextEditingController(text: '${source.name} (copy)');
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
-        title: const Text('Duplicate Profile',
-            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 13),
-          decoration: const InputDecoration(
-            hintText: 'New profile name',
-            hintStyle: TextStyle(color: HeliosColors.textTertiary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: HeliosColors.border),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: HeliosColors.accent),
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+          backgroundColor: hc.surface,
+          title: Text('Duplicate Profile',
+              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: TextStyle(color: hc.textPrimary, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'New profile name',
+              hintStyle: TextStyle(color: hc.textTertiary),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: hc.border),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: hc.accent),
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                // Temporarily select source, create copy, then switch to new
-                final notifier = ref.read(layoutProvider.notifier);
-                final currentActive = ref.read(layoutProvider).activeProfileName;
-                notifier.selectProfile(source.name);
-                notifier.createProfile(name);
-                // If the source wasn't active, this creates a copy of it
-                if (currentActive != source.name) {
-                  // Stay on the new copy
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel',
+                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+            ),
+            TextButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isNotEmpty) {
+                  // Temporarily select source, create copy, then switch to new
+                  final notifier = ref.read(layoutProvider.notifier);
+                  final currentActive = ref.read(layoutProvider).activeProfileName;
+                  notifier.selectProfile(source.name);
+                  notifier.createProfile(name);
+                  // If the source wasn't active, this creates a copy of it
+                  if (currentActive != source.name) {
+                    // Stay on the new copy
+                  }
+                  Navigator.pop(ctx);
                 }
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Duplicate',
-                style: TextStyle(color: HeliosColors.accent, fontSize: 12)),
-          ),
-        ],
-      ),
+              },
+              child: Text('Duplicate',
+                  style: TextStyle(color: hc.accent, fontSize: 12)),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String name) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
-        title: Text('Delete "$name"?',
-            style: const TextStyle(color: HeliosColors.textPrimary, fontSize: 14)),
-        content: const Text('This layout profile will be permanently removed.',
-            style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(layoutProvider.notifier).deleteProfile(name);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Delete',
-                style: TextStyle(color: HeliosColors.danger, fontSize: 12)),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+          backgroundColor: hc.surface,
+          title: Text('Delete "$name"?',
+              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
+          content: Text('This layout profile will be permanently removed.',
+              style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel',
+                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+            ),
+            TextButton(
+              onPressed: () {
+                ref.read(layoutProvider.notifier).deleteProfile(name);
+                Navigator.pop(ctx);
+              },
+              child: Text('Delete',
+                  style: TextStyle(color: hc.danger, fontSize: 12)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1234,16 +1249,17 @@ class _LayoutProfilesSection extends ConsumerWidget {
 class _StreamRateSettings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final rates = ref.watch(streamRateProvider);
     final notifier = ref.read(streamRateProvider.notifier);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Control how fast telemetry is requested from the flight controller. '
           'Higher rates give smoother instruments but use more bandwidth and storage.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 12),
 
@@ -1256,12 +1272,12 @@ class _StreamRateSettings extends ConsumerWidget {
                     label: Text(preset.label, style: const TextStyle(fontSize: 12)),
                     selected: rates.preset == preset,
                     onSelected: (_) => notifier.applyPreset(preset),
-                    selectedColor: HeliosColors.accentDim,
-                    backgroundColor: HeliosColors.surfaceLight,
+                    selectedColor: hc.accentDim,
+                    backgroundColor: hc.surfaceLight,
                     labelStyle: TextStyle(
                       color: rates.preset == preset
-                          ? HeliosColors.textPrimary
-                          : HeliosColors.textSecondary,
+                          ? hc.textPrimary
+                          : hc.textSecondary,
                     ),
                   ))
               .toList(),
@@ -1301,16 +1317,16 @@ class _StreamRateSettings extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           'Est. ${rates.estimatedRowsPerMinute} rows/min to DuckDB',
-          style: const TextStyle(
-            color: HeliosColors.textTertiary,
+          style: TextStyle(
+            color: hc.textTertiary,
             fontSize: 12,
             fontFamily: 'monospace',
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Changes take effect on next connect.',
-          style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+          style: TextStyle(color: hc.textTertiary, fontSize: 12),
         ),
       ],
     );
@@ -1334,6 +1350,7 @@ class _RateSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -1342,8 +1359,8 @@ class _RateSlider extends StatelessWidget {
             width: 140,
             child: Text(
               label,
-              style: const TextStyle(
-                color: HeliosColors.textSecondary,
+              style: TextStyle(
+                color: hc.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -1361,8 +1378,8 @@ class _RateSlider extends StatelessWidget {
             width: 45,
             child: Text(
               '$value Hz',
-              style: const TextStyle(
-                color: HeliosColors.textPrimary,
+              style: TextStyle(
+                color: hc.textPrimary,
                 fontSize: 12,
                 fontFamily: 'monospace',
               ),
@@ -1377,13 +1394,14 @@ class _RateSlider extends StatelessWidget {
 class _ResetSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Clear all saved settings, recorded flights, and cached data. '
           'The app will restart in its default state.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 12),
         Row(
@@ -1393,8 +1411,8 @@ class _ResetSection extends ConsumerWidget {
               icon: const Icon(Icons.settings_backup_restore, size: 16),
               label: const Text('Reset Settings'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: HeliosColors.warning,
-                side: const BorderSide(color: HeliosColors.warning),
+                foregroundColor: hc.warning,
+                side: BorderSide(color: hc.warning),
               ),
             ),
             const SizedBox(width: 12),
@@ -1403,8 +1421,8 @@ class _ResetSection extends ConsumerWidget {
               icon: const Icon(Icons.delete_forever, size: 16),
               label: const Text('Wipe All Data'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: HeliosColors.dangerDim,
-                foregroundColor: HeliosColors.textPrimary,
+                backgroundColor: hc.dangerDim,
+                foregroundColor: hc.textPrimary,
               ),
             ),
           ],
@@ -1416,46 +1434,49 @@ class _ResetSection extends ConsumerWidget {
   Future<void> _resetSettings(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: HeliosColors.border),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber, color: HeliosColors.warning, size: 20),
-            SizedBox(width: 8),
-            Text('Reset Settings',
-                style: TextStyle(
-                    color: HeliosColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
-        content: const Text(
-          'Reset all settings to defaults?\n\n'
-          'This clears connection history, stream rates, video URL, '
-          'layout profiles, and display preferences.\n\n'
-          'Recorded flights will NOT be deleted.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary)),
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+          backgroundColor: hc.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: hc.border),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: HeliosColors.warningDim,
-              foregroundColor: HeliosColors.textPrimary,
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber, color: hc.warning, size: 20),
+              const SizedBox(width: 8),
+              Text('Reset Settings',
+                  style: TextStyle(
+                      color: hc.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: Text(
+            'Reset all settings to defaults?\n\n'
+            'This clears connection history, stream rates, video URL, '
+            'layout profiles, and display preferences.\n\n'
+            'Recorded flights will NOT be deleted.',
+            style: TextStyle(color: hc.textSecondary, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('Cancel',
+                  style: TextStyle(color: hc.textSecondary)),
             ),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: hc.warningDim,
+                foregroundColor: hc.textPrimary,
+              ),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true || !context.mounted) return;
@@ -1473,49 +1494,52 @@ class _ResetSection extends ConsumerWidget {
   Future<void> _resetAll(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HeliosColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: HeliosColors.border),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.delete_forever, color: HeliosColors.danger, size: 20),
-            SizedBox(width: 8),
-            Text('Wipe All Data',
-                style: TextStyle(
-                    color: HeliosColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
-        content: const Text(
-          'Delete ALL local data?\n\n'
-          'This permanently removes:\n'
-          '  \u2022 All settings and preferences\n'
-          '  \u2022 All recorded flights (.duckdb files)\n'
-          '  \u2022 Cached map tiles\n'
-          '  \u2022 Layout profiles\n\n'
-          'This cannot be undone.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel',
-                style: TextStyle(color: HeliosColors.textSecondary)),
+      builder: (ctx) {
+        final hc = ctx.hc;
+        return AlertDialog(
+          backgroundColor: hc.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: hc.border),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: HeliosColors.dangerDim,
-              foregroundColor: HeliosColors.textPrimary,
+          title: Row(
+            children: [
+              Icon(Icons.delete_forever, color: hc.danger, size: 20),
+              const SizedBox(width: 8),
+              Text('Wipe All Data',
+                  style: TextStyle(
+                      color: hc.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: Text(
+            'Delete ALL local data?\n\n'
+            'This permanently removes:\n'
+            '  \u2022 All settings and preferences\n'
+            '  \u2022 All recorded flights (.duckdb files)\n'
+            '  \u2022 Cached map tiles\n'
+            '  \u2022 Layout profiles\n\n'
+            'This cannot be undone.',
+            style: TextStyle(color: hc.textSecondary, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('Cancel',
+                  style: TextStyle(color: hc.textSecondary)),
             ),
-            child: const Text('Wipe Everything'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: hc.dangerDim,
+                foregroundColor: hc.textPrimary,
+              ),
+              child: const Text('Wipe Everything'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true || !context.mounted) return;

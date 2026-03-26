@@ -28,18 +28,19 @@ class _EkfStatusStripState extends ConsumerState<EkfStatusStrip> {
       return const SizedBox.shrink();
     }
 
-    final color = _healthColor(health);
+    final hc = context.hc;
+    final color = _healthColor(health, hc);
 
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: HeliosColors.surface.withValues(alpha: 0.85),
+          color: hc.surface.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
-        child: _expanded ? _buildExpanded(vehicle) : _buildCompact(health, color),
+        child: _expanded ? _buildExpanded(vehicle, hc) : _buildCompact(health, color),
       ),
     );
   }
@@ -62,13 +63,13 @@ class _EkfStatusStripState extends ConsumerState<EkfStatusStrip> {
     );
   }
 
-  Widget _buildExpanded(VehicleState vehicle) {
+  Widget _buildExpanded(VehicleState vehicle, HeliosColors hc) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('EKF Status',
-            style: TextStyle(color: HeliosColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text('EKF Status',
+            style: TextStyle(color: hc.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         _VarianceRow(label: 'Velocity', value: vehicle.ekfVelocityVar),
         _VarianceRow(label: 'Pos Horiz', value: vehicle.ekfPosHorizVar),
@@ -79,10 +80,10 @@ class _EkfStatusStripState extends ConsumerState<EkfStatusStrip> {
     );
   }
 
-  Color _healthColor(int health) => switch (health) {
-    0 => HeliosColors.success,
-    1 => HeliosColors.warning,
-    _ => HeliosColors.danger,
+  Color _healthColor(int health, HeliosColors hc) => switch (health) {
+    0 => hc.success,
+    1 => hc.warning,
+    _ => hc.danger,
   };
 }
 
@@ -93,11 +94,12 @@ class _VarianceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final color = value < 0.5
-        ? HeliosColors.success
+        ? hc.success
         : value < 0.8
-            ? HeliosColors.warning
-            : HeliosColors.danger;
+            ? hc.warning
+            : hc.danger;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
@@ -111,7 +113,7 @@ class _VarianceRow extends StatelessWidget {
           const SizedBox(width: 4),
           SizedBox(
             width: 55,
-            child: Text(label, style: const TextStyle(color: HeliosColors.textTertiary, fontSize: 12)),
+            child: Text(label, style: TextStyle(color: hc.textTertiary, fontSize: 12)),
           ),
           Text(
             value.toStringAsFixed(2),

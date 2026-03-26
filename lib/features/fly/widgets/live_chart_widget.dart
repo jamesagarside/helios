@@ -34,26 +34,30 @@ class _SeriesData {
 }
 
 /// Static chart definitions per ChartType.
-const _chartDefs = <ChartType, _ChartDef>{
+/// Uses HeliosColors.dark color values so they remain stable independent of
+/// the active theme. Chart series lines are semantic colors by type (altitude
+/// = accent, speed pair = accent/success, etc.) and not expected to change
+/// between light/dark themes.
+final _chartDefs = <ChartType, _ChartDef>{
   ChartType.altitude: _ChartDef('Altitude', Icons.height, 'm', [
-    SeriesDef('REL', HeliosColors.accent, _getAltRel),
+    SeriesDef('REL', HeliosColors.dark.accent, _getAltRel),
   ]),
   ChartType.speed: _ChartDef('Speed', Icons.speed, 'm/s', [
-    SeriesDef('IAS', HeliosColors.accent, _getAirspeed),
-    SeriesDef('GS', HeliosColors.success, _getGroundspeed),
+    SeriesDef('IAS', HeliosColors.dark.accent, _getAirspeed),
+    SeriesDef('GS', HeliosColors.dark.success, _getGroundspeed),
   ]),
   ChartType.battery: _ChartDef('Battery', Icons.battery_full, 'V', [
-    SeriesDef('V', HeliosColors.warning, _getVoltage),
+    SeriesDef('V', HeliosColors.dark.warning, _getVoltage),
   ]),
   ChartType.attitude: _ChartDef('Attitude', Icons.rotate_right, '\u00B0', [
-    SeriesDef('Roll', HeliosColors.accent, _getRollDeg),
-    SeriesDef('Pitch', HeliosColors.warning, _getPitchDeg),
+    SeriesDef('Roll', HeliosColors.dark.accent, _getRollDeg),
+    SeriesDef('Pitch', HeliosColors.dark.warning, _getPitchDeg),
   ]),
   ChartType.climbRate: _ChartDef('Climb Rate', Icons.trending_up, 'm/s', [
-    SeriesDef('VS', HeliosColors.success, _getClimbRate),
+    SeriesDef('VS', HeliosColors.dark.success, _getClimbRate),
   ]),
   ChartType.vibration: _ChartDef('Vibration', Icons.vibration, '', [
-    SeriesDef('Accel', HeliosColors.danger, _getVibeProxy),
+    SeriesDef('Accel', HeliosColors.dark.danger, _getVibeProxy),
   ]),
 };
 
@@ -146,6 +150,7 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Positioned(
       left: _position.dx,
       top: _position.dy,
@@ -158,9 +163,9 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
           width: _width,
           height: _minimised ? 32 : _height,
           decoration: BoxDecoration(
-            color: HeliosColors.surfaceDim.withValues(alpha: 0.88),
+            color: hc.surfaceDim.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: HeliosColors.border.withValues(alpha: 0.6)),
+            border: Border.all(color: hc.border.withValues(alpha: 0.6)),
           ),
           child: Stack(
             children: [
@@ -180,7 +185,7 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(4, 0, 8, 4),
-                        child: _buildChart(),
+                        child: _buildChart(hc),
                       ),
                     ),
                 ],
@@ -200,12 +205,14 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
                     onPanEnd: (_) {
                       widget.onSizeChanged?.call(_width, _height);
                     },
-                    child: const MouseRegion(
+                    child: MouseRegion(
                       cursor: SystemMouseCursors.resizeDownRight,
                       child: SizedBox(
                         width: 16,
                         height: 16,
-                        child: CustomPaint(painter: _ResizeHandlePainter()),
+                        child: CustomPaint(
+                          painter: _ResizeHandlePainter(color: hc.textTertiary),
+                        ),
                       ),
                     ),
                   ),
@@ -217,11 +224,11 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
     );
   }
 
-  Widget _buildChart() {
+  Widget _buildChart(HeliosColors hc) {
     final hasData = _seriesData.any((s) => s.points.length >= 2);
     if (!hasData) {
-      return const Center(
-        child: Text('Sampling...', style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12)),
+      return Center(
+        child: Text('Sampling...', style: TextStyle(color: hc.textTertiary, fontSize: 12)),
       );
     }
 
@@ -237,7 +244,7 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
           show: true,
           drawVerticalLine: false,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: HeliosColors.border.withValues(alpha: 0.3),
+            color: hc.border.withValues(alpha: 0.3),
             strokeWidth: 0.5,
           ),
         ),
@@ -250,7 +257,7 @@ class _LiveChartWidgetState extends ConsumerState<LiveChartWidget> {
                 if (meta.min == value || meta.max == value) return const SizedBox();
                 return Text(
                   value.toStringAsFixed(value.abs() < 10 ? 1 : 0),
-                  style: const TextStyle(fontSize: 8, color: HeliosColors.textTertiary),
+                  style: TextStyle(fontSize: 8, color: hc.textTertiary),
                 );
               },
             ),
@@ -300,11 +307,12 @@ class _TitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: HeliosColors.surface.withValues(alpha: 0.5),
+        color: hc.surface.withValues(alpha: 0.5),
         borderRadius: BorderRadius.vertical(
           top: const Radius.circular(6),
           bottom: minimised ? const Radius.circular(6) : Radius.zero,
@@ -312,11 +320,11 @@ class _TitleBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 12, color: HeliosColors.accent),
+          Icon(icon, size: 12, color: hc.accent),
           const SizedBox(width: 4),
           Text(
             title,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: HeliosColors.textPrimary),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: hc.textPrimary),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -331,14 +339,14 @@ class _TitleBar extends StatelessWidget {
             child: Icon(
               minimised ? Icons.expand_more : Icons.expand_less,
               size: 14,
-              color: HeliosColors.textSecondary,
+              color: hc.textSecondary,
             ),
           ),
           const SizedBox(width: 4),
           if (onClose != null)
             GestureDetector(
               onTap: onClose,
-              child: const Icon(Icons.close, size: 12, color: HeliosColors.textSecondary),
+              child: Icon(Icons.close, size: 12, color: hc.textSecondary),
             ),
         ],
       ),
@@ -348,12 +356,13 @@ class _TitleBar extends StatelessWidget {
 
 /// Diagonal grip lines for the resize handle.
 class _ResizeHandlePainter extends CustomPainter {
-  const _ResizeHandlePainter();
+  const _ResizeHandlePainter({required this.color});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = HeliosColors.textTertiary
+      ..color = color
       ..strokeWidth = 1;
 
     // Three diagonal lines
@@ -368,5 +377,5 @@ class _ResizeHandlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ResizeHandlePainter old) => color != old.color;
 }

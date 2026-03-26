@@ -113,13 +113,14 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Template selector bar
         Container(
           height: 44,
-          color: HeliosColors.surface,
+          color: hc.surface,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
@@ -133,10 +134,10 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                       child: ActionChip(
                         label: Text(t.name, style: const TextStyle(fontSize: 12)),
                         backgroundColor: active
-                            ? HeliosColors.accent.withValues(alpha: 0.15)
-                            : HeliosColors.surfaceLight,
+                            ? hc.accent.withValues(alpha: 0.15)
+                            : hc.surfaceLight,
                         side: BorderSide(
-                          color: active ? HeliosColors.accent : HeliosColors.border,
+                          color: active ? hc.accent : hc.border,
                         ),
                         onPressed: () {
                           setState(() {
@@ -157,10 +158,10 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                 avatar: const Icon(Icons.code, size: 14),
                 label: const Text('Custom', style: TextStyle(fontSize: 12)),
                 backgroundColor: _showCustomSql
-                    ? HeliosColors.accent.withValues(alpha: 0.15)
-                    : HeliosColors.surfaceLight,
+                    ? hc.accent.withValues(alpha: 0.15)
+                    : hc.surfaceLight,
                 side: BorderSide(
-                  color: _showCustomSql ? HeliosColors.accent : HeliosColors.border,
+                  color: _showCustomSql ? hc.accent : hc.border,
                 ),
                 onPressed: () {
                   setState(() => _showCustomSql = !_showCustomSql);
@@ -169,7 +170,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
             ],
           ),
         ),
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
 
         Expanded(
           child: Row(
@@ -185,7 +186,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                   displayName: _displayName,
                 ),
               ),
-              const VerticalDivider(width: 1, color: HeliosColors.border),
+              VerticalDivider(width: 1, color: hc.border),
 
               // Main content
               Expanded(
@@ -196,7 +197,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                     if (_showCustomSql) ...[
                       Container(
                         height: 120,
-                        color: HeliosColors.surfaceDim,
+                        color: hc.surfaceDim,
                         padding: const EdgeInsets.all(10),
                         child: TextField(
                           controller: _sqlController,
@@ -210,13 +211,13 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                           ),
                         ),
                       ),
-                      const Divider(height: 1, color: HeliosColors.border),
+                      Divider(height: 1, color: hc.border),
                     ],
 
                     // Run bar
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      color: HeliosColors.surface,
+                      color: hc.surface,
                       child: Row(
                         children: [
                           Text(
@@ -228,7 +229,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                             Text(
                               '${_result!.rowCount} rows • ${_result!.executionTime.inMilliseconds}ms',
                               style: HeliosTypography.caption
-                                  .copyWith(color: HeliosColors.textTertiary),
+                                  .copyWith(color: hc.textTertiary),
                             ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
@@ -244,7 +245,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                         ],
                       ),
                     ),
-                    const Divider(height: 1, color: HeliosColors.border),
+                    Divider(height: 1, color: hc.border),
 
                     // Template description
                     if (!_showCustomSql)
@@ -253,7 +254,7 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                         child: Text(
                           _activeTemplate.description,
                           style: HeliosTypography.caption
-                              .copyWith(color: HeliosColors.textTertiary),
+                              .copyWith(color: hc.textTertiary),
                         ),
                       ),
 
@@ -263,15 +264,15 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                         margin: const EdgeInsets.all(12),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: HeliosColors.danger.withValues(alpha: 0.1),
+                          color: hc.danger.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                              color: HeliosColors.danger.withValues(alpha: 0.3)),
+                              color: hc.danger.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(
-                              color: HeliosColors.danger,
+                          style: TextStyle(
+                              color: hc.danger,
                               fontSize: 12,
                               fontFamily: 'monospace'),
                         ),
@@ -292,14 +293,14 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.search_off,
+                              Icon(Icons.search_off,
                                   size: 40,
-                                  color: HeliosColors.textTertiary),
+                                  color: hc.textTertiary),
                               const SizedBox(height: 8),
                               Text(
                                 'No data — flights may have no telemetry yet',
                                 style: HeliosTypography.caption.copyWith(
-                                    color: HeliosColors.textTertiary),
+                                    color: hc.textTertiary),
                               ),
                             ],
                           ),
@@ -311,14 +312,14 @@ class _ForensicsPanelState extends ConsumerState<ForensicsPanel> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.analytics_outlined,
+                              Icon(Icons.analytics_outlined,
                                   size: 40,
-                                  color: HeliosColors.textTertiary),
+                                  color: hc.textTertiary),
                               const SizedBox(height: 8),
                               Text(
                                 'Select flights and click Compare',
                                 style: HeliosTypography.caption.copyWith(
-                                    color: HeliosColors.textTertiary),
+                                    color: hc.textTertiary),
                               ),
                             ],
                           ),
@@ -350,12 +351,13 @@ class _FlightSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: HeliosColors.surface,
+          color: hc.surface,
           child: Row(
             children: [
               const Text('Flights', style: HeliosTypography.caption),
@@ -371,13 +373,13 @@ class _FlightSelector extends StatelessWidget {
                 child: Text(
                   selectedPaths.length == flights.length ? 'None' : 'All',
                   style: HeliosTypography.caption
-                      .copyWith(color: HeliosColors.accent),
+                      .copyWith(color: hc.accent),
                 ),
               ),
             ],
           ),
         ),
-        const Divider(height: 1, color: HeliosColors.border),
+        Divider(height: 1, color: hc.border),
         Expanded(
           child: ListView.builder(
             itemCount: flights.length,
@@ -387,15 +389,15 @@ class _FlightSelector extends StatelessWidget {
               return CheckboxListTile(
                 dense: true,
                 value: selected,
-                activeColor: HeliosColors.accent,
-                side: const BorderSide(color: HeliosColors.textTertiary),
+                activeColor: hc.accent,
+                side: BorderSide(color: hc.textTertiary),
                 title: Text(
                   displayName(flight),
                   style: TextStyle(
                     fontSize: 11,
                     color: selected
-                        ? HeliosColors.textPrimary
-                        : HeliosColors.textTertiary,
+                        ? hc.textPrimary
+                        : hc.textTertiary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -424,13 +426,14 @@ class _ForensicsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(HeliosColors.surface),
-          dataRowColor: WidgetStateProperty.all(HeliosColors.background),
-          border: TableBorder.all(color: HeliosColors.border, width: 0.5),
+          headingRowColor: WidgetStateProperty.all(hc.surface),
+          dataRowColor: WidgetStateProperty.all(hc.background),
+          border: TableBorder.all(color: hc.border, width: 0.5),
           columnSpacing: 16,
           headingRowHeight: 32,
           dataRowMinHeight: 28,
@@ -439,10 +442,10 @@ class _ForensicsTable extends StatelessWidget {
             return DataColumn(
               label: Text(
                 name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: HeliosColors.accent,
+                  color: hc.accent,
                 ),
               ),
             );

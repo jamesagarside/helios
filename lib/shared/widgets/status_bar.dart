@@ -33,29 +33,30 @@ class StatusBar extends StatelessWidget {
     return '$hours:$minutes:$seconds';
   }
 
-  Color _gpsColor() {
-    if (gpsFixType.contains('RTK')) return HeliosColors.success;
+  Color _gpsColor(HeliosColors hc) {
+    if (gpsFixType.contains('RTK')) return hc.success;
     if (gpsFixType.contains('3D') || gpsFixType.contains('DGPS')) {
-      return HeliosColors.success;
+      return hc.success;
     }
-    if (gpsFixType.contains('2D')) return HeliosColors.warning;
-    return HeliosColors.danger;
+    if (gpsFixType.contains('2D')) return hc.warning;
+    return hc.danger;
   }
 
-  Color _linkColor() {
-    if (messageRate > 5) return HeliosColors.success;
-    if (messageRate > 0) return HeliosColors.warning;
-    return HeliosColors.textTertiary;
+  Color _linkColor(HeliosColors hc) {
+    if (messageRate > 5) return hc.success;
+    if (messageRate > 0) return hc.warning;
+    return hc.textTertiary;
   }
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       height: 38,
-      decoration: const BoxDecoration(
-        color: HeliosColors.surfaceLight,
+      decoration: BoxDecoration(
+        color: hc.surfaceLight,
         border: Border(
-          top: BorderSide(color: HeliosColors.accent, width: 1),
+          top: BorderSide(color: hc.accent, width: 1),
         ),
       ),
       child: Padding(
@@ -68,59 +69,59 @@ class StatusBar extends StatelessWidget {
               _StatusChip(
                 icon: armed ? Icons.warning_amber : Icons.shield,
                 label: armed ? 'ARMED' : 'DISARMED',
-                color: armed ? HeliosColors.danger : HeliosColors.success,
+                color: armed ? hc.danger : hc.success,
                 bold: true,
               ),
-              const _Separator(),
+              _Separator(color: hc.border),
               // Flight mode
               _StatusChip(
                 icon: Icons.flight,
                 label: flightMode,
-                color: HeliosColors.accent,
+                color: hc.accent,
               ),
-              const _Separator(),
+              _Separator(color: hc.border),
               // GPS
               _StatusChip(
                 icon: Icons.satellite_alt,
                 label: '$gpsFixType  $satellites sats',
-                color: _gpsColor(),
+                color: _gpsColor(hc),
               ),
               // Mission waypoint
               if (totalWaypoints > 0) ...[
-                const _Separator(),
+                _Separator(color: hc.border),
                 _StatusChip(
                   icon: Icons.route,
                   label: currentWaypoint >= 0
                       ? 'WP ${currentWaypoint + 1}/$totalWaypoints'
                       : '$totalWaypoints WPs',
                   color: currentWaypoint >= 0
-                      ? HeliosColors.warning
-                      : HeliosColors.textSecondary,
+                      ? hc.warning
+                      : hc.textSecondary,
                 ),
               ],
-              const _Separator(),
+              _Separator(color: hc.border),
               // Flight time
               _StatusChip(
                 icon: Icons.timer,
                 label: _formatDuration(flightTime),
-                color: HeliosColors.textPrimary,
+                color: hc.textPrimary,
                 mono: true,
               ),
-              const _Separator(),
+              _Separator(color: hc.border),
               // Link health
               _StatusChip(
                 icon: Icons.cell_tower,
                 label: '${messageRate.toStringAsFixed(0)} msg/s',
-                color: _linkColor(),
+                color: _linkColor(hc),
                 mono: true,
               ),
               // Maintenance alerts badge
               if (alertCount > 0) ...[
-                const _Separator(),
+                _Separator(color: hc.border),
                 _StatusChip(
                   icon: Icons.warning_amber,
                   label: '$alertCount alert${alertCount == 1 ? '' : 's'}',
-                  color: HeliosColors.warning,
+                  color: hc.warning,
                   bold: true,
                 ),
               ],
@@ -169,17 +170,19 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _Separator extends StatelessWidget {
-  const _Separator();
+  const _Separator({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: SizedBox(
         height: 16,
         child: VerticalDivider(
           width: 1,
-          color: HeliosColors.border,
+          color: color,
         ),
       ),
     );

@@ -15,56 +15,59 @@ Future<bool> showConfirmDialog(
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: HeliosColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: HeliosColors.border),
-      ),
-      title: Row(
-        children: [
-          Icon(
-            isDangerous ? Icons.warning_amber_rounded : Icons.info_outline,
-            color: isDangerous ? HeliosColors.warning : HeliosColors.accent,
-            size: 20,
+    builder: (ctx) {
+      final hc = ctx.hc;
+      return AlertDialog(
+        backgroundColor: hc.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: hc.border),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              isDangerous ? Icons.warning_amber_rounded : Icons.info_outline,
+              color: isDangerous ? hc.warning : hc.accent,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: hc.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: hc.textSecondary,
+            fontSize: 14,
           ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              color: HeliosColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              cancelLabel,
+              style: TextStyle(color: hc.textSecondary),
             ),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDangerous ? hc.dangerDim : hc.accentDim,
+              foregroundColor: hc.textPrimary,
+            ),
+            child: Text(confirmLabel),
+          ),
         ],
-      ),
-      content: Text(
-        message,
-        style: const TextStyle(
-          color: HeliosColors.textSecondary,
-          fontSize: 14,
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(
-            cancelLabel,
-            style: const TextStyle(color: HeliosColors.textSecondary),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                isDangerous ? HeliosColors.dangerDim : HeliosColors.accentDim,
-            foregroundColor: HeliosColors.textPrimary,
-          ),
-          child: Text(confirmLabel),
-        ),
-      ],
-    ),
+      );
+    },
   );
   return result ?? false;
 }

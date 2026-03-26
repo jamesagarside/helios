@@ -43,6 +43,11 @@ const _destinations = [
     selectedIcon: Icons.videocam,
   ),
   HeliosDestination(
+    label: 'Config',
+    icon: Icons.tune_outlined,
+    selectedIcon: Icons.tune,
+  ),
+  HeliosDestination(
     label: 'Setup',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
@@ -98,6 +103,7 @@ class _DesktopLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Scaffold(
       body: Row(
         children: [
@@ -111,7 +117,7 @@ class _DesktopLayout extends StatelessWidget {
               selectedIndex: selectedIndex,
               onDestinationSelected: onDestinationSelected,
               minWidth: 56,
-              backgroundColor: HeliosColors.surface,
+              backgroundColor: hc.surface,
               useIndicator: true,
               leading: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -127,10 +133,10 @@ class _DesktopLayout extends StatelessWidget {
                   )
                   .toList(),
             ),
-          const VerticalDivider(
+          VerticalDivider(
             thickness: 1,
             width: 1,
-            color: HeliosColors.border,
+            color: hc.border,
           ),
           Expanded(child: body),
         ],
@@ -151,24 +157,25 @@ class _ExtendedSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       width: 180,
-      color: HeliosColors.surface,
+      color: hc.surface,
       child: Column(
         children: [
           // Logo + title
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             child: Row(
               children: [
-                HeliosLogo(size: 32),
-                SizedBox(width: 10),
+                const HeliosLogo(size: 32),
+                const SizedBox(width: 10),
                 Text(
                   'Helios',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: HeliosColors.accent,
+                    color: hc.accent,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -209,17 +216,18 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
         color: selected
-            ? HeliosColors.accent.withValues(alpha: 0.12)
+            ? hc.accent.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          hoverColor: HeliosColors.accent.withValues(alpha: 0.06),
+          hoverColor: hc.accent.withValues(alpha: 0.06),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -227,7 +235,7 @@ class _SidebarItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 20,
-                  color: selected ? HeliosColors.accent : HeliosColors.textSecondary,
+                  color: selected ? hc.accent : hc.textSecondary,
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -235,7 +243,7 @@ class _SidebarItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected ? HeliosColors.accent : HeliosColors.textSecondary,
+                    color: selected ? hc.accent : hc.textSecondary,
                   ),
                 ),
               ],

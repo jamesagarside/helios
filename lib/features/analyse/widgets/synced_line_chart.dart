@@ -75,6 +75,7 @@ class SyncedLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return SizedBox(
       height: height,
       child: Listener(
@@ -96,13 +97,13 @@ class SyncedLineChart extends StatelessWidget {
         },
         child: ListenableBuilder(
           listenable: Listenable.merge([crosshairX, viewMinX, viewMaxX]),
-          builder: (context, _) => _buildChart(),
+          builder: (context, _) => _buildChart(hc),
         ),
       ),
     );
   }
 
-  Widget _buildChart() {
+  Widget _buildChart(HeliosColors hc) {
     final cx = crosshairX.value;
     final minX = viewMinX.value;
     final maxX = viewMaxX.value;
@@ -129,7 +130,7 @@ class SyncedLineChart extends StatelessWidget {
     if (cx != null && cx >= minX && cx <= maxX) {
       verticalLines.add(VerticalLine(
         x: cx,
-        color: HeliosColors.textSecondary.withValues(alpha: 0.4),
+        color: hc.textSecondary.withValues(alpha: 0.4),
         strokeWidth: 1,
         dashArray: [4, 4],
       ));
@@ -177,8 +178,8 @@ class SyncedLineChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => const FlLine(
-            color: HeliosColors.border,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: hc.border,
             strokeWidth: 0.5,
           ),
         ),
@@ -193,8 +194,8 @@ class SyncedLineChart extends StatelessWidget {
                 }
                 return Text(
                   value.toStringAsFixed(value.abs() < 10 ? 1 : 0),
-                  style: const TextStyle(
-                      fontSize: 12, color: HeliosColors.textTertiary),
+                  style: TextStyle(
+                      fontSize: 12, color: hc.textTertiary),
                 );
               },
             ),
@@ -211,8 +212,8 @@ class SyncedLineChart extends StatelessWidget {
                 final secs = (value % 60).floor();
                 return Text(
                   '$mins:${secs.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                      fontSize: 12, color: HeliosColors.textTertiary),
+                  style: TextStyle(
+                      fontSize: 12, color: hc.textTertiary),
                 );
               },
             ),
@@ -224,9 +225,9 @@ class SyncedLineChart extends StatelessWidget {
         ),
         borderData: FlBorderData(
           show: true,
-          border: const Border(
-            left: BorderSide(color: HeliosColors.border, width: 0.5),
-            bottom: BorderSide(color: HeliosColors.border, width: 0.5),
+          border: Border(
+            left: BorderSide(color: hc.border, width: 0.5),
+            bottom: BorderSide(color: hc.border, width: 0.5),
           ),
         ),
         lineBarsData: barDataList,
@@ -259,7 +260,7 @@ class SyncedLineChart extends StatelessWidget {
             }
           },
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => HeliosColors.surface,
+            getTooltipColor: (_) => hc.surface,
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final s = series[spot.barIndex];

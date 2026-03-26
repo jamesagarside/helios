@@ -58,17 +58,19 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final isConnected = ref.watch(connectionControllerProvider).transportState ==
         TransportState.connected;
     final isRunning = _progress.state == CalibrationState.running;
+    final color = _color(hc);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Calibrate sensors before first flight. Keep the vehicle still during '
           'gyro/level calibration. Rotate it smoothly during compass calibration.',
-          style: TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: hc.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 16),
 
@@ -109,21 +111,21 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _bgColor(),
+              color: _bgColor(hc),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _borderColor()),
+              border: Border.all(color: _borderColor(hc)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    _icon(),
+                    _icon(color),
                     const SizedBox(width: 8),
                     Text(
                       _title(),
                       style: TextStyle(
-                        color: _color(),
+                        color: color,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -133,7 +135,7 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
                       Text(
                         '${_progress.completionPct}%',
                         style: TextStyle(
-                          color: _color(),
+                          color: color,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           fontFamily: 'monospace',
@@ -145,14 +147,14 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: _progress.completionPct / 100,
-                    backgroundColor: HeliosColors.surfaceLight,
-                    valueColor: AlwaysStoppedAnimation(_color()),
+                    backgroundColor: hc.surfaceLight,
+                    valueColor: AlwaysStoppedAnimation(color),
                   ),
                 ],
                 const SizedBox(height: 8),
                 Text(
                   _progress.message,
-                  style: const TextStyle(color: HeliosColors.textSecondary, fontSize: 12),
+                  style: TextStyle(color: hc.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -160,43 +162,43 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
         ],
 
         if (!isConnected)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
             child: Text(
               'Connect to a vehicle to calibrate sensors.',
-              style: TextStyle(color: HeliosColors.textTertiary, fontSize: 12),
+              style: TextStyle(color: hc.textTertiary, fontSize: 12),
             ),
           ),
       ],
     );
   }
 
-  Color _color() => switch (_progress.state) {
-    CalibrationState.running => HeliosColors.accent,
-    CalibrationState.success => HeliosColors.success,
-    CalibrationState.failed => HeliosColors.danger,
-    _ => HeliosColors.textSecondary,
+  Color _color(HeliosColors hc) => switch (_progress.state) {
+    CalibrationState.running => hc.accent,
+    CalibrationState.success => hc.success,
+    CalibrationState.failed => hc.danger,
+    _ => hc.textSecondary,
   };
 
-  Color _bgColor() => switch (_progress.state) {
-    CalibrationState.success => HeliosColors.success.withValues(alpha: 0.08),
-    CalibrationState.failed => HeliosColors.danger.withValues(alpha: 0.08),
-    _ => HeliosColors.surfaceLight,
+  Color _bgColor(HeliosColors hc) => switch (_progress.state) {
+    CalibrationState.success => hc.success.withValues(alpha: 0.08),
+    CalibrationState.failed => hc.danger.withValues(alpha: 0.08),
+    _ => hc.surfaceLight,
   };
 
-  Color _borderColor() => switch (_progress.state) {
-    CalibrationState.success => HeliosColors.success.withValues(alpha: 0.3),
-    CalibrationState.failed => HeliosColors.danger.withValues(alpha: 0.3),
-    _ => HeliosColors.border,
+  Color _borderColor(HeliosColors hc) => switch (_progress.state) {
+    CalibrationState.success => hc.success.withValues(alpha: 0.3),
+    CalibrationState.failed => hc.danger.withValues(alpha: 0.3),
+    _ => hc.border,
   };
 
-  Widget _icon() => switch (_progress.state) {
+  Widget _icon(Color color) => switch (_progress.state) {
     CalibrationState.running => SizedBox(
         width: 16, height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2, color: _color()),
+        child: CircularProgressIndicator(strokeWidth: 2, color: color),
       ),
-    CalibrationState.success => Icon(Icons.check_circle, size: 16, color: _color()),
-    CalibrationState.failed => Icon(Icons.error, size: 16, color: _color()),
+    CalibrationState.success => Icon(Icons.check_circle, size: 16, color: color),
+    CalibrationState.failed => Icon(Icons.error, size: 16, color: color),
     _ => const SizedBox.shrink(),
   };
 

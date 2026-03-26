@@ -8,6 +8,7 @@ import '../../../shared/models/fence_zone.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../core/map/cached_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';
+import '../../../shared/providers/map_tile_provider.dart';
 import '../../plan/providers/fence_edit_notifier.dart';
 
 /// Maximum number of trail points to display.
@@ -31,6 +32,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     final vehicle = ref.watch(vehicleStateProvider);
     final missionItems = ref.watch(missionItemsProvider);
     final currentWp = ref.watch(currentWaypointProvider);
@@ -38,6 +40,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
     final hasPosition = vehicle.hasPosition;
     final registry = ref.watch(vehicleRegistryProvider);
     final activeId = ref.watch(activeVehicleIdProvider);
+    final tileType = ref.watch(mapTileTypeProvider);
 
     // Update trail
     if (hasPosition) {
@@ -88,14 +91,8 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             },
           ),
           children: [
-            // OSM tile layer with offline cache
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.argus.helios_gcs',
-              maxZoom: 19,
-              tileProvider: CachedTileProvider(),
-              tileBuilder: _darkTileBuilder,
-            ),
+            // Tile layer(s) based on selected type
+            ..._buildTileLayers(tileType),
 
             // Fence zones
             if (fenceZones.isNotEmpty)
@@ -104,8 +101,8 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                     .where((z) => z.shape == FenceShape.polygon && z.vertices.length >= 3)
                     .map((z) {
                       final color = z.type == FenceZoneType.inclusion
-                          ? HeliosColors.success
-                          : HeliosColors.danger;
+                          ? hc.success
+                          : hc.danger;
                       return Polygon(
                         points: z.vertices.map((v) => LatLng(v.lat, v.lon)).toList(),
                         color: color.withValues(alpha: 0.1),
@@ -121,7 +118,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                 polylines: [
                   Polyline(
                     points: _trail,
-                    color: HeliosColors.accent.withValues(alpha: 0.7),
+                    color: hc.accent.withValues(alpha: 0.7),
                     strokeWidth: 3,
                   ),
                 ],
@@ -136,7 +133,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                         .where((i) => i.isNavCommand)
                         .map((i) => LatLng(i.latitude, i.longitude))
                         .toList(),
-                    color: HeliosColors.warning.withValues(alpha: 0.6),
+                    color: hc.warning.withValues(alpha: 0.6),
                     strokeWidth: 2,
                     pattern: StrokePattern.dashed(segments: [8, 4]),
                   ),
@@ -217,6 +214,16 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
           ],
         ),
 
+        // Map type picker
+        Positioned(
+          top: 12,
+          left: 12,
+          child: _MapTypePicker(
+            current: tileType,
+            onSelect: (t) => ref.read(mapTileTypeProvider.notifier).setType(t),
+          ),
+        ),
+
         // Re-centre button (shown when not following)
         if (!_followVehicle && hasPosition)
           Positioned(
@@ -230,10 +237,10 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                   _mapController.camera.zoom,
                 );
               },
-              backgroundColor: HeliosColors.surface,
-              child: const Icon(
+              backgroundColor: hc.surface,
+              child: Icon(
                 Icons.my_location,
-                color: HeliosColors.accent,
+                color: hc.accent,
                 size: 20,
               ),
             ),
@@ -267,6 +274,59 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
     );
   }
 
+  /// Build tile layers based on selected map type.
+  List<Widget> _buildTileLayers(MapTileType tileType) {
+    switch (tileType) {
+      case MapTileType.hybrid:
+        return [
+          TileLayer(
+            urlTemplate:
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 19,
+            tileProvider: CachedTileProvider(),
+          ),
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 19,
+            tileProvider: CachedTileProvider(),
+            tileBuilder: (context, tile, tileImage) =>
+                Opacity(opacity: 0.5, child: tile),
+          ),
+        ];
+      case MapTileType.satellite:
+        return [
+          TileLayer(
+            urlTemplate:
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 19,
+            tileProvider: CachedTileProvider(),
+          ),
+        ];
+      case MapTileType.terrain:
+        return [
+          TileLayer(
+            urlTemplate: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 17,
+            tileProvider: CachedTileProvider(),
+          ),
+        ];
+      case MapTileType.osm:
+        return [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 19,
+            tileProvider: CachedTileProvider(),
+            tileBuilder: _darkTileBuilder,
+          ),
+        ];
+    }
+  }
+
   /// Dark tile builder — inverts and adjusts colours for dark theme.
   Widget _darkTileBuilder(
     BuildContext context,
@@ -294,24 +354,35 @@ class _VehicleMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Transform.rotate(
       angle: heading * math.pi / 180,
       child: CustomPaint(
-        painter: _VehicleIconPainter(armed: armed),
+        painter: _VehicleIconPainter(
+          armed: armed,
+          activeColor: hc.accent,
+          inactiveColor: hc.textTertiary,
+        ),
       ),
     );
   }
 }
 
 class _VehicleIconPainter extends CustomPainter {
-  _VehicleIconPainter({required this.armed});
+  _VehicleIconPainter({
+    required this.armed,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
   final bool armed;
+  final Color activeColor;
+  final Color inactiveColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final color = armed ? HeliosColors.accent : HeliosColors.textTertiary;
+    final color = armed ? activeColor : inactiveColor;
 
     final paint = Paint()
       ..color = color
@@ -341,7 +412,10 @@ class _VehicleIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _VehicleIconPainter old) => armed != old.armed;
+  bool shouldRepaint(covariant _VehicleIconPainter old) =>
+      armed != old.armed ||
+      activeColor != old.activeColor ||
+      inactiveColor != old.inactiveColor;
 }
 
 /// Home position marker.
@@ -350,14 +424,15 @@ class _HomeMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: HeliosColors.success.withValues(alpha: 0.2),
-        border: Border.all(color: HeliosColors.success, width: 2),
+        color: hc.success.withValues(alpha: 0.2),
+        border: Border.all(color: hc.success, width: 2),
       ),
-      child: const Center(
-        child: Icon(Icons.home, size: 14, color: HeliosColors.success),
+      child: Center(
+        child: Icon(Icons.home, size: 14, color: hc.success),
       ),
     );
   }
@@ -377,7 +452,8 @@ class _MissionWaypointMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isCurrent ? HeliosColors.success : HeliosColors.warning;
+    final hc = context.hc;
+    final color = isCurrent ? hc.success : hc.warning;
 
     final icon = switch (command) {
       MavCmd.navTakeoff => Icons.flight_takeoff,
@@ -390,7 +466,7 @@ class _MissionWaypointMarker extends StatelessWidget {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: HeliosColors.surface.withValues(alpha: 0.85),
+        color: hc.surface.withValues(alpha: 0.85),
         shape: BoxShape.circle,
         border: Border.all(color: color, width: isCurrent ? 2.5 : 1.5),
         boxShadow: isCurrent
@@ -413,6 +489,69 @@ class _MissionWaypointMarker extends StatelessWidget {
   }
 }
 
+/// Map tile type picker — popup menu anchored to a small icon button.
+class _MapTypePicker extends StatelessWidget {
+  const _MapTypePicker({required this.current, required this.onSelect});
+
+  final MapTileType current;
+  final ValueChanged<MapTileType> onSelect;
+
+  IconData _icon(MapTileType t) => switch (t) {
+        MapTileType.osm => Icons.map_outlined,
+        MapTileType.satellite => Icons.satellite_alt_outlined,
+        MapTileType.terrain => Icons.terrain,
+        MapTileType.hybrid => Icons.layers_outlined,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    return PopupMenuButton<MapTileType>(
+      tooltip: 'Map type',
+      onSelected: onSelect,
+      color: hc.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: hc.border),
+      ),
+      itemBuilder: (_) => MapTileType.values
+          .map(
+            (t) => PopupMenuItem(
+              value: t,
+              child: Row(
+                children: [
+                  Icon(
+                    _icon(t),
+                    size: 16,
+                    color: t == current ? hc.accent : hc.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    t.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: t == current ? hc.accent : hc.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: hc.surface.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: hc.border),
+        ),
+        child: Icon(_icon(current), size: 18, color: hc.accent),
+      ),
+    );
+  }
+}
+
 /// Small map control button.
 class _MapButton extends StatelessWidget {
   const _MapButton({required this.icon, required this.onPressed});
@@ -422,15 +561,16 @@ class _MapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return SizedBox(
       width: 32,
       height: 32,
       child: FloatingActionButton.small(
         heroTag: null,
         onPressed: onPressed,
-        backgroundColor: HeliosColors.surface.withValues(alpha: 0.85),
+        backgroundColor: hc.surface.withValues(alpha: 0.85),
         elevation: 2,
-        child: Icon(icon, size: 16, color: HeliosColors.textPrimary),
+        child: Icon(icon, size: 16, color: hc.textPrimary),
       ),
     );
   }

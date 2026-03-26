@@ -115,10 +115,11 @@ class _ReplayMapState extends State<ReplayMap> {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     if (_loading) {
       return Container(
         height: 200,
-        color: HeliosColors.surfaceDim,
+        color: hc.surfaceDim,
         child: const Center(
           child: SizedBox(
             width: 20,
@@ -132,11 +133,11 @@ class _ReplayMapState extends State<ReplayMap> {
     if (_track.length < 2) {
       return Container(
         height: 48,
-        color: HeliosColors.surfaceDim,
+        color: hc.surfaceDim,
         alignment: Alignment.center,
         child: Text('No GPS data for map replay',
             style: HeliosTypography.caption
-                .copyWith(color: HeliosColors.textTertiary)),
+                .copyWith(color: hc.textTertiary)),
       );
     }
 
@@ -177,7 +178,7 @@ class _ReplayMapState extends State<ReplayMap> {
                 polylines: [
                   Polyline(
                     points: trackPoints,
-                    color: HeliosColors.accent.withValues(alpha: 0.6),
+                    color: hc.accent.withValues(alpha: 0.6),
                     strokeWidth: 2.5,
                   ),
                 ],
@@ -192,7 +193,7 @@ class _ReplayMapState extends State<ReplayMap> {
                           .where((p) => p.timeSec <= cx!)
                           .map((p) => LatLng(p.lat, p.lon))
                           .toList(),
-                      color: HeliosColors.accent,
+                      color: hc.accent,
                       strokeWidth: 3,
                     ),
                   ],
@@ -208,13 +209,12 @@ class _ReplayMapState extends State<ReplayMap> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: HeliosColors.success.withValues(alpha: 0.2),
-                        border: Border.all(
-                            color: HeliosColors.success, width: 2),
+                        color: hc.success.withValues(alpha: 0.2),
+                        border: Border.all(color: hc.success, width: 2),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(Icons.home,
-                            size: 12, color: HeliosColors.success),
+                            size: 12, color: hc.success),
                       ),
                     ),
                   ),
@@ -231,13 +231,12 @@ class _ReplayMapState extends State<ReplayMap> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: HeliosColors.warning.withValues(alpha: 0.2),
-                        border: Border.all(
-                            color: HeliosColors.warning, width: 2),
+                        color: hc.warning.withValues(alpha: 0.2),
+                        border: Border.all(color: hc.warning, width: 2),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(Icons.flight_land,
-                            size: 12, color: HeliosColors.warning),
+                            size: 12, color: hc.warning),
                       ),
                     ),
                   ),
@@ -256,13 +255,12 @@ class _ReplayMapState extends State<ReplayMap> {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: HeliosColors.accent,
+                          color: hc.accent,
                           border: Border.all(
-                              color: HeliosColors.textPrimary, width: 2),
+                              color: hc.textPrimary, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  HeliosColors.accent.withValues(alpha: 0.5),
+                              color: hc.accent.withValues(alpha: 0.5),
                               blurRadius: 8,
                             ),
                           ],

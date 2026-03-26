@@ -26,21 +26,23 @@ class WaypointEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
+    final inputDecoration = _buildInputDecoration(hc);
     return Container(
       padding: const EdgeInsets.all(10),
-      color: HeliosColors.surface,
+      color: hc.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Row(
             children: [
-              const Icon(Icons.edit, size: 14, color: HeliosColors.accent),
+              Icon(Icons.edit, size: 14, color: hc.accent),
               const SizedBox(width: 6),
               Text(
                 'WP ${item.seq}',
-                style: const TextStyle(
-                  color: HeliosColors.accent,
+                style: TextStyle(
+                  color: hc.accent,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -58,10 +60,10 @@ class WaypointEditor extends StatelessWidget {
                 initialValue: _commands.any((c) => c.$1 == item.command)
                     ? item.command
                     : MavCmd.navWaypoint,
-                decoration: _inputDecoration,
-                dropdownColor: HeliosColors.surfaceLight,
-                style: const TextStyle(
-                  color: HeliosColors.textPrimary,
+                decoration: inputDecoration,
+                dropdownColor: hc.surfaceLight,
+                style: TextStyle(
+                  color: hc.textPrimary,
                   fontSize: 12,
                 ),
                 items: _commands
@@ -88,6 +90,8 @@ class WaypointEditor extends StatelessWidget {
                     value: item.altitude,
                     min: 0,
                     max: 5000,
+                    inputDecoration: inputDecoration,
+                    textColor: hc.textPrimary,
                     onChanged: (v) =>
                         onChanged(item.copyWith(altitude: v)),
                   ),
@@ -101,6 +105,8 @@ class WaypointEditor extends StatelessWidget {
                     value: item.param1,
                     min: 0,
                     max: 600,
+                    inputDecoration: inputDecoration,
+                    textColor: hc.textPrimary,
                     onChanged: (v) =>
                         onChanged(item.copyWith(param1: v)),
                   ),
@@ -120,6 +126,8 @@ class WaypointEditor extends StatelessWidget {
                     value: item.param2,
                     min: 0,
                     max: 1000,
+                    inputDecoration: inputDecoration,
+                    textColor: hc.textPrimary,
                     onChanged: (v) =>
                         onChanged(item.copyWith(param2: v)),
                   ),
@@ -133,6 +141,8 @@ class WaypointEditor extends StatelessWidget {
                     value: item.param4,
                     min: 0,
                     max: 360,
+                    inputDecoration: inputDecoration,
+                    textColor: hc.textPrimary,
                     onChanged: (v) =>
                         onChanged(item.copyWith(param4: v)),
                   ),
@@ -146,8 +156,8 @@ class WaypointEditor extends StatelessWidget {
           if (item.isNavCommand)
             Text(
               '${item.latitude.toStringAsFixed(6)}, ${item.longitude.toStringAsFixed(6)}',
-              style: const TextStyle(
-                color: HeliosColors.textTertiary,
+              style: TextStyle(
+                color: hc.textTertiary,
                 fontSize: 12,
                 fontFamily: 'monospace',
               ),
@@ -157,24 +167,26 @@ class WaypointEditor extends StatelessWidget {
     );
   }
 
-  static final _inputDecoration = InputDecoration(
-    isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(4),
-      borderSide: const BorderSide(color: HeliosColors.border),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(4),
-      borderSide: const BorderSide(color: HeliosColors.border),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(4),
-      borderSide: const BorderSide(color: HeliosColors.accent),
-    ),
-    filled: true,
-    fillColor: HeliosColors.surfaceLight,
-  );
+  static InputDecoration _buildInputDecoration(HeliosColors hc) {
+    return InputDecoration(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: BorderSide(color: hc.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: BorderSide(color: hc.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: BorderSide(color: hc.accent),
+      ),
+      filled: true,
+      fillColor: hc.surfaceLight,
+    );
+  }
 }
 
 class _EditorRow extends StatelessWidget {
@@ -185,13 +197,14 @@ class _EditorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: HeliosColors.textTertiary,
+          style: TextStyle(
+            color: hc.textTertiary,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -209,12 +222,16 @@ class _NumberField extends StatefulWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    required this.inputDecoration,
+    required this.textColor,
   });
 
   final double value;
   final double min;
   final double max;
   final void Function(double value) onChanged;
+  final InputDecoration inputDecoration;
+  final Color textColor;
 
   @override
   State<_NumberField> createState() => _NumberFieldState();
@@ -259,12 +276,12 @@ class _NumberFieldState extends State<_NumberField> {
       child: TextField(
         controller: _controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        style: const TextStyle(
-          color: HeliosColors.textPrimary,
+        style: TextStyle(
+          color: widget.textColor,
           fontSize: 12,
           fontFamily: 'monospace',
         ),
-        decoration: WaypointEditor._inputDecoration,
+        decoration: widget.inputDecoration,
         onSubmitted: (text) {
           final v = double.tryParse(text);
           if (v != null) {

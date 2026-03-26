@@ -11,6 +11,7 @@ class LayoutToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
     final layoutState = ref.watch(layoutProvider);
     final editMode = layoutState.editMode;
     final activeName = layoutState.activeProfileName;
@@ -19,12 +20,12 @@ class LayoutToolbar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: HeliosColors.surfaceDim.withValues(alpha: 0.85),
+        color: hc.surfaceDim.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: editMode
-              ? HeliosColors.accent.withValues(alpha: 0.5)
-              : HeliosColors.border.withValues(alpha: 0.5),
+              ? hc.accent.withValues(alpha: 0.5)
+              : hc.border.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
@@ -65,16 +66,17 @@ class _ProfileDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return DropdownButtonHideUnderline(
       child: DropdownButton<String>(
         value: activeName,
         isDense: true,
-        dropdownColor: HeliosColors.surface,
-        icon: const Icon(Icons.expand_more, size: 12, color: HeliosColors.textSecondary),
-        style: const TextStyle(
+        dropdownColor: hc.surface,
+        icon: Icon(Icons.expand_more, size: 12, color: hc.textSecondary),
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: HeliosColors.textPrimary,
+          color: hc.textPrimary,
         ),
         items: profiles.map((p) {
           return DropdownMenuItem(
@@ -86,8 +88,8 @@ class _ProfileDropdown extends StatelessWidget {
                   _vehicleIcon(p.vehicleType),
                   size: 11,
                   color: p.name == activeName
-                      ? HeliosColors.accent
-                      : HeliosColors.textSecondary,
+                      ? hc.accent
+                      : hc.textSecondary,
                 ),
                 const SizedBox(width: 4),
                 Text(p.name),
@@ -126,6 +128,7 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -134,14 +137,14 @@ class _ToolbarButton extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: active
-                ? HeliosColors.accent.withValues(alpha: 0.2)
+                ? hc.accent.withValues(alpha: 0.2)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(3),
           ),
           child: Icon(
             icon,
             size: 13,
-            color: active ? HeliosColors.accent : HeliosColors.textTertiary,
+            color: active ? hc.accent : hc.textTertiary,
           ),
         ),
       ),

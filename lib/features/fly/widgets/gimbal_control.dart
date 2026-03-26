@@ -35,12 +35,13 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
       );
     }
 
+    final hc = context.hc;
     return Container(
       width: 180,
       decoration: BoxDecoration(
-        color: HeliosColors.surface.withValues(alpha: 0.92),
+        color: hc.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: HeliosColors.border),
+        border: Border.all(color: hc.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -50,24 +51,24 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
             onTap: () => setState(() => _expanded = false),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: HeliosColors.border, width: 0.5),
+                  bottom: BorderSide(color: hc.border, width: 0.5),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.control_camera,
-                      size: 14, color: HeliosColors.accent),
+                  Icon(Icons.control_camera,
+                      size: 14, color: hc.accent),
                   const SizedBox(width: 6),
-                  const Text('Gimbal',
+                  Text('Gimbal',
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: HeliosColors.textPrimary)),
+                          color: hc.textPrimary)),
                   const Spacer(),
                   Icon(Icons.keyboard_arrow_down,
-                      size: 16, color: HeliosColors.textTertiary),
+                      size: 16, color: hc.textTertiary),
                 ],
               ),
             ),
@@ -102,9 +103,9 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
               height: 100,
               margin: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: HeliosColors.surfaceDim,
+                color: hc.surfaceDim,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: HeliosColors.border),
+                border: Border.all(color: hc.border),
               ),
               child: Stack(
                 children: [
@@ -113,14 +114,14 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
                     child: Container(
                       width: 2,
                       height: 20,
-                      color: HeliosColors.border,
+                      color: hc.border,
                     ),
                   ),
                   Center(
                     child: Container(
                       width: 20,
                       height: 2,
-                      color: HeliosColors.border,
+                      color: hc.border,
                     ),
                   ),
                   // Indicator dot (shows commanded position)
@@ -132,10 +133,10 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: HeliosColors.accent,
+                        color: hc.accent,
                         boxShadow: [
                           BoxShadow(
-                            color: HeliosColors.accent.withValues(alpha: 0.4),
+                            color: hc.accent.withValues(alpha: 0.4),
                             blurRadius: 4,
                           ),
                         ],
@@ -143,7 +144,7 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
                     ),
                   ),
                   // Label
-                  const Positioned(
+                  Positioned(
                     bottom: 4,
                     left: 0,
                     right: 0,
@@ -151,7 +152,7 @@ class _GimbalControlState extends ConsumerState<GimbalControl> {
                       'Drag to control',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 9, color: HeliosColors.textTertiary),
+                          fontSize: 9, color: hc.textTertiary),
                     ),
                   ),
                 ],
@@ -218,25 +219,26 @@ class _GimbalToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: HeliosColors.surface.withValues(alpha: 0.85),
+          color: hc.surface.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: HeliosColors.border),
+          border: Border.all(color: hc.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.control_camera,
-                size: 14, color: HeliosColors.accent),
+            Icon(Icons.control_camera,
+                size: 14, color: hc.accent),
             const SizedBox(width: 4),
             Text(
               'P:${pitch.toStringAsFixed(0)}\u00B0',
               style: HeliosTypography.caption
-                  .copyWith(color: HeliosColors.textSecondary, fontSize: 11),
+                  .copyWith(color: hc.textSecondary, fontSize: 11),
             ),
           ],
         ),
@@ -253,18 +255,19 @@ class _AngleReadout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text('$label:',
-            style: const TextStyle(
-                fontSize: 11, color: HeliosColors.textTertiary)),
+            style: TextStyle(
+                fontSize: 11, color: hc.textTertiary)),
         const SizedBox(width: 2),
         Text('${value.toStringAsFixed(1)}\u00B0',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontFamily: 'monospace',
-                color: HeliosColors.textPrimary)),
+                color: hc.textPrimary)),
       ],
     );
   }
@@ -283,23 +286,24 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 5),
           decoration: BoxDecoration(
-            color: HeliosColors.surfaceLight,
+            color: hc.surfaceLight,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: HeliosColors.border),
+            border: Border.all(color: hc.border),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 14, color: HeliosColors.textSecondary),
+              Icon(icon, size: 14, color: hc.textSecondary),
               const SizedBox(height: 2),
               Text(label,
-                  style: const TextStyle(
-                      fontSize: 9, color: HeliosColors.textTertiary)),
+                  style: TextStyle(
+                      fontSize: 9, color: hc.textTertiary)),
             ],
           ),
         ),
