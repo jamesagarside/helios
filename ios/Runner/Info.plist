@@ -45,5 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Required for iOS 14+ local network access (MAVLink UDP/TCP) -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Helios needs local network access to connect to your flight controller over UDP or TCP.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_mavlink._udp</string>
+	</array>
 </dict>
 </plist>

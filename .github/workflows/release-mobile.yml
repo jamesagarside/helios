@@ -47,21 +47,45 @@ jobs:
         with:
           channel: stable
 
+      - name: Import signing certificate
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$IOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+
+      - name: Install provisioning profile
+        env:
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/helios_gcs.mobileprovision
+
       - run: flutter pub get
 
-      # Build unsigned IPA (for ad-hoc / TestFlight, signing requires certs)
-      - run: flutter build ios --release --no-codesign
-
-      - name: Create IPA
+      # flutter build ipa handles archive + export in one step.
+      # Requires ios/ExportOptions.plist — update bundle ID and profile name there.
+      - name: Build signed IPA
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          mkdir -p Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -r build/helios-gcs-ios-unsigned.ipa Payload
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: build/helios-gcs-ios-unsigned.ipa
+          path: build/ios/ipa/*.ipa
 
   upload-to-release:
     needs: [build-android, build-ios]
@@ -77,4 +101,4 @@ jobs:
           files: |
             artifacts/android-apk/app-release.apk
             artifacts/android-aab/app-release.aab
-            artifacts/ios-ipa/helios-gcs-ios-unsigned.ipa
+            artifacts/ios-ipa/*.ipa

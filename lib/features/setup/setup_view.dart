@@ -8,7 +8,6 @@ import '../../shared/models/connection_state.dart';
 import '../../shared/providers/connection_settings_provider.dart';
 import '../../shared/providers/stream_rate_provider.dart';
 import 'widgets/calibration_wizard.dart';
-import 'widgets/parameter_editor.dart';
 import '../../shared/models/layout_profile.dart' as layout;
 import '../../shared/models/vehicle_state.dart';
 import '../../core/map/cached_tile_provider.dart';
@@ -20,7 +19,7 @@ import '../../shared/providers/video_provider.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 
-/// Setup View — connection and recording configuration.
+/// Setup View — connection, telemetry, calibration, video, display, maps, system.
 class SetupView extends ConsumerStatefulWidget {
   const SetupView({super.key});
 
@@ -28,7 +27,238 @@ class SetupView extends ConsumerStatefulWidget {
   ConsumerState<SetupView> createState() => _SetupViewState();
 }
 
-class _SetupViewState extends ConsumerState<SetupView> {
+class _SetupViewState extends ConsumerState<SetupView>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  static const _tabs = [
+    (icon: Icons.link_outlined, label: 'Connection'),
+    (icon: Icons.speed_outlined, label: 'Telemetry'),
+    (icon: Icons.sensors_outlined, label: 'Calibration'),
+    (icon: Icons.videocam_outlined, label: 'Video'),
+    (icon: Icons.dashboard_customize_outlined, label: 'Display'),
+    (icon: Icons.map_outlined, label: 'Offline Maps'),
+    (icon: Icons.build_outlined, label: 'System'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    final width = MediaQuery.sizeOf(context).width;
+    final isDesktop = width >= 900;
+
+    return Scaffold(
+      backgroundColor: hc.background,
+      body: isDesktop
+          ? Row(
+              children: [
+                Container(
+                  width: 160,
+                  color: hc.surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                        child: Text(
+                          'Setup',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: hc.textTertiary,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListenableBuilder(
+                          listenable: _tabController,
+                          builder: (_, _) {
+                            return ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              itemCount: _tabs.length,
+                              itemBuilder: (_, i) {
+                                final tab = _tabs[i];
+                                return _SidebarTabItem(
+                                  icon: tab.icon,
+                                  label: tab.label,
+                                  selected: _tabController.index == i,
+                                  onTap: () => _tabController.animateTo(i),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                VerticalDivider(width: 1, thickness: 1, color: hc.border),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _ConnectionTab(),
+                      const _TelemetryTab(),
+                      const _CalibrationTab(),
+                      const _VideoTab(),
+                      const _DisplayTab(),
+                      const _MapsTab(),
+                      const _SystemTab(),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: hc.accent,
+                  unselectedLabelColor: hc.textSecondary,
+                  indicatorColor: hc.accent,
+                  tabs: _tabs
+                      .map((t) =>
+                          Tab(icon: Icon(t.icon, size: 18), text: t.label))
+                      .toList(),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _ConnectionTab(),
+                      const _TelemetryTab(),
+                      const _CalibrationTab(),
+                      const _VideoTab(),
+                      const _DisplayTab(),
+                      const _MapsTab(),
+                      const _SystemTab(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// ─── Sidebar tab item ─────────────────────────────────────────────────────────
+
+class _SidebarTabItem extends StatelessWidget {
+  const _SidebarTabItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color:
+            selected ? hc.accent.withValues(alpha: 0.12) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              children: [
+                Icon(icon,
+                    size: 16,
+                    color: selected ? hc.accent : hc.textSecondary),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                        selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? hc.accent : hc.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Section helper ───────────────────────────────────────────────────────────
+
+class _SetupSection extends StatelessWidget {
+  const _SetupSection({required this.title, required this.child});
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: hc.textTertiary,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: hc.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: hc.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: child,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Connection Tab ───────────────────────────────────────────────────────────
+
+class _ConnectionTab extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_ConnectionTab> createState() => _ConnectionTabState();
+}
+
+class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
   String _transportType = 'UDP';
   final _addressController = TextEditingController(text: '0.0.0.0');
   final _portController = TextEditingController(text: '14550');
@@ -36,11 +266,12 @@ class _SetupViewState extends ConsumerState<SetupView> {
   final _tcpPortController = TextEditingController(text: '5760');
   String? _errorMessage;
 
-  // Serial port state
   List<String> _serialPorts = [];
   String? _selectedSerialPort;
   int _baudRate = 115200;
-  static const _baudRates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+  static const _baudRates = [
+    9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
+  ];
 
   @override
   void initState() {
@@ -50,11 +281,9 @@ class _SetupViewState extends ConsumerState<SetupView> {
   }
 
   void _loadSavedSettings() {
-    // Load last-used connection config after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final saved = ref.read(connectionSettingsProvider);
       if (saved == null) return;
-
       setState(() {
         switch (saved) {
           case UdpConnectionConfig(:final bindAddress, :final port):
@@ -102,7 +331,6 @@ class _SetupViewState extends ConsumerState<SetupView> {
 
   Future<void> _connect() async {
     setState(() => _errorMessage = null);
-
     final ConnectionConfig config;
     try {
       if (_transportType == 'UDP') {
@@ -127,7 +355,6 @@ class _SetupViewState extends ConsumerState<SetupView> {
       } else {
         return;
       }
-
       await ref.read(connectionControllerProvider.notifier).connect(config);
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -145,20 +372,16 @@ class _SetupViewState extends ConsumerState<SetupView> {
     final vehicle = ref.watch(vehicleStateProvider);
     final isConnected = connection.transportState == TransportState.connected;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Connection Manager
-        Text('Connection Manager', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SetupSection(
+            title: 'TRANSPORT',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Transport', style: HeliosTypography.caption),
-                const SizedBox(height: 8),
                 SegmentedButton<String>(
                   segments: const [
                     ButtonSegment(value: 'UDP', label: Text('UDP')),
@@ -169,13 +392,15 @@ class _SetupViewState extends ConsumerState<SetupView> {
                   onSelectionChanged: isConnected
                       ? null
                       : (v) => setState(() => _transportType = v.first),
+                  style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact),
                 ),
                 const SizedBox(height: 16),
-
                 if (_transportType == 'UDP') ...[
                   TextField(
                     controller: _addressController,
-                    decoration: const InputDecoration(labelText: 'Bind Address'),
+                    decoration:
+                        const InputDecoration(labelText: 'Bind Address'),
                     enabled: !isConnected,
                   ),
                   const SizedBox(height: 12),
@@ -198,6 +423,32 @@ class _SetupViewState extends ConsumerState<SetupView> {
                     keyboardType: TextInputType.number,
                     enabled: !isConnected,
                   ),
+                ] else if (Platform.isIOS) ...[
+                  // iOS does not support USB serial (libserialport has no iOS backend).
+                  // Users must connect via UDP or TCP (WiFi telemetry radio / network bridge).
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: hc.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: hc.warning.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: hc.warning, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'USB serial is not supported on iOS. '
+                            'Connect your flight controller using a WiFi telemetry radio '
+                            'and select UDP or TCP above.',
+                            style: TextStyle(color: hc.warning, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ] else ...[
                   // Serial port picker
                   Row(
@@ -207,11 +458,13 @@ class _SetupViewState extends ConsumerState<SetupView> {
                           value: _serialPorts.contains(_selectedSerialPort)
                               ? _selectedSerialPort
                               : null,
-                          hint: const Text('Select port', style: TextStyle(fontSize: 13)),
+                          hint: const Text('Select port',
+                              style: TextStyle(fontSize: 13)),
                           isExpanded: true,
                           dropdownColor: hc.surfaceLight,
                           items: _serialPorts.map((port) {
-                            final desc = SerialTransport.portDescription(port);
+                            final desc =
+                                SerialTransport.portDescription(port);
                             return DropdownMenuItem(
                               value: port,
                               child: Text(
@@ -223,14 +476,16 @@ class _SetupViewState extends ConsumerState<SetupView> {
                           }).toList(),
                           onChanged: isConnected
                               ? null
-                              : (v) => setState(() => _selectedSerialPort = v),
+                              : (v) =>
+                                  setState(() => _selectedSerialPort = v),
                         ),
                       ),
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.refresh, size: 20),
                         tooltip: 'Refresh ports',
-                        onPressed: isConnected ? null : _refreshSerialPorts,
+                        onPressed:
+                            isConnected ? null : _refreshSerialPorts,
                       ),
                     ],
                   ),
@@ -239,33 +494,37 @@ class _SetupViewState extends ConsumerState<SetupView> {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'No serial ports detected. Connect your flight controller via USB.',
-                        style: TextStyle(color: hc.warning, fontSize: 12),
+                        style:
+                            TextStyle(color: hc.warning, fontSize: 12),
                       ),
                     ),
                   const SizedBox(height: 12),
-                  // Baud rate selector
                   Row(
                     children: [
-                      Text('Baud Rate: ', style: TextStyle(color: hc.textSecondary, fontSize: 13)),
+                      Text('Baud Rate: ',
+                          style: TextStyle(
+                              color: hc.textSecondary, fontSize: 13)),
                       DropdownButton<int>(
                         value: _baudRate,
                         dropdownColor: hc.surfaceLight,
                         items: _baudRates
                             .map((b) => DropdownMenuItem(
                                   value: b,
-                                  child: Text('$b', style: const TextStyle(fontSize: 13)),
+                                  child: Text('$b',
+                                      style: const TextStyle(
+                                          fontSize: 13)),
                                 ))
                             .toList(),
                         onChanged: isConnected
                             ? null
                             : (v) {
-                                if (v != null) setState(() => _baudRate = v);
+                                if (v != null)
+                                  setState(() => _baudRate = v);
                               },
                       ),
                     ],
                   ),
                 ],
-
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -274,13 +533,11 @@ class _SetupViewState extends ConsumerState<SetupView> {
                       color: hc.danger.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(color: hc.danger, fontSize: 12),
-                    ),
+                    child: Text(_errorMessage!,
+                        style:
+                            TextStyle(color: hc.danger, fontSize: 12)),
                   ),
                 ],
-
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -288,7 +545,8 @@ class _SetupViewState extends ConsumerState<SetupView> {
                       onPressed: isConnected ? null : _connect,
                       icon: const Icon(Icons.link, size: 16),
                       label: Text(
-                        connection.transportState == TransportState.connecting
+                        connection.transportState ==
+                                TransportState.connecting
                             ? 'Connecting...'
                             : 'Connect',
                       ),
@@ -304,16 +562,9 @@ class _SetupViewState extends ConsumerState<SetupView> {
               ],
             ),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Status
-        Text('Status', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'LINK STATUS',
             child: Column(
               children: [
                 _StatusRow(
@@ -365,7 +616,9 @@ class _SetupViewState extends ConsumerState<SetupView> {
                 if (vehicle.vehicleUid > 0)
                   _StatusRow(
                     label: 'UID',
-                    value: vehicle.vehicleUid.toRadixString(16).toUpperCase(),
+                    value: vehicle.vehicleUid
+                        .toRadixString(16)
+                        .toUpperCase(),
                   ),
                 _StatusRow(
                   label: 'Messages/s',
@@ -378,162 +631,173 @@ class _SetupViewState extends ConsumerState<SetupView> {
               ],
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
 
-        const SizedBox(height: 24),
+// ─── Telemetry Tab ────────────────────────────────────────────────────────────
 
-        // Stream Rates
-        Text('Telemetry Rates', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+class _TelemetryTab extends ConsumerWidget {
+  const _TelemetryTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SetupSection(
+            title: 'TELEMETRY RATES',
             child: _StreamRateSettings(),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Sensor Calibration
-        Text('Sensor Calibration', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: const CalibrationWizard(),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Parameters
-        Text('Parameters', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: SizedBox(
-            height: 400,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: const ParameterEditor(),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Video Settings
-        Text('Video Stream', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: _VideoSettings(),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Recording
-        Text('Recording', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16),
+          const SizedBox(height: 24),
+          const _SetupSection(
+            title: 'RECORDING',
             child: _RecordingStatus(),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
 
-        const SizedBox(height: 24),
+// ─── Calibration Tab ─────────────────────────────────────────────────────────
 
-        // Layout Profiles
-        Text('Layout Profiles', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: _LayoutProfilesSection(),
-          ),
-        ),
+class _CalibrationTab extends ConsumerWidget {
+  const _CalibrationTab();
 
-        const SizedBox(height: 24),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(24),
+      child: _SetupSection(
+        title: 'SENSOR CALIBRATION',
+        child: CalibrationWizard(),
+      ),
+    );
+  }
+}
 
-        // Display
-        Text('Display', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+// ─── Video Tab ────────────────────────────────────────────────────────────────
+
+class _VideoTab extends ConsumerWidget {
+  const _VideoTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: _SetupSection(
+        title: 'VIDEO STREAM',
+        child: _VideoSettings(),
+      ),
+    );
+  }
+}
+
+// ─── Display Tab ─────────────────────────────────────────────────────────────
+
+class _DisplayTab extends ConsumerWidget {
+  const _DisplayTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SetupSection(
+            title: 'SCALE',
             child: _DisplaySettings(),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Maps
-        Text('Offline Maps', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: _MapCacheSettings(),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'LAYOUT PROFILES',
+            child: _LayoutProfilesSection(),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
 
-        const SizedBox(height: 24),
+// ─── Maps Tab ────────────────────────────────────────────────────────────────
 
-        // Reset
-        Text('Reset', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: _ResetSection(),
-          ),
-        ),
+class _MapsTab extends ConsumerWidget {
+  const _MapsTab();
 
-        const SizedBox(height: 24),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: _SetupSection(
+        title: 'OFFLINE MAPS',
+        child: _MapCacheSettings(),
+      ),
+    );
+  }
+}
 
-        // Predictive Maintenance
-        const Text('Predictive Maintenance', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16),
+// ─── System Tab ──────────────────────────────────────────────────────────────
+
+class _SystemTab extends ConsumerWidget {
+  const _SystemTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hc = context.hc;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SetupSection(
+            title: 'PREDICTIVE MAINTENANCE',
             child: _MaintenancePanel(),
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // About
-        const Text('About', style: HeliosTypography.heading2),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'RESET',
+            child: _ResetSection(),
+          ),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'ABOUT',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Helios GCS', style: HeliosTypography.heading2),
+                Text('Helios GCS',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: hc.textPrimary)),
                 const SizedBox(height: 4),
                 Text(
                   'v0.1.0 — Part of the Argus Platform',
-                  style: TextStyle(color: hc.textSecondary, fontSize: 13),
+                  style:
+                      TextStyle(color: hc.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Open-source ground control station for MAVLink UAVs.\n'
                   'Apache 2.0 Licence.',
-                  style: TextStyle(color: hc.textTertiary, fontSize: 12),
+                  style:
+                      TextStyle(color: hc.textTertiary, fontSize: 12),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
+
+// ─── Predictive maintenance panel ────────────────────────────────────────────
 
 /// Predictive maintenance panel that surfaces alerts derived from flight history.
 class _MaintenancePanel extends ConsumerWidget {
@@ -653,8 +917,8 @@ class _AlertTile extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   alert.detail,
-                  style: TextStyle(
-                      fontSize: 12, color: hc.textSecondary),
+                  style:
+                      TextStyle(fontSize: 12, color: hc.textSecondary),
                 ),
               ],
             ),
@@ -742,13 +1006,16 @@ class _VideoSettingsState extends ConsumerState<_VideoSettings> {
         Row(
           children: [
             ElevatedButton.icon(
-              onPressed: videoCtrl.isPlaying ? null : () => videoCtrl.connect(),
+              onPressed:
+                  videoCtrl.isPlaying ? null : () => videoCtrl.connect(),
               icon: const Icon(Icons.play_arrow, size: 16),
               label: const Text('Test Stream'),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
-              onPressed: videoCtrl.isPlaying ? () => videoCtrl.disconnect() : null,
+              onPressed: videoCtrl.isPlaying
+                  ? () => videoCtrl.disconnect()
+                  : null,
               icon: const Icon(Icons.stop, size: 16),
               label: const Text('Stop'),
             ),
@@ -802,7 +1069,9 @@ class _RecordingStatus extends ConsumerWidget {
           child: Row(
             children: [
               Icon(
-                isRecording ? Icons.fiber_manual_record : Icons.circle_outlined,
+                isRecording
+                    ? Icons.fiber_manual_record
+                    : Icons.circle_outlined,
                 size: 14,
                 color: isRecording ? hc.danger : hc.textTertiary,
               ),
@@ -814,7 +1083,8 @@ class _RecordingStatus extends ConsumerWidget {
                     Text(
                       isRecording ? 'RECORDING' : 'IDLE',
                       style: TextStyle(
-                        color: isRecording ? hc.danger : hc.textSecondary,
+                        color:
+                            isRecording ? hc.danger : hc.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -822,12 +1092,14 @@ class _RecordingStatus extends ConsumerWidget {
                     if (isRecording)
                       Text(
                         '${store.rowsWritten} rows written',
-                        style: TextStyle(color: hc.textSecondary, fontSize: 12),
+                        style: TextStyle(
+                            color: hc.textSecondary, fontSize: 12),
                       )
                     else
                       Text(
                         'Waiting for connection',
-                        style: TextStyle(color: hc.textTertiary, fontSize: 12),
+                        style: TextStyle(
+                            color: hc.textTertiary, fontSize: 12),
                       ),
                   ],
                 ),
@@ -933,7 +1205,8 @@ class _DisplaySettings extends ConsumerWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            Text('A', style: TextStyle(fontSize: 12, color: hc.textTertiary)),
+            Text('A',
+                style: TextStyle(fontSize: 12, color: hc.textTertiary)),
             Expanded(
               child: Slider(
                 value: scale,
@@ -944,7 +1217,8 @@ class _DisplaySettings extends ConsumerWidget {
                 onChanged: (v) => notifier.setScale(v),
               ),
             ),
-            Text('A', style: TextStyle(fontSize: 18, color: hc.textTertiary)),
+            Text('A',
+                style: TextStyle(fontSize: 18, color: hc.textTertiary)),
             const SizedBox(width: 12),
             Text(
               '${(scale * 100).round()}%',
@@ -959,7 +1233,8 @@ class _DisplaySettings extends ConsumerWidget {
             if (scale != defaultScale)
               TextButton(
                 onPressed: () => notifier.reset(),
-                child: const Text('Reset', style: TextStyle(fontSize: 12)),
+                child:
+                    const Text('Reset', style: TextStyle(fontSize: 12)),
               ),
           ],
         ),
@@ -1014,20 +1289,23 @@ class _LayoutProfilesSection extends ConsumerWidget {
                 profile.name,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight:
+                      isActive ? FontWeight.w600 : FontWeight.w400,
                   color: hc.textPrimary,
                 ),
               ),
               subtitle: Text(
                 _profileSummary(profile),
-                style: TextStyle(fontSize: 12, color: hc.textTertiary),
+                style: TextStyle(
+                    fontSize: 12, color: hc.textTertiary),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isActive)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: hc.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(3),
@@ -1043,24 +1321,29 @@ class _LayoutProfilesSection extends ConsumerWidget {
                     ),
                   if (!isActive) ...[
                     IconButton(
-                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      icon: const Icon(Icons.check_circle_outline,
+                          size: 18),
                       color: hc.textSecondary,
                       tooltip: 'Set as active',
-                      onPressed: () => notifier.selectProfile(profile.name),
+                      onPressed: () =>
+                          notifier.selectProfile(profile.name),
                     ),
                   ],
                   IconButton(
                     icon: const Icon(Icons.copy, size: 16),
                     color: hc.textSecondary,
                     tooltip: 'Duplicate',
-                    onPressed: () => _showDuplicateDialog(context, ref, profile),
+                    onPressed: () =>
+                        _showDuplicateDialog(context, ref, profile),
                   ),
                   if (!profile.isDefault)
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 16),
+                      icon:
+                          const Icon(Icons.delete_outline, size: 16),
                       color: hc.danger,
                       tooltip: 'Delete',
-                      onPressed: () => _confirmDelete(context, ref, profile.name),
+                      onPressed: () =>
+                          _confirmDelete(context, ref, profile.name),
                     ),
                   if (profile.isDefault)
                     IconButton(
@@ -1073,14 +1356,15 @@ class _LayoutProfilesSection extends ConsumerWidget {
                     ),
                 ],
               ),
-              onTap: isActive ? null : () => notifier.selectProfile(profile.name),
+              onTap: isActive
+                  ? null
+                  : () => notifier.selectProfile(profile.name),
             ),
           );
         }),
 
         const SizedBox(height: 12),
 
-        // New profile button
         OutlinedButton.icon(
           onPressed: () => _showCreateDialog(context, ref),
           icon: const Icon(Icons.add, size: 16),
@@ -1119,7 +1403,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
         return AlertDialog(
           backgroundColor: hc.surface,
           title: Text('New Layout Profile',
-              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
+              style:
+                  TextStyle(color: hc.textPrimary, fontSize: 14)),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -1139,7 +1424,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text('Cancel',
-                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+                  style: TextStyle(
+                      color: hc.textSecondary, fontSize: 12)),
             ),
             TextButton(
               onPressed: () {
@@ -1150,7 +1436,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
                 }
               },
               child: Text('Create',
-                  style: TextStyle(color: hc.accent, fontSize: 12)),
+                  style:
+                      TextStyle(color: hc.accent, fontSize: 12)),
             ),
           ],
         );
@@ -1158,8 +1445,10 @@ class _LayoutProfilesSection extends ConsumerWidget {
     );
   }
 
-  void _showDuplicateDialog(BuildContext context, WidgetRef ref, layout.LayoutProfile source) {
-    final controller = TextEditingController(text: '${source.name} (copy)');
+  void _showDuplicateDialog(
+      BuildContext context, WidgetRef ref, layout.LayoutProfile source) {
+    final controller =
+        TextEditingController(text: '${source.name} (copy)');
     showDialog(
       context: context,
       builder: (ctx) {
@@ -1167,7 +1456,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
         return AlertDialog(
           backgroundColor: hc.surface,
           title: Text('Duplicate Profile',
-              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
+              style:
+                  TextStyle(color: hc.textPrimary, fontSize: 14)),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -1187,26 +1477,22 @@ class _LayoutProfilesSection extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text('Cancel',
-                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+                  style: TextStyle(
+                      color: hc.textSecondary, fontSize: 12)),
             ),
             TextButton(
               onPressed: () {
                 final name = controller.text.trim();
                 if (name.isNotEmpty) {
-                  // Temporarily select source, create copy, then switch to new
                   final notifier = ref.read(layoutProvider.notifier);
-                  final currentActive = ref.read(layoutProvider).activeProfileName;
                   notifier.selectProfile(source.name);
                   notifier.createProfile(name);
-                  // If the source wasn't active, this creates a copy of it
-                  if (currentActive != source.name) {
-                    // Stay on the new copy
-                  }
                   Navigator.pop(ctx);
                 }
               },
               child: Text('Duplicate',
-                  style: TextStyle(color: hc.accent, fontSize: 12)),
+                  style:
+                      TextStyle(color: hc.accent, fontSize: 12)),
             ),
           ],
         );
@@ -1214,7 +1500,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, String name) {
+  void _confirmDelete(
+      BuildContext context, WidgetRef ref, String name) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -1222,14 +1509,18 @@ class _LayoutProfilesSection extends ConsumerWidget {
         return AlertDialog(
           backgroundColor: hc.surface,
           title: Text('Delete "$name"?',
-              style: TextStyle(color: hc.textPrimary, fontSize: 14)),
-          content: Text('This layout profile will be permanently removed.',
-              style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+              style:
+                  TextStyle(color: hc.textPrimary, fontSize: 14)),
+          content: Text(
+              'This layout profile will be permanently removed.',
+              style:
+                  TextStyle(color: hc.textSecondary, fontSize: 12)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text('Cancel',
-                  style: TextStyle(color: hc.textSecondary, fontSize: 12)),
+                  style: TextStyle(
+                      color: hc.textSecondary, fontSize: 12)),
             ),
             TextButton(
               onPressed: () {
@@ -1237,7 +1528,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
                 Navigator.pop(ctx);
               },
               child: Text('Delete',
-                  style: TextStyle(color: hc.danger, fontSize: 12)),
+                  style:
+                      TextStyle(color: hc.danger, fontSize: 12)),
             ),
           ],
         );
@@ -1247,6 +1539,8 @@ class _LayoutProfilesSection extends ConsumerWidget {
 }
 
 class _StreamRateSettings extends ConsumerWidget {
+  const _StreamRateSettings();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hc = context.hc;
@@ -1269,7 +1563,8 @@ class _StreamRateSettings extends ConsumerWidget {
           children: StreamRatePreset.values
               .where((p) => p != StreamRatePreset.custom)
               .map((preset) => ChoiceChip(
-                    label: Text(preset.label, style: const TextStyle(fontSize: 12)),
+                    label: Text(preset.label,
+                        style: const TextStyle(fontSize: 12)),
                     selected: rates.preset == preset,
                     onSelected: (_) => notifier.applyPreset(preset),
                     selectedColor: hc.accentDim,
@@ -1565,7 +1860,8 @@ class _ResetSection extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('All data wiped. Restart the app to continue.')),
+            content:
+                Text('All data wiped. Restart the app to continue.')),
       );
     }
   }

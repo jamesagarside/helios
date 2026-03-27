@@ -66,3 +66,7 @@ scripts/mavlink_xml/
 .metadata
 *.lock
 !pubspec.lock
+
+.env
+AuthKey_HN2BKU9XK9.p8
+notary_output.json

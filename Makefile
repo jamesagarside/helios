@@ -4,6 +4,10 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
+# Load local secrets from .env if it exists (never committed)
+-include .env
+export APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER_ID
+
 # ── Development ──────────────────────────────────────────────
 
 .PHONY: run run-macos run-linux run-windows run-android run-ios
@@ -157,6 +161,65 @@ clean-all: clean ## Deep clean (build + pods + generated)
 	rm -rf build/ macos/Pods/ macos/Podfile.lock
 	rm -rf .dart_tool/ .packages
 	flutter pub get
+
+# ── Signing (local, no push needed) ──────────────────────────
+
+.PHONY: sign-macos notarize-macos package-ios
+
+sign-macos: build-macos ## Build + sign macOS app with local Developer ID cert
+	$(eval IDENTITY := $(shell security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk '{print $$2}'))
+	@test -n "$(IDENTITY)" || (echo "No Developer ID Application cert found in keychain"; exit 1)
+	@echo "Signing with identity: $(IDENTITY)"
+	$(MAKE) _codesign-app IDENTITY="$(IDENTITY)"
+	@echo "Signed. Run 'make notarize-macos' to notarize."
+
+# Sign all nested frameworks first (inside-out), then the app bundle.
+# --deep is unreliable for Versions/A/ framework structures; this is the correct approach.
+_codesign-app:
+	$(eval APP := build/macos/Build/Products/Release/helios_gcs.app)
+	@echo "Signing nested frameworks..."
+	@find "$(APP)/Contents/Frameworks" \( -name "*.framework" -o -name "*.dylib" \) \
+		| sort -r \
+		| while read f; do \
+			codesign --force --options runtime --timestamp \
+				--entitlements macos/Runner/Release.entitlements \
+				--sign "$(IDENTITY)" "$$f" || exit 1; \
+		done
+	@echo "Signing app bundle..."
+	codesign --force --options runtime --timestamp \
+		--entitlements macos/Runner/Release.entitlements \
+		--sign "$(IDENTITY)" \
+		"$(APP)"
+
+notarize-macos: ## Build, sign, notarize + staple macOS DMG (reads APPLE_API_KEY* from .env)
+	@test -n "$(APPLE_API_KEY)" || (echo "Error: APPLE_API_KEY not set in .env"; exit 1)
+	@test -n "$(APPLE_API_KEY_ID)" || (echo "Error: APPLE_API_KEY_ID not set in .env"; exit 1)
+	@test -n "$(APPLE_API_ISSUER_ID)" || (echo "Error: APPLE_API_ISSUER_ID not set in .env"; exit 1)
+	$(eval IDENTITY := $(shell security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk '{print $$2}'))
+	$(MAKE) build-macos
+	$(MAKE) _codesign-app IDENTITY="$(IDENTITY)"
+	$(MAKE) _package-dmg IDENTITY="$(IDENTITY)"
+	xcrun notarytool submit build/macos/Build/Products/helios-gcs-macos.dmg \
+		--key "$(APPLE_API_KEY)" \
+		--key-id "$(APPLE_API_KEY_ID)" \
+		--issuer "$(APPLE_API_ISSUER_ID)" \
+		--wait
+	xcrun stapler staple build/macos/Build/Products/helios-gcs-macos.dmg
+	@echo "Done: build/macos/Build/Products/helios-gcs-macos.dmg"
+
+_package-dmg:
+	cd build/macos/Build/Products/Release && \
+		rm -rf dmg_contents && mkdir -p dmg_contents && \
+		cp -R helios_gcs.app dmg_contents/ && \
+		ln -sf /Applications dmg_contents/Applications && \
+		hdiutil create -volname "Helios GCS" -srcfolder dmg_contents -ov -format UDZO ../helios-gcs-macos.dmg && \
+		rm -rf dmg_contents
+	codesign --force --timestamp --sign "$(IDENTITY)" \
+		build/macos/Build/Products/helios-gcs-macos.dmg
+
+package-ios: ## Build signed IPA locally (requires cert + profile installed)
+	flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+	@echo "IPA: build/ios/ipa/"
 
 # ── Release ──────────────────────────────────────────────────
 

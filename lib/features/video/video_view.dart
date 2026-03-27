@@ -29,7 +29,7 @@ class _VideoViewState extends ConsumerState<VideoView> {
   @override
   void initState() {
     super.initState();
-    _urlController = TextEditingController();
+    _urlController = TextEditingController(text: ref.read(videoPlayerProvider).rtspUrl);
   }
 
   @override
@@ -67,6 +67,14 @@ class _VideoViewState extends ConsumerState<VideoView> {
       );
     }
 
+    // Sync URL field when settings change externally (e.g. persisted state reload),
+    // but only when the user isn't actively editing it.
+    ref.listen<VideoSettings>(videoPlayerProvider, (_, next) {
+      if (!_urlFocused && _urlController.text != next.rtspUrl) {
+        _urlController.text = next.rtspUrl;
+      }
+    });
+
     final hc = context.hc;
     final vehicle = ref.watch(vehicleStateProvider);
     final recordingState = ref.watch(videoRecordingProvider);
@@ -97,13 +105,6 @@ class _VideoViewState extends ConsumerState<VideoView> {
                       style: TextStyle(color: hc.textTertiary, fontSize: 16),
                     ),
                     const SizedBox(height: 16),
-                    // Editable RTSP URL
-                    Builder(builder: (_) {
-                      if (!_urlFocused && _urlController.text != settings.rtspUrl) {
-                        _urlController.text = settings.rtspUrl;
-                      }
-                      return const SizedBox.shrink();
-                    }),
                     SizedBox(
                       width: 360,
                       child: Focus(

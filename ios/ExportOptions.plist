@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  iOS Export Options for CI signing.
+
+  Before your first release:
+  1. Register com.argus.heliosGcs in App Store Connect → Identifiers
+  2. Create an App Store Distribution provisioning profile named "Helios GCS App Store"
+  3. Download it and add as the IOS_PROVISIONING_PROFILE GitHub secret (base64-encoded)
+  4. Update the provisioning profile name below if you used a different name
+-->
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>provisioningProfiles</key>
+    <dict>
+        <!-- Key = bundle ID, value = provisioning profile name in Apple Developer Portal -->
+        <key>com.argus.heliosGcs</key>
+        <string>Helios GCS App Store</string>
+    </dict>
+</dict>
+</plist>
