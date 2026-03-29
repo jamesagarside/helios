@@ -61,6 +61,13 @@ class TelemetryStore {
   final List<_BufferedVibration> _vibrationBuf = [];
   final List<_BufferedEvent> _eventBuf = [];
 
+  // MSP buffered messages for batch insert
+  final List<_MspBufferedAttitude> _mspAttitudeBuf = [];
+  final List<_MspBufferedGps> _mspGpsBuf = [];
+  final List<_MspBufferedAnalog> _mspAnalogBuf = [];
+  final List<_MspBufferedStatus> _mspStatusBuf = [];
+  final List<_MspBufferedAltitude> _mspAltitudeBuf = [];
+
   Timer? _flushTimer;
 
   bool get isRecording => _isRecording;
@@ -82,6 +89,7 @@ class TelemetryStore {
     int vehicleSysId = 0,
     String vehicleType = 'unknown',
     String autopilot = 'unknown',
+    String protocol = 'mavlink',
   }) async {
     await closeFlight();
 
@@ -97,6 +105,9 @@ class TelemetryStore {
     for (final sql in HeliosSchema.allTables) {
       _conn!.execute(sql);
     }
+    for (final sql in HeliosMspSchema.allTables) {
+      _conn!.execute(sql);
+    }
 
     // Insert flight metadata
     final flightId = const Uuid().v4();
@@ -107,6 +118,7 @@ class TelemetryStore {
     _conn!.execute("INSERT INTO flight_meta VALUES ('autopilot', '$autopilot')");
     _conn!.execute("INSERT INTO flight_meta VALUES ('start_time_utc', '${now.toUtc().toIso8601String()}')");
     _conn!.execute("INSERT INTO flight_meta VALUES ('helios_version', '0.1.0')");
+    _conn!.execute("INSERT INTO flight_meta VALUES ('protocol', '$protocol')");
 
     _isRecording = true;
     _rowsWritten = 0;
@@ -145,6 +157,63 @@ class TelemetryStore {
   void logEvent(String type, String detail, {int severity = 6}) {
     if (!_isRecording) return;
     _eventBuf.add(_BufferedEvent(DateTime.now().toUtc(), type, detail, severity));
+  }
+
+  /// Buffer an MSP ATTITUDE message.
+  void bufferMspAttitude({
+    required double rollDeg,
+    required double pitchDeg,
+    required int headingDeg,
+  }) {
+    if (!_isRecording) return;
+    _mspAttitudeBuf.add(_MspBufferedAttitude(DateTime.now().toUtc(), rollDeg, pitchDeg, headingDeg));
+  }
+
+  /// Buffer an MSP GPS message.
+  void bufferMspGps({
+    required int fixType,
+    required int numSat,
+    required double lat,
+    required double lon,
+    required double altitudeM,
+    required double speedMs,
+    required double courseDeg,
+  }) {
+    if (!_isRecording) return;
+    _mspGpsBuf.add(_MspBufferedGps(DateTime.now().toUtc(), fixType, numSat, lat, lon, altitudeM, speedMs, courseDeg));
+  }
+
+  /// Buffer an MSP ANALOG message.
+  void bufferMspAnalog({
+    required double voltageV,
+    required double currentA,
+    required double consumedMah,
+    required int remainingPct,
+    required int rssi,
+  }) {
+    if (!_isRecording) return;
+    _mspAnalogBuf.add(_MspBufferedAnalog(DateTime.now().toUtc(), voltageV, currentA, consumedMah, remainingPct, rssi));
+  }
+
+  /// Buffer an MSP ALTITUDE message.
+  void bufferMspAltitude({
+    required double altitudeRelM,
+    required double climbMs,
+  }) {
+    if (!_isRecording) return;
+    _mspAltitudeBuf.add(_MspBufferedAltitude(DateTime.now().toUtc(), altitudeRelM, climbMs));
+  }
+
+  /// Buffer an MSP STATUS message.
+  void bufferMspStatus({
+    required bool armed,
+    required int flightModeFlags,
+    required String flightModeName,
+    required bool sensorsOk,
+    required int cycleTimeUs,
+  }) {
+    if (!_isRecording) return;
+    _mspStatusBuf.add(_MspBufferedStatus(DateTime.now().toUtc(), armed, flightModeFlags, flightModeName, sensorsOk, cycleTimeUs));
   }
 
   /// Flush all buffered data to DuckDB.
@@ -211,6 +280,55 @@ class TelemetryStore {
         _conn!.execute('INSERT INTO events VALUES $values');
         count += _eventBuf.length;
         _eventBuf.clear();
+      }
+
+      if (_mspAttitudeBuf.isNotEmpty) {
+        final values = _mspAttitudeBuf.map((a) =>
+          "('${_ts(a.ts)}', ${a.roll}, ${a.pitch}, ${a.heading})"
+        ).join(', ');
+        _conn!.execute('INSERT INTO msp_attitude VALUES $values');
+        count += _mspAttitudeBuf.length;
+        _mspAttitudeBuf.clear();
+      }
+
+      if (_mspGpsBuf.isNotEmpty) {
+        final values = _mspGpsBuf.map((g) =>
+          "('${_ts(g.ts)}', ${g.fixType}, ${g.numSat}, ${g.lat}, ${g.lon}, "
+          '${g.altitudeM}, ${g.speedMs}, ${g.courseDeg})'
+        ).join(', ');
+        _conn!.execute('INSERT INTO msp_gps VALUES $values');
+        count += _mspGpsBuf.length;
+        _mspGpsBuf.clear();
+      }
+
+      if (_mspAnalogBuf.isNotEmpty) {
+        final values = _mspAnalogBuf.map((a) =>
+          "('${_ts(a.ts)}', ${a.voltageV}, ${a.currentA}, ${a.consumedMah}, "
+          '${a.remainingPct}, ${a.rssi})'
+        ).join(', ');
+        _conn!.execute('INSERT INTO msp_analog VALUES $values');
+        count += _mspAnalogBuf.length;
+        _mspAnalogBuf.clear();
+      }
+
+      if (_mspStatusBuf.isNotEmpty) {
+        final values = _mspStatusBuf.map((s) {
+          final modeName = s.flightModeName.replaceAll("'", "''");
+          return "('${_ts(s.ts)}', ${s.armed}, ${s.flightModeFlags}, "
+                 "'$modeName', ${s.sensorsOk}, ${s.cycleTimeUs})";
+        }).join(', ');
+        _conn!.execute('INSERT INTO msp_status VALUES $values');
+        count += _mspStatusBuf.length;
+        _mspStatusBuf.clear();
+      }
+
+      if (_mspAltitudeBuf.isNotEmpty) {
+        final values = _mspAltitudeBuf.map((a) =>
+          "('${_ts(a.ts)}', ${a.altitudeRelM}, ${a.climbMs})"
+        ).join(', ');
+        _conn!.execute('INSERT INTO msp_altitude VALUES $values');
+        count += _mspAltitudeBuf.length;
+        _mspAltitudeBuf.clear();
       }
     } catch (_) {
       // Don't let DuckDB errors crash the real-time path
@@ -473,4 +591,55 @@ class _BufferedEvent {
   final String type;
   final String detail;
   final int severity;
+}
+
+// MSP buffered message wrappers
+class _MspBufferedAttitude {
+  _MspBufferedAttitude(this.ts, this.roll, this.pitch, this.heading);
+  final DateTime ts;
+  final double roll;    // degrees
+  final double pitch;   // degrees
+  final int heading;    // degrees
+}
+
+class _MspBufferedGps {
+  _MspBufferedGps(this.ts, this.fixType, this.numSat, this.lat, this.lon,
+      this.altitudeM, this.speedMs, this.courseDeg);
+  final DateTime ts;
+  final int fixType;
+  final int numSat;
+  final double lat;
+  final double lon;
+  final double altitudeM;
+  final double speedMs;
+  final double courseDeg;
+}
+
+class _MspBufferedAnalog {
+  _MspBufferedAnalog(this.ts, this.voltageV, this.currentA, this.consumedMah,
+      this.remainingPct, this.rssi);
+  final DateTime ts;
+  final double voltageV;
+  final double currentA;
+  final double consumedMah;
+  final int remainingPct;
+  final int rssi;
+}
+
+class _MspBufferedStatus {
+  _MspBufferedStatus(this.ts, this.armed, this.flightModeFlags,
+      this.flightModeName, this.sensorsOk, this.cycleTimeUs);
+  final DateTime ts;
+  final bool armed;
+  final int flightModeFlags;
+  final String flightModeName;
+  final bool sensorsOk;
+  final int cycleTimeUs;
+}
+
+class _MspBufferedAltitude {
+  _MspBufferedAltitude(this.ts, this.altitudeRelM, this.climbMs);
+  final DateTime ts;
+  final double altitudeRelM;
+  final double climbMs;
 }

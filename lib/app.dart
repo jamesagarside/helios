@@ -87,8 +87,8 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     // Video, Setup, and Config are built on-demand
     return switch (_selectedIndex) {
       3 => const VideoView(),
-      4 => const SetupView(),
-      5 => const FcConfigView(),
+      4 => const FcConfigView(),
+      5 => const SetupView(),
       _ => const SizedBox(),
     };
   }
@@ -208,20 +208,20 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
               selectedIndex: _selectedIndex,
               onDestinationSelected: (i) => setState(() => _selectedIndex = i),
               body: _buildBody(),
+              footer: StatusBar(
+                flightMode: vehicle.flightMode.name,
+                armed: vehicle.armed,
+                flightTime: connection.connectedSince != null
+                    ? DateTime.now().difference(connection.connectedSince!)
+                    : Duration.zero,
+                messageRate: connection.messageRate,
+                gpsFixType: gpsLabel,
+                satellites: vehicle.satellites,
+                currentWaypoint: vehicle.currentWaypoint,
+                totalWaypoints: missionState.waypointCount,
+                alertCount: maintenanceAlerts.valueOrNull?.length ?? 0,
+              ),
             ),
-          ),
-          StatusBar(
-            flightMode: vehicle.flightMode.name,
-            armed: vehicle.armed,
-            flightTime: connection.connectedSince != null
-                ? DateTime.now().difference(connection.connectedSince!)
-                : Duration.zero,
-            messageRate: connection.messageRate,
-            gpsFixType: gpsLabel,
-            satellites: vehicle.satellites,
-            currentWaypoint: vehicle.currentWaypoint,
-            totalWaypoints: missionState.waypointCount,
-            alertCount: maintenanceAlerts.valueOrNull?.length ?? 0,
           ),
         ],
       ),

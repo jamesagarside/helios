@@ -1,48 +1,67 @@
 import 'package:equatable/equatable.dart';
 import 'vehicle_state.dart';
 
+/// Wire protocol spoken over the transport.
+enum ProtocolType {
+  /// Auto-detect by probing both MAVLink and MSP simultaneously.
+  /// Whichever produces a valid frame first wins (5s timeout → MAVLink).
+  auto,
+
+  /// MAVLink v2 — ArduPilot, PX4, iNav (with MAVLink enabled).
+  mavlink,
+
+  /// MSP (MultiWii Serial Protocol) — Betaflight, iNav.
+  msp,
+}
+
 /// Connection configuration — sealed class for transport types.
 sealed class ConnectionConfig extends Equatable {
-  const ConnectionConfig();
+  const ConnectionConfig({this.protocol = ProtocolType.mavlink});
+
+  /// Wire protocol to use on this connection.
+  final ProtocolType protocol;
 }
 
 class UdpConnectionConfig extends ConnectionConfig {
   const UdpConnectionConfig({
     this.bindAddress = '0.0.0.0',
     this.port = 14550,
+    super.protocol,
   });
 
   final String bindAddress;
   final int port;
 
   @override
-  List<Object?> get props => [bindAddress, port];
+  List<Object?> get props => [bindAddress, port, protocol];
 }
 
 class TcpConnectionConfig extends ConnectionConfig {
   const TcpConnectionConfig({
     required this.host,
     this.port = 5760,
+    super.protocol,
   });
 
   final String host;
   final int port;
 
   @override
-  List<Object?> get props => [host, port];
+  List<Object?> get props => [host, port, protocol];
 }
 
 class SerialConnectionConfig extends ConnectionConfig {
   const SerialConnectionConfig({
     required this.portName,
     this.baudRate = 57600,
+    super.protocol,
   });
 
   final String portName;
   final int baudRate;
 
   @override
-  List<Object?> get props => [portName, baudRate];
+  List<Object?> get props => [portName, baudRate, protocol];
 }
 
 /// Live connection status.

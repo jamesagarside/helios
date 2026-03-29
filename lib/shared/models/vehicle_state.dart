@@ -12,7 +12,7 @@ enum VehicleType {
 }
 
 /// Autopilot firmware type.
-enum AutopilotType { unknown, ardupilot, px4 }
+enum AutopilotType { unknown, ardupilot, px4, betaflight, inav }
 
 /// GPS fix quality.
 enum GpsFix { none, noFix, fix2d, fix3d, dgps, rtkFloat, rtkFixed }
@@ -95,6 +95,9 @@ class VehicleState extends Equatable {
     this.gimbalYaw = 0.0,
     this.gimbalRoll = 0.0,
     this.hasGimbal = false,
+    // RC channels (RC_CHANNELS)
+    this.rcChannels = const [],
+    this.rcChannelCount = 0,
   });
 
   // Identity
@@ -162,6 +165,10 @@ class VehicleState extends Equatable {
   final double gimbalYaw; // degrees
   final double gimbalRoll; // degrees
   final bool hasGimbal;
+
+  // RC channels (RC_CHANNELS — PWM values 1000-2000, 0 = not available)
+  final List<int> rcChannels;
+  final int rcChannelCount;
 
   /// Formatted firmware version string (e.g. "4.5.1").
   String get firmwareVersionString {
@@ -233,6 +240,8 @@ class VehicleState extends Equatable {
     double? gimbalYaw,
     double? gimbalRoll,
     bool? hasGimbal,
+    List<int>? rcChannels,
+    int? rcChannelCount,
   }) {
     return VehicleState(
       systemId: systemId ?? this.systemId,
@@ -283,6 +292,8 @@ class VehicleState extends Equatable {
       gimbalYaw: gimbalYaw ?? this.gimbalYaw,
       gimbalRoll: gimbalRoll ?? this.gimbalRoll,
       hasGimbal: hasGimbal ?? this.hasGimbal,
+      rcChannels: rcChannels ?? this.rcChannels,
+      rcChannelCount: rcChannelCount ?? this.rcChannelCount,
     );
   }
 
@@ -299,5 +310,6 @@ class VehicleState extends Equatable {
         firmwareVersionMajor, firmwareVersionMinor, firmwareVersionPatch,
         boardVersion, capabilities, vehicleUid,
         gimbalPitch, gimbalYaw, gimbalRoll, hasGimbal,
+        rcChannels, rcChannelCount,
       ];
 }

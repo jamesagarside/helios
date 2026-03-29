@@ -1,8 +1,74 @@
 # Helios GCS
 
-Open-source ground control station for MAVLink-enabled UAVs. Part of the [Argus Platform](https://github.com/jamesagarside).
+Open-source ground control station for MAVLink and MSP UAVs. Part of the [Argus Platform](https://github.com/jamesagarside).
 
-Flutter + DuckDB + MAVLink v2 | Apache 2.0
+Flutter + DuckDB + MAVLink v2 + MSP | Apache 2.0
+
+## Protocol & Feature Support
+
+Helios supports both MAVLink (ArduPilot, PX4, iNav with MAVLink) and MSP (Betaflight, iNav with Cleanflight protocol). Protocol is auto-detected on connect, or you can force a specific protocol in Setup.
+
+### Flight Controller Compatibility
+
+| Flight Controller | Protocol | Status |
+|---|---|---|
+| ArduPilot (Plane, Copter, Rover, Sub) | MAVLink v2 | Full support |
+| PX4 | MAVLink v2 | Full support |
+| iNav (MAVLink mode) | MAVLink v2 | Full support |
+| Betaflight | MSP | Full support |
+| iNav (MSP mode) | MSP | Full support |
+| Cleanflight | MSP | Full support |
+
+### Feature Matrix
+
+| Feature | MAVLink | MSP | Notes |
+|---|:---:|:---:|---|
+| **Live Telemetry** | | | |
+| Attitude (roll, pitch, yaw) | ✅ | ✅ | |
+| GPS position & fix | ✅ | ✅ | |
+| Altitude (relative to home) | ✅ | ✅ | |
+| Altitude (MSL) | ✅ | ✅ | |
+| Groundspeed | ✅ | ✅ | |
+| Airspeed | ✅ | ❌ | MSP does not expose airspeed sensor data |
+| Climb rate | ✅ | ✅ | |
+| Battery voltage | ✅ | ✅ | |
+| Battery current | ✅ | ✅ | |
+| Battery remaining % | ✅ | ✅ | |
+| Flight mode | ✅ | ✅ | |
+| Armed state | ✅ | ✅ | |
+| GPS satellite count | ✅ | ✅ | |
+| HDOP (GPS accuracy) | ✅ | ❌ | MSP_RAW_GPS does not include HDOP |
+| Vibration (X/Y/Z) | ✅ | ❌ | MSP has no vibration reporting; use Blackbox |
+| RSSI | ✅ | ✅ | |
+| Status messages / alerts | ✅ | ❌ | No MSP equivalent to STATUSTEXT |
+| **Recording & Analytics** | | | |
+| DuckDB flight recording | ✅ | ✅ | MSP uses separate `msp_*` table prefix |
+| Altitude chart | ✅ | ✅ | |
+| Speed chart | ✅ | ✅ (GS only) | Groundspeed only for MSP; no airspeed |
+| Climb rate chart | ✅ | ✅ | |
+| Battery chart | ✅ | ✅ | |
+| GPS quality chart | ✅ | ✅ (sats only) | Satellite count only; no HDOP for MSP |
+| Attitude chart | ✅ | ✅ | |
+| Vibration chart | ✅ | ❌ | Not available via MSP |
+| SQL query editor | ✅ | ✅ | MAVLink and MSP tables available in same DB |
+| Parquet export | ✅ | ✅ | |
+| Predictive maintenance | ✅ | ⚠️ Partial | Vibration analysis unavailable without IMU data |
+| Flight Forensics | ✅ | ✅ | Cross-flight DuckDB analytics |
+| **Setup & Configuration** | | | |
+| Connection (UDP / TCP / Serial) | ✅ | ✅ | |
+| Protocol auto-detection | ✅ | ✅ | 5 s probe; first valid frame wins |
+| Parameter editor | ✅ | ❌ | MSP has no parameter protocol in Helios |
+| Sensor calibration | ✅ | ❌ | ArduPilot/PX4 calibration commands only |
+| Stream rate control | ✅ | ❌ | Polling rates are fixed in MSP service |
+| **Mission Planning** | | | |
+| Waypoint upload / download | ✅ | ❌ | Betaflight has no waypoint mission support |
+| Geofence | ✅ | ❌ | MAVLink fence protocol only |
+| Rally points | ✅ | ❌ | MAVLink only |
+| **Other** | | | |
+| Dataflash log download | ✅ | ❌ | Use Betaflight Configurator for Blackbox |
+| Video streaming (RTSP) | ✅ | ✅ | Transport-independent |
+| Dark / light mode | ✅ | ✅ | |
+| Offline map tiles | ✅ | ✅ | |
 
 ## Quick Start
 

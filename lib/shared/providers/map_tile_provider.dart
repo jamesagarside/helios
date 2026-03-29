@@ -3,9 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum MapTileType {
   osm('OpenStreetMap'),
-  satellite('Satellite'),
+  satellite('Satellite (ESRI)'),
   terrain('Terrain'),
-  hybrid('Hybrid');
+  hybrid('Hybrid (Sat + Labels)');
 
   const MapTileType(this.label);
   final String label;

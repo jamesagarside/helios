@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show pi;
 import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/mavlink/mavlink_service.dart';
@@ -7,7 +8,9 @@ import '../../core/mavlink/transports/udp_transport.dart';
 import '../../core/mavlink/transports/tcp_transport.dart';
 import '../../core/mavlink/transports/serial_transport.dart';
 import '../../core/mission/mission_service.dart';
+import '../../core/msp/msp_service.dart';
 import '../../core/params/parameter_service.dart';
+import '../../core/protocol_detector.dart';
 import '../../core/telemetry/maintenance_service.dart';
 import '../../core/telemetry/replay_service.dart';
 import '../../core/telemetry/telemetry_store.dart';
@@ -148,7 +151,9 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
 
   final Ref _ref;
   MavlinkService? _service;
+  MspService? _mspService;
   StreamSubscription<MavlinkMessage>? _messageSub;
+  StreamSubscription<VehicleState>? _mspStateSub;
   StreamSubscription<LinkState>? _linkSub;
   Timer? _rateTimer;
   int _lastMsgCount = 0;
@@ -168,6 +173,58 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
         SerialTransport(portName: portName, baudRate: baudRate),
     };
 
+    if (config.protocol == ProtocolType.auto) {
+      await _connectWithDetection(transport, config);
+      return;
+    }
+
+    if (config.protocol == ProtocolType.msp) {
+      await _connectMsp(transport, config);
+      return;
+    }
+
+    await _connectMavlink(transport, config);
+  }
+
+  /// Connect using protocol auto-detection.
+  ///
+  /// Connects the transport, runs [ProtocolDetector.detect], then hands off
+  /// to [_connectMavlink] or [_connectMsp] with [alreadyConnected] = true so
+  /// the transport is not re-connected.
+  Future<void> _connectWithDetection(
+    MavlinkTransport transport,
+    ConnectionConfig config,
+  ) async {
+    state = state.copyWith(
+      transportState: TransportState.connecting,
+      activeConfig: config,
+    );
+    _ref.read(connectionStatusProvider.notifier).state = state;
+
+    try {
+      await transport.connect();
+    } catch (e) {
+      transport.dispose();
+      state = state.copyWith(transportState: TransportState.error);
+      _ref.read(connectionStatusProvider.notifier).state = state;
+      rethrow;
+    }
+
+    final detected = await ProtocolDetector.detect(transport);
+
+    if (detected == ProtocolType.msp) {
+      await _connectMsp(transport, config, alreadyConnected: true);
+    } else {
+      await _connectMavlink(transport, config, alreadyConnected: true);
+    }
+  }
+
+  /// MAVLink connection path.
+  Future<void> _connectMavlink(
+    MavlinkTransport transport,
+    ConnectionConfig config, {
+    bool alreadyConnected = false,
+  }) async {
     _service = MavlinkService(transport);
     _missionService = MissionService(_service!);
     _paramService = ParameterService(_service!);
@@ -258,13 +315,15 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     });
 
     try {
-      state = state.copyWith(
-        transportState: TransportState.connecting,
-        activeConfig: config,
-      );
-      _ref.read(connectionStatusProvider.notifier).state = state;
+      if (!alreadyConnected) {
+        state = state.copyWith(
+          transportState: TransportState.connecting,
+          activeConfig: config,
+        );
+        _ref.read(connectionStatusProvider.notifier).state = state;
+      }
 
-      await _service!.connect();
+      await _service!.connect(alreadyConnected: alreadyConnected);
 
       state = state.copyWith(
         transportState: TransportState.connected,
@@ -279,10 +338,17 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       try {
         final store = _ref.read(telemetryStoreProvider);
         if (!store.isRecording) {
-          await store.createFlight();
+          final path = await store.createFlight(protocol: 'mavlink');
+          _ref.read(recordingStateProvider.notifier).state = RecordingState(
+            isRecording: true,
+            currentFilePath: path,
+            recordingStarted: DateTime.now(),
+          );
         }
-      } catch (_) {
-        // Recording failure shouldn't prevent connection
+      } catch (e, st) {
+        // Recording failure shouldn't prevent connection, but log it
+        // ignore: avoid_print
+        print('[Helios] Auto-record failed: $e\n$st');
       }
     } catch (e) {
       // Clean up on connection failure
@@ -295,11 +361,124 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     }
   }
 
+  /// MSP connection path — separate from MAVLink to keep each path readable.
+  Future<void> _connectMsp(
+    MavlinkTransport transport,
+    ConnectionConfig config, {
+    bool alreadyConnected = false,
+  }) async {
+    _mspService = MspService(transport);
+
+    _linkSub = _mspService!.linkStateStream.listen((linkState) {
+      state = state.copyWith(linkState: linkState);
+      _ref.read(connectionStatusProvider.notifier).state = state;
+    });
+
+    _mspStateSub = _mspService!.vehicleStateStream.listen((mspState) {
+      _ref.read(vehicleStateProvider.notifier).applyMspState(mspState);
+
+      // Buffer to DuckDB if recording
+      final store = _ref.read(telemetryStoreProvider);
+      if (store.isRecording) {
+        store.bufferMspAttitude(
+          rollDeg: mspState.roll * 180 / pi,
+          pitchDeg: mspState.pitch * 180 / pi,
+          headingDeg: mspState.heading,
+        );
+        if (mspState.hasPosition) {
+          store.bufferMspGps(
+            fixType: mspState.gpsFix.index,
+            numSat: mspState.satellites,
+            lat: mspState.latitude,
+            lon: mspState.longitude,
+            altitudeM: mspState.altitudeMsl,
+            speedMs: mspState.groundspeed,
+            courseDeg: mspState.heading.toDouble(),
+          );
+        }
+        if (mspState.batteryVoltage > 0) {
+          store.bufferMspAnalog(
+            voltageV: mspState.batteryVoltage,
+            currentA: mspState.batteryCurrent,
+            consumedMah: mspState.batteryConsumed,
+            remainingPct: mspState.batteryRemaining.clamp(0, 100),
+            rssi: mspState.rssi,
+          );
+        }
+        store.bufferMspAltitude(
+          altitudeRelM: mspState.altitudeRel,
+          climbMs: mspState.climbRate,
+        );
+        store.bufferMspStatus(
+          armed: mspState.armed,
+          flightModeFlags: mspState.flightMode.number,
+          flightModeName: mspState.flightMode.name,
+          sensorsOk: mspState.sensorHealth == 0,
+          cycleTimeUs: 0,
+        );
+      }
+    });
+
+    _rateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final current = _mspService?.messagesReceived ?? 0;
+      final rate = (current - _lastMsgCount).toDouble();
+      _lastMsgCount = current;
+      state = state.copyWith(
+        messageRate: rate,
+        messagesReceived: current,
+      );
+      _ref.read(connectionStatusProvider.notifier).state = state;
+    });
+
+    try {
+      state = state.copyWith(
+        transportState: TransportState.connecting,
+        activeConfig: config,
+      );
+      _ref.read(connectionStatusProvider.notifier).state = state;
+
+      await _mspService!.connect(alreadyConnected: alreadyConnected);
+
+      state = state.copyWith(
+        transportState: TransportState.connected,
+        connectedSince: DateTime.now(),
+      );
+      _ref.read(connectionStatusProvider.notifier).state = state;
+
+      _ref.read(connectionSettingsProvider.notifier).save(config);
+
+      // Auto-record on connect
+      try {
+        final store = _ref.read(telemetryStoreProvider);
+        if (!store.isRecording) {
+          final path = await store.createFlight(protocol: 'msp');
+          _ref.read(recordingStateProvider.notifier).state = RecordingState(
+            isRecording: true,
+            currentFilePath: path,
+            recordingStarted: DateTime.now(),
+          );
+        }
+      } catch (e, st) {
+        // ignore: avoid_print
+        print('[Helios] Auto-record failed: $e\n$st');
+      }
+    } catch (e) {
+      await _mspService?.disconnect();
+      _mspService?.dispose();
+      _mspService = null;
+      state = state.copyWith(transportState: TransportState.error);
+      _ref.read(connectionStatusProvider.notifier).state = state;
+      rethrow;
+    }
+  }
+
   Future<void> disconnect() async {
     _rateTimer?.cancel();
     _rateTimer = null;
     await _messageSub?.cancel();
     _messageSub = null;
+    await _mspStateSub?.cancel();
+    _mspStateSub = null;
     await _linkSub?.cancel();
     _linkSub = null;
     _paramService?.dispose();
@@ -309,12 +488,16 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     await _service?.disconnect();
     _service?.dispose();
     _service = null;
+    await _mspService?.disconnect();
+    _mspService?.dispose();
+    _mspService = null;
     _lastMsgCount = 0;
 
     // Stop recording on disconnect
     final store = _ref.read(telemetryStoreProvider);
     if (store.isRecording) {
       await store.closeFlight();
+      _ref.read(recordingStateProvider.notifier).state = const RecordingState();
     }
 
     _ref.read(vehicleStateProvider.notifier).reset();
@@ -390,6 +573,30 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       targetComponent: vehicle.componentId,
       command: MavCmd.doDigicamControl,
       param5: 1, // shot = 1 (single capture)
+    );
+  }
+
+  /// Test a single motor via MAV_CMD_DO_MOTOR_TEST.
+  ///
+  /// [motorIndex] is 1-based. [throttlePct] is 0.0–100.0.
+  /// [durationSec] is how long the motor runs (ArduPilot enforces a cap).
+  Future<void> testMotor({
+    required int motorIndex,
+    required double throttlePct,
+    double durationSec = 2.0,
+  }) async {
+    if (_service == null) return;
+    final vehicle = _ref.read(vehicleStateProvider);
+    await _service!.sendCommand(
+      targetSystem: vehicle.systemId,
+      targetComponent: vehicle.componentId,
+      command: MavCmd.doMotorTest,
+      param1: motorIndex.toDouble(), // motor number (1-based)
+      param2: 1,                      // throttle type: 1 = percent
+      param3: throttlePct,
+      param4: durationSec,
+      param5: 0,                      // motor count (0 = this motor only)
+      param6: 0,                      // test order: 0 = board order
     );
   }
 
@@ -547,8 +754,10 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _missionService?.dispose();
     _rateTimer?.cancel();
     _messageSub?.cancel();
+    _mspStateSub?.cancel();
     _linkSub?.cancel();
     _service?.dispose();
+    _mspService?.dispose();
     super.dispose();
   }
 }

@@ -175,7 +175,11 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
   }
 
   void _handleRcChannels(RcChannelsMessage msg) {
-    _pending = _pending.copyWith(rssi: msg.rssi);
+    _pending = _pending.copyWith(
+      rssi: msg.rssi,
+      rcChannels: msg.channels,
+      rcChannelCount: msg.channelCount,
+    );
     _dirty = true;
   }
 
@@ -223,6 +227,19 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
   /// Bypasses the MAVLink message pipeline and the 30Hz batch buffer.
   void applyReplayState(VehicleState replayState) {
     state = replayState;
+  }
+
+  /// Apply a VehicleState update from the MSP service.
+  ///
+  /// Routes through the 30Hz batch buffer so the Fly View gets the same
+  /// smooth update cadence as MAVLink telemetry.
+  void applyMspState(VehicleState mspState) {
+    if (!_active) {
+      _active = true;
+      _frameTimer = Timer.periodic(_frameInterval, (_) => _flush());
+    }
+    _pending = mspState;
+    _dirty = true;
   }
 
   /// Reset state to defaults (on disconnect).

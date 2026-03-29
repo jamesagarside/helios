@@ -28,6 +28,30 @@ run-android: ## Run debug on connected Android device
 run-ios: ## Run debug on connected iOS device
 	flutter run -d ios
 
+run-ios-sim: ## Run debug on iOS Simulator (picks booted sim or launches one)
+	@SIMID=$$(xcrun simctl list devices booted -j \
+		| python3 -c "import sys,json; d=json.load(sys.stdin)['devices']; \
+		  devs=[v for vals in d.values() for v in vals if v['state']=='Booted']; \
+		  print(devs[0]['udid'] if devs else '')"); \
+	if [ -z "$$SIMID" ]; then \
+		echo "No booted simulator — launching iPhone 16..."; \
+		xcrun simctl boot "iPhone 16" 2>/dev/null || true; \
+		open -a Simulator; \
+	fi; \
+	flutter run -d "$(or $(SIM),iPhone 16)"
+
+run-android-emu: ## Run debug on Android Emulator (launches if not running)
+	@if ! flutter devices | grep -q emulator; then \
+		EMU=$$(emulator -list-avds | head -1); \
+		test -n "$$EMU" || (echo "No AVD found. Create one in Android Studio → Device Manager."; exit 1); \
+		echo "Starting emulator: $$EMU"; \
+		emulator -avd "$$EMU" -no-audio &\
+		echo "Waiting for emulator to boot..."; \
+		adb wait-for-device; \
+		sleep 5; \
+	fi; \
+	flutter run -d emulator
+
 run-sim: ## Run basic telemetry simulator (no SITL needed)
 	dart run scripts/sim_telemetry.dart
 
@@ -51,6 +75,25 @@ install-sim-deps: ## Install simulation dependencies (ffmpeg, mediamtx)
 run-sim-video: install-sim-deps ## Stream test pattern video via RTSP
 	./scripts/sim_video.sh
 
+
+# ── Device testing (release builds on real hardware) ─────────
+
+.PHONY: install-ios install-android devices
+
+devices: ## List connected devices and simulators
+	flutter devices
+
+install-ios: ## Build + install release IPA on connected iPhone (no App Store needed)
+	@flutter devices | grep -q "ios" || (echo "No iOS device connected. Connect via USB and trust this Mac."; exit 1)
+	flutter run --release -d "$(shell flutter devices | grep "ios" | awk -F'•' '{print $$2}' | head -1 | xargs)"
+
+install-android: ## Build + install release APK on connected Android device
+	@flutter devices | grep -q "android" || (echo "No Android device connected. Enable USB debugging in Developer Options."; exit 1)
+	flutter run --release -d "$(shell flutter devices | grep "android" | awk -F'•' '{print $$2}' | head -1 | xargs)"
+
+install-android-apk: build-android ## Build APK and push directly via adb (bypasses Flutter runner)
+	adb install -r build/app/outputs/flutter-apk/app-release.apk
+	@echo "Installed. Launch Helios GCS on your device."
 
 # ── Testing ──────────────────────────────────────────────────
 
@@ -149,6 +192,20 @@ sitl: ## Start ArduPilot SITL in Docker (TCP 5760)
 
 sitl-stop: ## Stop SITL Docker container
 	docker stop helios-sitl && docker rm helios-sitl
+
+sim-docker-build: ## Build Helios simulator Docker image
+	docker build -f docker/Dockerfile.sim -t helios-sim:latest .
+
+sim-docker-run: ## Run Helios simulator in Docker (sends to host GCS on :14550)
+	docker run --rm \
+		-e HELIOS_GCS_HOST=$(or $(HOST),host.docker.internal) \
+		-e HELIOS_GCS_PORT=$(or $(PORT),14550) \
+		helios-sim:latest
+
+sim-docker: sim-docker-build sim-docker-run ## Build + run Helios simulator in Docker
+
+sim-docker-compose: ## Run simulator via Docker Compose
+	docker compose -f docker/docker-compose.sim.yaml up --build
 
 # ── Cleanup ──────────────────────────────────────────────────
 

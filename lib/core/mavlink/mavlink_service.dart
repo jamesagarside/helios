@@ -58,8 +58,11 @@ class MavlinkService {
   int get crcErrors => _parser.crcErrors;
 
   /// Connect the transport and start message processing.
-  Future<void> connect() async {
-    await _transport.connect();
+  ///
+  /// Set [alreadyConnected] to true when the transport has already been
+  /// connected externally (e.g. during protocol auto-detection).
+  Future<void> connect({bool alreadyConnected = false}) async {
+    if (!alreadyConnected) await _transport.connect();
 
     _dataSubscription = _transport.dataStream.listen(_onData);
 

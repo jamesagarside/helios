@@ -61,11 +61,17 @@ class ResponsiveScaffold extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.body,
+    this.footer,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final Widget body;
+
+  /// Optional widget pinned to the bottom of the content area (not the sidebar).
+  /// Rendered via [Scaffold.bottomNavigationBar] so nested Scaffolds in [body]
+  /// automatically respect the reserved space.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +82,7 @@ class ResponsiveScaffold extends StatelessWidget {
         selectedIndex: selectedIndex,
         onDestinationSelected: onDestinationSelected,
         body: body,
+        footer: footer,
       );
     }
 
@@ -83,6 +90,7 @@ class ResponsiveScaffold extends StatelessWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: onDestinationSelected,
       body: body,
+      footer: footer,
       extended: width >= HeliosBreakpoints.desktop,
     );
   }
@@ -94,12 +102,14 @@ class _DesktopLayout extends StatelessWidget {
     required this.onDestinationSelected,
     required this.body,
     required this.extended,
+    this.footer,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final Widget body;
   final bool extended;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +148,17 @@ class _DesktopLayout extends StatelessWidget {
             width: 1,
             color: hc.border,
           ),
-          Expanded(child: body),
+          Expanded(
+            child: Column(
+              children: [
+                // ClipRect prevents nested Scaffolds (e.g. SetupView,
+                // FcConfigView) from painting their sub-sidebars into
+                // the footer area.
+                Expanded(child: ClipRect(child: body)),
+                ?footer,
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -183,10 +203,9 @@ class _ExtendedSidebar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          // Destinations
-          ..._destinations.asMap().entries.map((entry) {
-            final i = entry.key;
-            final d = entry.value;
+          // Main destinations (all except last)
+          ...List.generate(_destinations.length - 1, (i) {
+            final d = _destinations[i];
             final selected = i == selectedIndex;
             return _SidebarItem(
               icon: selected ? d.selectedIcon : d.icon,
@@ -195,6 +214,21 @@ class _ExtendedSidebar extends StatelessWidget {
               onTap: () => onDestinationSelected(i),
             );
           }),
+          const Spacer(),
+          Divider(height: 1, thickness: 1, color: hc.border),
+          // Settings pinned at bottom
+          Builder(builder: (context) {
+            final i = _destinations.length - 1;
+            final d = _destinations[i];
+            final selected = i == selectedIndex;
+            return _SidebarItem(
+              icon: selected ? d.selectedIcon : d.icon,
+              label: d.label,
+              selected: selected,
+              onTap: () => onDestinationSelected(i),
+            );
+          }),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -260,29 +294,37 @@ class _MobileLayout extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.body,
+    this.footer,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final Widget body;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: body,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: onDestinationSelected,
-        type: BottomNavigationBarType.fixed,
-        items: _destinations
-            .map(
-              (d) => BottomNavigationBarItem(
-                icon: Icon(d.icon),
-                activeIcon: Icon(d.selectedIcon),
-                label: d.label,
-              ),
-            )
-            .toList(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ?footer,
+          BottomNavigationBar(
+            currentIndex: selectedIndex,
+            onTap: onDestinationSelected,
+            type: BottomNavigationBarType.fixed,
+            items: _destinations
+                .map(
+                  (d) => BottomNavigationBarItem(
+                    icon: Icon(d.icon),
+                    activeIcon: Icon(d.selectedIcon),
+                    label: d.label,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
   }

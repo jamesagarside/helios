@@ -13,22 +13,27 @@ class ConnectionSettingsNotifier extends StateNotifier<ConnectionConfig?> {
   static const _keyPort = 'conn_port';
   static const _keyBaud = 'conn_baud';
   static const _keySerialPort = 'conn_serial_port';
+  static const _keyProtocol = 'conn_protocol';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final type = prefs.getString(_keyType);
     if (type == null) return;
 
+    final protocol = _parseProtocol(prefs.getString(_keyProtocol));
+
     switch (type) {
       case 'udp':
         state = UdpConnectionConfig(
           bindAddress: prefs.getString(_keyHost) ?? '0.0.0.0',
           port: prefs.getInt(_keyPort) ?? 14550,
+          protocol: protocol,
         );
       case 'tcp':
         state = TcpConnectionConfig(
           host: prefs.getString(_keyHost) ?? '127.0.0.1',
           port: prefs.getInt(_keyPort) ?? 5760,
+          protocol: protocol,
         );
       case 'serial':
         final portName = prefs.getString(_keySerialPort);
@@ -36,6 +41,7 @@ class ConnectionSettingsNotifier extends StateNotifier<ConnectionConfig?> {
           state = SerialConnectionConfig(
             portName: portName,
             baudRate: prefs.getInt(_keyBaud) ?? 115200,
+            protocol: protocol,
           );
         }
     }
@@ -44,6 +50,8 @@ class ConnectionSettingsNotifier extends StateNotifier<ConnectionConfig?> {
   Future<void> save(ConnectionConfig config) async {
     state = config;
     final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(_keyProtocol, config.protocol.name);
 
     switch (config) {
       case UdpConnectionConfig(:final bindAddress, :final port):
@@ -60,6 +68,13 @@ class ConnectionSettingsNotifier extends StateNotifier<ConnectionConfig?> {
         await prefs.setInt(_keyBaud, baudRate);
     }
   }
+
+  /// Parse a stored protocol string, defaulting to [ProtocolType.auto].
+  static ProtocolType _parseProtocol(String? value) =>
+      ProtocolType.values.firstWhere(
+        (p) => p.name == value,
+        orElse: () => ProtocolType.auto,
+      );
 
   String get label {
     final config = state;

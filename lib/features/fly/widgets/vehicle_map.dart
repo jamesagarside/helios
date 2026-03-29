@@ -92,7 +92,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
           ),
           children: [
             // Tile layer(s) based on selected type
-            ..._buildTileLayers(tileType),
+            ..._buildTileLayers(tileType, Theme.of(context).brightness == Brightness.dark),
 
             // Fence zones
             if (fenceZones.isNotEmpty)
@@ -214,60 +214,64 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
           ],
         ),
 
-        // Map type picker
+        // Map type picker — bottom-centre to avoid top-left profile/toolbar overlay
         Positioned(
-          top: 12,
-          left: 12,
-          child: _MapTypePicker(
-            current: tileType,
-            onSelect: (t) => ref.read(mapTileTypeProvider.notifier).setType(t),
+          bottom: 12,
+          left: 0,
+          right: 0,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: _MapTypePicker(
+              current: tileType,
+              onSelect: (t) => ref.read(mapTileTypeProvider.notifier).setType(t),
+            ),
           ),
         ),
 
-        // Re-centre button (shown when not following)
-        if (!_followVehicle && hasPosition)
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: FloatingActionButton.small(
-              onPressed: () {
-                setState(() => _followVehicle = true);
-                _mapController.move(
-                  LatLng(vehicle.latitude, vehicle.longitude),
-                  _mapController.camera.zoom,
-                );
-              },
-              backgroundColor: hc.surface,
-              child: Icon(
-                Icons.my_location,
-                color: hc.accent,
-                size: 20,
-              ),
-            ),
-          ),
-
-        // Zoom controls
+        // Zoom controls + re-centre button
+        // Zoom controls — centre-right to avoid top-right connection/EKF overlay
+        // and bottom-right gimbal overlay
         Positioned(
           right: 12,
-          top: 12,
-          child: Column(
-            children: [
-              _MapButton(
-                icon: Icons.add,
-                onPressed: () => _mapController.move(
-                  _mapController.camera.center,
-                  (_mapController.camera.zoom + 1).clamp(2, 19),
+          top: 0,
+          bottom: 0,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _MapButton(
+                  icon: Icons.add,
+                  onPressed: () => _mapController.move(
+                    _mapController.camera.center,
+                    (_mapController.camera.zoom + 1).clamp(2, 19),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              _MapButton(
-                icon: Icons.remove,
-                onPressed: () => _mapController.move(
-                  _mapController.camera.center,
-                  (_mapController.camera.zoom - 1).clamp(2, 19),
+                const SizedBox(height: 4),
+                _MapButton(
+                  icon: Icons.remove,
+                  onPressed: () => _mapController.move(
+                    _mapController.camera.center,
+                    (_mapController.camera.zoom - 1).clamp(2, 19),
+                  ),
                 ),
-              ),
-            ],
+                // Re-centre button (shown when not following)
+                if (!_followVehicle && hasPosition) ...[
+                  const SizedBox(height: 4),
+                  _MapButton(
+                    icon: Icons.my_location,
+                    onPressed: () {
+                      setState(() => _followVehicle = true);
+                      _mapController.move(
+                        LatLng(vehicle.latitude, vehicle.longitude),
+                        _mapController.camera.zoom,
+                      );
+                    },
+                    color: hc.accent,
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ],
@@ -275,9 +279,12 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
   }
 
   /// Build tile layers based on selected map type.
-  List<Widget> _buildTileLayers(MapTileType tileType) {
+  /// [dark] applies an invert filter to OSM/Terrain tiles in dark theme.
+  List<Widget> _buildTileLayers(MapTileType tileType, bool dark) {
     switch (tileType) {
       case MapTileType.hybrid:
+        // Satellite imagery base + semi-transparent OSM labels on top.
+        // Satellite imagery is never inverted — it always looks correct.
         return [
           TileLayer(
             urlTemplate:
@@ -296,6 +303,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
           ),
         ];
       case MapTileType.satellite:
+        // True ESRI satellite imagery — no dark-mode filter.
         return [
           TileLayer(
             urlTemplate:
@@ -312,6 +320,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             userAgentPackageName: 'com.argus.helios_gcs',
             maxZoom: 17,
             tileProvider: CachedTileProvider(),
+            tileBuilder: dark ? _darkTileBuilder : null,
           ),
         ];
       case MapTileType.osm:
@@ -321,13 +330,13 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             userAgentPackageName: 'com.argus.helios_gcs',
             maxZoom: 19,
             tileProvider: CachedTileProvider(),
-            tileBuilder: _darkTileBuilder,
+            tileBuilder: dark ? _darkTileBuilder : null,
           ),
         ];
     }
   }
 
-  /// Dark tile builder — inverts and adjusts colours for dark theme.
+  /// Dark tile builder — inverts and reduces brightness for dark theme.
   Widget _darkTileBuilder(
     BuildContext context,
     Widget tileWidget,
@@ -510,6 +519,7 @@ class _MapTypePicker extends StatelessWidget {
       tooltip: 'Map type',
       onSelected: onSelect,
       color: hc.surface,
+      constraints: const BoxConstraints(minWidth: 160),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: hc.border),
@@ -519,6 +529,7 @@ class _MapTypePicker extends StatelessWidget {
             (t) => PopupMenuItem(
               value: t,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     _icon(t),
@@ -528,6 +539,8 @@ class _MapTypePicker extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     t.label,
+                    softWrap: false,
+                    overflow: TextOverflow.visible,
                     style: TextStyle(
                       fontSize: 13,
                       color: t == current ? hc.accent : hc.textPrimary,
@@ -554,10 +567,11 @@ class _MapTypePicker extends StatelessWidget {
 
 /// Small map control button.
 class _MapButton extends StatelessWidget {
-  const _MapButton({required this.icon, required this.onPressed});
+  const _MapButton({required this.icon, required this.onPressed, this.color});
 
   final IconData icon;
   final VoidCallback onPressed;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -570,7 +584,7 @@ class _MapButton extends StatelessWidget {
         onPressed: onPressed,
         backgroundColor: hc.surface.withValues(alpha: 0.85),
         elevation: 2,
-        child: Icon(icon, size: 16, color: hc.textPrimary),
+        child: Icon(icon, size: 16, color: color ?? hc.textPrimary),
       ),
     );
   }

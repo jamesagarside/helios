@@ -12,6 +12,7 @@ import '../../shared/models/layout_profile.dart' as layout;
 import '../../shared/models/vehicle_state.dart';
 import '../../core/map/cached_tile_provider.dart';
 import '../../shared/providers/display_provider.dart';
+import '../../shared/providers/theme_mode_provider.dart';
 import '../../shared/providers/layout_provider.dart';
 import '../../core/telemetry/maintenance_service.dart';
 import '../../shared/providers/providers.dart';
@@ -39,6 +40,7 @@ class _SetupViewState extends ConsumerState<SetupView>
     (icon: Icons.dashboard_customize_outlined, label: 'Display'),
     (icon: Icons.map_outlined, label: 'Offline Maps'),
     (icon: Icons.build_outlined, label: 'System'),
+    (icon: Icons.info_outline, label: 'Info'),
   ];
 
   @override
@@ -119,6 +121,7 @@ class _SetupViewState extends ConsumerState<SetupView>
                       const _DisplayTab(),
                       const _MapsTab(),
                       const _SystemTab(),
+                      const _InfoTab(),
                     ],
                   ),
                 ),
@@ -148,6 +151,7 @@ class _SetupViewState extends ConsumerState<SetupView>
                       const _DisplayTab(),
                       const _MapsTab(),
                       const _SystemTab(),
+                      const _InfoTab(),
                     ],
                   ),
                 ),
@@ -260,6 +264,7 @@ class _ConnectionTab extends ConsumerStatefulWidget {
 
 class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
   String _transportType = 'UDP';
+  ProtocolType _protocol = ProtocolType.auto;
   final _addressController = TextEditingController(text: '0.0.0.0');
   final _portController = TextEditingController(text: '14550');
   final _tcpHostController = TextEditingController(text: '127.0.0.1');
@@ -286,18 +291,21 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
       if (saved == null) return;
       setState(() {
         switch (saved) {
-          case UdpConnectionConfig(:final bindAddress, :final port):
+          case UdpConnectionConfig(:final bindAddress, :final port, :final protocol):
             _transportType = 'UDP';
             _addressController.text = bindAddress;
             _portController.text = port.toString();
-          case TcpConnectionConfig(:final host, :final port):
+            _protocol = protocol;
+          case TcpConnectionConfig(:final host, :final port, :final protocol):
             _transportType = 'TCP';
             _tcpHostController.text = host;
             _tcpPortController.text = port.toString();
-          case SerialConnectionConfig(:final portName, :final baudRate):
+            _protocol = protocol;
+          case SerialConnectionConfig(:final portName, :final baudRate, :final protocol):
             _transportType = 'Serial';
             _selectedSerialPort = portName;
             _baudRate = baudRate;
+            _protocol = protocol;
         }
       });
     });
@@ -337,11 +345,13 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
         config = UdpConnectionConfig(
           bindAddress: _addressController.text.trim(),
           port: int.parse(_portController.text.trim()),
+          protocol: _protocol,
         );
       } else if (_transportType == 'TCP') {
         config = TcpConnectionConfig(
           host: _tcpHostController.text.trim(),
           port: int.parse(_tcpPortController.text.trim()),
+          protocol: _protocol,
         );
       } else if (_transportType == 'Serial') {
         if (_selectedSerialPort == null) {
@@ -351,6 +361,7 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
         config = SerialConnectionConfig(
           portName: _selectedSerialPort!,
           baudRate: _baudRate,
+          protocol: _protocol,
         );
       } else {
         return;
@@ -377,6 +388,49 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _SetupSection(
+            title: 'PROTOCOL',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SegmentedButton<ProtocolType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ProtocolType.auto,
+                      label: Text('Auto'),
+                    ),
+                    ButtonSegment(
+                      value: ProtocolType.mavlink,
+                      label: Text('MAVLink'),
+                    ),
+                    ButtonSegment(
+                      value: ProtocolType.msp,
+                      label: Text('MSP'),
+                    ),
+                  ],
+                  selected: {_protocol},
+                  onSelectionChanged: isConnected
+                      ? null
+                      : (v) => setState(() => _protocol = v.first),
+                  style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  switch (_protocol) {
+                    ProtocolType.auto =>
+                      'Probes for MAVLink and MSP simultaneously — picks whichever responds first (5s timeout).',
+                    ProtocolType.mavlink =>
+                      'MAVLink — ArduPilot, PX4, iNav (with MAVLink enabled).',
+                    ProtocolType.msp =>
+                      'MSP — Betaflight & iNav. Mission planning not available.',
+                  },
+                  style: TextStyle(fontSize: 12, color: hc.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           _SetupSection(
             title: 'TRANSPORT',
             child: Column(
@@ -705,11 +759,56 @@ class _DisplayTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _SetupSection(
+            title: 'THEME',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Text(
+                    'Colour scheme',
+                    style: TextStyle(
+                        fontSize: 13, color: context.hc.textSecondary),
+                  ),
+                  const Spacer(),
+                  SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode_outlined, size: 16),
+                        label: Text('Dark'),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode_outlined, size: 16),
+                        label: Text('Light'),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        icon: Icon(Icons.brightness_auto_outlined, size: 16),
+                        label: Text('Auto'),
+                      ),
+                    ],
+                    selected: {themeMode},
+                    onSelectionChanged: (modes) => ref
+                        .read(themeModeProvider.notifier)
+                        .setMode(modes.first),
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           _SetupSection(
             title: 'SCALE',
             child: _DisplaySettings(),
@@ -749,7 +848,6 @@ class _SystemTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hc = context.hc;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -764,33 +862,114 @@ class _SystemTab extends ConsumerWidget {
             title: 'RESET',
             child: _ResetSection(),
           ),
-          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Info Tab ─────────────────────────────────────────────────────────────────
+
+class _InfoTab extends StatelessWidget {
+  const _InfoTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    final os = Platform.operatingSystem;
+    final osVersion = Platform.operatingSystemVersion;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _SetupSection(
-            title: 'ABOUT',
+            title: 'APPLICATION',
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Helios GCS',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: hc.textPrimary)),
-                const SizedBox(height: 4),
-                Text(
-                  'v0.1.0 — Part of the Argus Platform',
-                  style:
-                      TextStyle(color: hc.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Open-source ground control station for MAVLink UAVs.\n'
-                  'Apache 2.0 Licence.',
-                  style:
-                      TextStyle(color: hc.textTertiary, fontSize: 12),
-                ),
+                _InfoRow(label: 'Name', value: 'Helios GCS', hc: hc),
+                _InfoRow(label: 'Version', value: 'v0.1.0', hc: hc),
+                _InfoRow(
+                    label: 'Platform', value: 'Part of the Argus Platform', hc: hc),
+                _InfoRow(label: 'Licence', value: 'Apache 2.0', hc: hc),
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'RUNTIME',
+            child: Column(
+              children: [
+                _InfoRow(label: 'Framework', value: 'Flutter 3.38', hc: hc),
+                _InfoRow(label: 'Language', value: 'Dart 3.10', hc: hc),
+                _InfoRow(
+                    label: 'Operating system',
+                    value: '${os[0].toUpperCase()}${os.substring(1)}',
+                    hc: hc),
+                _InfoRow(label: 'OS version', value: osVersion, hc: hc),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'KEY LIBRARIES',
+            child: Column(
+              children: [
+                _InfoRow(label: 'Telemetry database', value: 'DuckDB (columnar OLAP)', hc: hc),
+                _InfoRow(label: 'MAVLink', value: 'dart_mavlink (vendored v2 parser)', hc: hc),
+                _InfoRow(label: 'Map tiles', value: 'flutter_map + OSM', hc: hc),
+                _InfoRow(label: 'Video', value: 'media_kit (LGPL dynamic)', hc: hc),
+                _InfoRow(label: 'Serial', value: 'flutter_libserialport', hc: hc),
+                _InfoRow(label: 'State', value: 'Riverpod', hc: hc),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SetupSection(
+            title: 'ABOUT',
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Text(
+                'Open-source ground control station for MAVLink UAVs '
+                '(ArduPilot, PX4). Every flight is automatically recorded '
+                'into a DuckDB database, making post-flight analysis as '
+                'powerful as the live display.',
+                style: TextStyle(color: hc.textSecondary, fontSize: 13, height: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.hc,
+  });
+
+  final String label;
+  final String value;
+  final HeliosColors hc;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      child: Row(
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 13, color: hc.textSecondary)),
+          const Spacer(),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 13,
+                  color: hc.textPrimary,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -1041,8 +1220,10 @@ class _RecordingStatus extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hc = context.hc;
-    final store = ref.watch(telemetryStoreProvider);
-    final isRecording = store.isRecording;
+    final recording = ref.watch(recordingStateProvider);
+    final isRecording = recording.isRecording;
+    // rowsWritten comes from the store directly (live counter)
+    final store = ref.read(telemetryStoreProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

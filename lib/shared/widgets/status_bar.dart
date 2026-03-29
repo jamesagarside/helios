@@ -52,19 +52,21 @@ class StatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final hc = context.hc;
     return Container(
-      height: 38,
+      height: 48,
       decoration: BoxDecoration(
         color: hc.surfaceLight,
         border: Border(
           top: BorderSide(color: hc.accent, width: 1),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Armed state — most critical
               _StatusChip(
                 icon: armed ? Icons.warning_amber : Icons.shield,
@@ -126,6 +128,7 @@ class StatusBar extends StatelessWidget {
                 ),
               ],
             ],
+            ),
           ),
         ),
       ),

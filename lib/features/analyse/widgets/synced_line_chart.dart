@@ -273,6 +273,7 @@ class SyncedLineChart extends StatelessWidget {
           ),
         ),
       ),
+      duration: Duration.zero,
     );
   }
 

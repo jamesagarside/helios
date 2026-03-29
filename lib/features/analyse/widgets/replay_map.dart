@@ -82,6 +82,7 @@ class _ReplayMapState extends State<ReplayMap> {
         CameraFit.bounds(
           bounds: bounds,
           padding: const EdgeInsets.all(32),
+          maxZoom: 18,
         ),
       );
     } catch (_) {}

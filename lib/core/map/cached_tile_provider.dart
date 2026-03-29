@@ -33,9 +33,21 @@ class CachedTileProvider extends TileProvider {
     return _cacheDir!;
   }
 
-  /// Build the local file path for a tile.
-  static String _tilePath(String cacheDir, int z, int x, int y) {
-    return p.join(cacheDir, '$z', '$x', '$y.png');
+  /// Derive a stable per-source subdirectory name from the URL template.
+  static String _sourceId(String urlTemplate) {
+    if (urlTemplate.contains('arcgisonline')) return 'esri';
+    if (urlTemplate.contains('opentopomap')) return 'topo';
+    if (urlTemplate.contains('openstreetmap')) return 'osm';
+    try {
+      return Uri.parse(urlTemplate).host;
+    } catch (_) {
+      return 'tiles';
+    }
+  }
+
+  /// Build the local file path for a tile, scoped by source.
+  static String _tilePath(String cacheDir, String sourceId, int z, int x, int y) {
+    return p.join(cacheDir, sourceId, '$z', '$x', '$y.png');
   }
 
   @override
@@ -120,7 +132,8 @@ class _CachedTileImageProvider extends ImageProvider<_CachedTileImageProvider> {
 
   Future<Uint8List?> _fetchTileBytes() async {
     final cacheDir = await CachedTileProvider._getCacheDir();
-    final tilePath = CachedTileProvider._tilePath(cacheDir, z, x, y);
+    final sourceId = CachedTileProvider._sourceId(urlTemplate);
+    final tilePath = CachedTileProvider._tilePath(cacheDir, sourceId, z, x, y);
     final file = File(tilePath);
 
     // Check cache
@@ -187,8 +200,9 @@ class _CachedTileImageProvider extends ImageProvider<_CachedTileImageProvider> {
       other is _CachedTileImageProvider &&
           z == other.z &&
           x == other.x &&
-          y == other.y;
+          y == other.y &&
+          urlTemplate == other.urlTemplate;
 
   @override
-  int get hashCode => Object.hash(z, x, y);
+  int get hashCode => Object.hash(z, x, y, urlTemplate);
 }

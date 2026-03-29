@@ -131,3 +131,81 @@ abstract final class HeliosSchema {
     createMissions,
   ];
 }
+
+/// DuckDB schema definitions for MSP (Multiwii Serial Protocol) telemetry.
+///
+/// MSP is used by Betaflight/Cleanflight flight controllers. These tables
+/// are created alongside the MAVLink tables in every flight database so that
+/// a single .duckdb file can hold data from either protocol (or both).
+abstract final class HeliosMspSchema {
+  static const createMspAttitude = '''
+    CREATE TABLE IF NOT EXISTS msp_attitude (
+      ts      TIMESTAMP NOT NULL,
+      roll    DOUBLE NOT NULL,    -- degrees (raw from MSP, not radians)
+      pitch   DOUBLE NOT NULL,    -- degrees
+      heading SMALLINT NOT NULL   -- degrees
+    );
+  ''';
+
+  static const createMspGps = '''
+    CREATE TABLE IF NOT EXISTS msp_gps (
+      ts         TIMESTAMP NOT NULL,
+      fix_type   TINYINT NOT NULL,   -- 0=none, 1=2D, 2=3D
+      num_sat    TINYINT NOT NULL,
+      lat        DOUBLE NOT NULL,
+      lon        DOUBLE NOT NULL,
+      altitude_m DOUBLE NOT NULL,
+      speed_ms   DOUBLE NOT NULL,    -- m/s
+      course_deg DOUBLE NOT NULL     -- degrees
+    );
+  ''';
+
+  static const createMspAnalog = '''
+    CREATE TABLE IF NOT EXISTS msp_analog (
+      ts              TIMESTAMP NOT NULL,
+      voltage_v       DOUBLE NOT NULL,
+      current_a       DOUBLE,
+      consumed_mah    DOUBLE,
+      remaining_pct   TINYINT,
+      rssi            SMALLINT        -- 0-255
+    );
+  ''';
+
+  static const createMspStatus = '''
+    CREATE TABLE IF NOT EXISTS msp_status (
+      ts                 TIMESTAMP NOT NULL,
+      armed              BOOLEAN NOT NULL,
+      flight_mode_flags  INTEGER NOT NULL,
+      flight_mode_name   VARCHAR,
+      sensors_ok         BOOLEAN NOT NULL,
+      cycle_time_us      INTEGER
+    );
+  ''';
+
+  static const createMspAltitude = '''
+    CREATE TABLE IF NOT EXISTS msp_altitude (
+      ts              TIMESTAMP NOT NULL,
+      altitude_rel_m  DOUBLE NOT NULL,   -- metres above home
+      climb_ms        DOUBLE NOT NULL    -- m/s (positive = climbing)
+    );
+  ''';
+
+  static const createMspRc = '''
+    CREATE TABLE IF NOT EXISTS msp_rc (
+      ts    TIMESTAMP NOT NULL,
+      ch1   SMALLINT, ch2   SMALLINT, ch3   SMALLINT, ch4   SMALLINT,
+      ch5   SMALLINT, ch6   SMALLINT, ch7   SMALLINT, ch8   SMALLINT,
+      ch9   SMALLINT, ch10  SMALLINT, ch11  SMALLINT, ch12  SMALLINT,
+      ch13  SMALLINT, ch14  SMALLINT, ch15  SMALLINT, ch16  SMALLINT
+    );
+  ''';
+
+  static const allTables = [
+    createMspAttitude,
+    createMspGps,
+    createMspAnalog,
+    createMspStatus,
+    createMspAltitude,
+    createMspRc,
+  ];
+}

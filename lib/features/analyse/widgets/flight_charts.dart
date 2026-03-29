@@ -56,6 +56,9 @@ class _FlightChartsState extends State<FlightCharts> {
   // Events detected from flight data
   List<ChartEvent> _events = [];
 
+  // Whether the loaded flight used MSP (vs MAVLink)
+  bool _isMspFlight = false;
+
   // Summary stats
   double _maxAlt = 0;
   double _maxSpeed = 0;
@@ -135,40 +138,85 @@ class _FlightChartsState extends State<FlightCharts> {
   }
 
   Future<void> _loadAltitudeSpeed() async {
-    final result = await widget.store
+    // Try MAVLink first, fall back to MSP tables
+    final mavResult = await widget.store
         .query('SELECT ts, airspeed, groundspeed, climb FROM vfr_hud ORDER BY ts');
-    if (result.rowCount == 0) return;
-    final startTime = _parseTimestamp(result.rows.first[0]);
-    _airspeed = _toSpots(result.rows, 0, 1, startTime);
-    _groundspeed = _toSpots(result.rows, 0, 2, startTime);
-    _climbRate = _toSpots(result.rows, 0, 3, startTime);
+    if (mavResult.rowCount > 0) {
+      final startTime = _parseTimestamp(mavResult.rows.first[0]);
+      _airspeed = _toSpots(mavResult.rows, 0, 1, startTime);
+      _groundspeed = _toSpots(mavResult.rows, 0, 2, startTime);
+      _climbRate = _toSpots(mavResult.rows, 0, 3, startTime);
 
-    final altResult = await widget.store
-        .query('SELECT ts, alt_rel, alt_msl FROM gps ORDER BY ts');
-    if (altResult.rowCount == 0) return;
-    _altitudeRel = _toSpots(altResult.rows, 0, 1, startTime);
-    _altitudeMsl = _toSpots(altResult.rows, 0, 2, startTime);
+      final altResult = await widget.store
+          .query('SELECT ts, alt_rel, alt_msl FROM gps ORDER BY ts');
+      if (altResult.rowCount > 0) {
+        _altitudeRel = _toSpots(altResult.rows, 0, 1, startTime);
+        _altitudeMsl = _toSpots(altResult.rows, 0, 2, startTime);
+      }
+      return;
+    }
+
+    // MSP fallback
+    final mspGps = await widget.store
+        .query('SELECT ts, speed_ms, altitude_m FROM msp_gps ORDER BY ts');
+    final mspAlt = await widget.store
+        .query('SELECT ts, altitude_rel_m, climb_ms FROM msp_altitude ORDER BY ts');
+    if (mspGps.rowCount == 0 && mspAlt.rowCount == 0) return;
+
+    final startTime = mspGps.rowCount > 0
+        ? _parseTimestamp(mspGps.rows.first[0])
+        : _parseTimestamp(mspAlt.rows.first[0]);
+    if (mspGps.rowCount > 0) {
+      _groundspeed = _toSpots(mspGps.rows, 0, 1, startTime);
+      _altitudeMsl = _toSpots(mspGps.rows, 0, 2, startTime);
+    }
+    if (mspAlt.rowCount > 0) {
+      _altitudeRel = _toSpots(mspAlt.rows, 0, 1, startTime);
+      _climbRate = _toSpots(mspAlt.rows, 0, 2, startTime);
+    }
   }
 
   Future<void> _loadBattery() async {
+    // Try MAVLink first, fall back to MSP tables
     final result = await widget.store
         .query('SELECT ts, voltage, remaining_pct FROM battery ORDER BY ts');
-    if (result.rowCount == 0) return;
-    final startTime = _parseTimestamp(result.rows.first[0]);
-    _voltage = _toSpots(result.rows, 0, 1, startTime);
-    _batteryPct = _toSpots(result.rows, 0, 2, startTime);
+    if (result.rowCount > 0) {
+      final startTime = _parseTimestamp(result.rows.first[0]);
+      _voltage = _toSpots(result.rows, 0, 1, startTime);
+      _batteryPct = _toSpots(result.rows, 0, 2, startTime);
+      return;
+    }
+
+    // MSP fallback
+    final mspResult = await widget.store
+        .query('SELECT ts, voltage_v, remaining_pct FROM msp_analog ORDER BY ts');
+    if (mspResult.rowCount == 0) return;
+    final startTime = _parseTimestamp(mspResult.rows.first[0]);
+    _voltage = _toSpots(mspResult.rows, 0, 1, startTime);
+    _batteryPct = _toSpots(mspResult.rows, 0, 2, startTime);
   }
 
   Future<void> _loadGps() async {
+    // Try MAVLink first, fall back to MSP tables
     final result = await widget.store
         .query('SELECT ts, satellites, hdop FROM gps ORDER BY ts');
-    if (result.rowCount == 0) return;
-    final startTime = _parseTimestamp(result.rows.first[0]);
-    _satellites = _toSpots(result.rows, 0, 1, startTime);
-    _hdop = _toSpots(result.rows, 0, 2, startTime);
+    if (result.rowCount > 0) {
+      final startTime = _parseTimestamp(result.rows.first[0]);
+      _satellites = _toSpots(result.rows, 0, 1, startTime);
+      _hdop = _toSpots(result.rows, 0, 2, startTime);
+      return;
+    }
+
+    // MSP fallback (no hdop available from MSP)
+    final mspResult = await widget.store
+        .query('SELECT ts, num_sat FROM msp_gps ORDER BY ts');
+    if (mspResult.rowCount == 0) return;
+    final startTime = _parseTimestamp(mspResult.rows.first[0]);
+    _satellites = _toSpots(mspResult.rows, 0, 1, startTime);
   }
 
   Future<void> _loadVibration() async {
+    // Vibration data is MAVLink-only; MSP has no equivalent
     final result = await widget.store
         .query('SELECT ts, vibe_x, vibe_y, vibe_z FROM vibration ORDER BY ts');
     if (result.rowCount == 0) return;
@@ -179,41 +227,95 @@ class _FlightChartsState extends State<FlightCharts> {
   }
 
   Future<void> _loadAttitude() async {
+    // Try MAVLink first (radians → degrees), fall back to MSP (already degrees)
     final result = await widget.store.query(
       'SELECT ts, roll * 57.2958 AS roll_deg, pitch * 57.2958 AS pitch_deg '
       'FROM attitude WHERE rowid % 10 = 0 ORDER BY ts',
     );
-    if (result.rowCount == 0) return;
-    final startTime = _parseTimestamp(result.rows.first[0]);
-    _roll = _toSpots(result.rows, 0, 1, startTime);
-    _pitch = _toSpots(result.rows, 0, 2, startTime);
+    if (result.rowCount > 0) {
+      final startTime = _parseTimestamp(result.rows.first[0]);
+      _roll = _toSpots(result.rows, 0, 1, startTime);
+      _pitch = _toSpots(result.rows, 0, 2, startTime);
+      return;
+    }
+
+    // MSP fallback (already in degrees)
+    final mspResult = await widget.store.query(
+      'SELECT ts, roll, pitch FROM msp_attitude WHERE rowid % 10 = 0 ORDER BY ts',
+    );
+    if (mspResult.rowCount == 0) return;
+    final startTime = _parseTimestamp(mspResult.rows.first[0]);
+    _roll = _toSpots(mspResult.rows, 0, 1, startTime);
+    _pitch = _toSpots(mspResult.rows, 0, 2, startTime);
   }
 
   Future<void> _loadSummary() async {
     try {
-      final result = await widget.store.query('''
-        SELECT
-          (SELECT COUNT(*) FROM gps) AS gps_rows,
-          (SELECT MAX(alt_rel) FROM gps) AS max_alt,
-          (SELECT MAX(airspeed) FROM vfr_hud) AS max_ias,
-          (SELECT AVG(groundspeed) FROM vfr_hud) AS avg_gs,
-          (SELECT MIN(voltage) FROM battery) AS min_v
-      ''');
-      if (result.rowCount > 0) {
-        final row = result.rows.first;
-        _totalRows = (row[0] as num?)?.toInt() ?? 0;
-        _maxAlt = (row[1] as num?)?.toDouble() ?? 0;
-        _maxSpeed = (row[2] as num?)?.toDouble() ?? 0;
-        _avgGroundspeed = (row[3] as num?)?.toDouble() ?? 0;
-        _minVoltage = (row[4] as num?)?.toDouble() ?? 0;
-      }
+      // Read the protocol recorded at flight creation — definitive, not inferred.
+      final metaResult = await widget.store.query(
+        "SELECT value FROM flight_meta WHERE key = 'protocol'",
+      );
+      final protocol = metaResult.rowCount > 0
+          ? metaResult.rows.first[0].toString()
+          : 'mavlink';
+      _isMspFlight = protocol == 'msp';
 
-      final timeResult =
-          await widget.store.query('SELECT MIN(ts), MAX(ts) FROM gps');
-      if (timeResult.rowCount > 0 && timeResult.rows.first[0] != null) {
-        final start = _parseTimestamp(timeResult.rows.first[0]);
-        final end = _parseTimestamp(timeResult.rows.first[1]);
-        _duration = end.difference(start);
+      if (!_isMspFlight) {
+        final result = await widget.store.query('''
+          SELECT
+            (SELECT COUNT(*) FROM gps) AS gps_rows,
+            (SELECT MAX(alt_rel) FROM gps) AS max_alt,
+            (SELECT MAX(airspeed) FROM vfr_hud) AS max_ias,
+            (SELECT AVG(groundspeed) FROM vfr_hud) AS avg_gs,
+            (SELECT MIN(voltage) FROM battery) AS min_v
+        ''');
+        if (result.rowCount > 0) {
+          final row = result.rows.first;
+          _totalRows = (row[0] as num?)?.toInt() ?? 0;
+          _maxAlt = (row[1] as num?)?.toDouble() ?? 0;
+          _maxSpeed = (row[2] as num?)?.toDouble() ?? 0;
+          _avgGroundspeed = (row[3] as num?)?.toDouble() ?? 0;
+          _minVoltage = (row[4] as num?)?.toDouble() ?? 0;
+        }
+
+        final timeResult =
+            await widget.store.query('SELECT MIN(ts), MAX(ts) FROM gps');
+        if (timeResult.rowCount > 0 && timeResult.rows.first[0] != null) {
+          final start = _parseTimestamp(timeResult.rows.first[0]);
+          final end = _parseTimestamp(timeResult.rows.first[1]);
+          _duration = end.difference(start);
+        }
+      } else {
+        // MSP: stats from MSP tables.
+        final result = await widget.store.query('''
+          SELECT
+            (SELECT COUNT(*) FROM msp_gps) AS gps_rows,
+            (SELECT MAX(altitude_rel_m) FROM msp_altitude) AS max_alt,
+            (SELECT MAX(speed_ms) FROM msp_gps) AS max_gs,
+            (SELECT AVG(speed_ms) FROM msp_gps) AS avg_gs,
+            (SELECT MIN(voltage_v) FROM msp_analog) AS min_v
+        ''');
+        if (result.rowCount > 0) {
+          final row = result.rows.first;
+          _totalRows = (row[0] as num?)?.toInt() ?? 0;
+          _maxAlt = (row[1] as num?)?.toDouble() ?? 0;
+          _maxSpeed = (row[2] as num?)?.toDouble() ?? 0;
+          _avgGroundspeed = (row[3] as num?)?.toDouble() ?? 0;
+          _minVoltage = (row[4] as num?)?.toDouble() ?? 0;
+        }
+
+        // Duration: prefer msp_gps timestamps; fall back to msp_attitude
+        // so duration is correct even when GPS has no fix.
+        for (final table in ['msp_gps', 'msp_altitude', 'msp_attitude']) {
+          final tr = await widget.store
+              .query('SELECT MIN(ts), MAX(ts) FROM $table');
+          if (tr.rowCount > 0 && tr.rows.first[0] != null) {
+            final start = _parseTimestamp(tr.rows.first[0]);
+            final end = _parseTimestamp(tr.rows.first[1]);
+            _duration = end.difference(start);
+            break;
+          }
+        }
       }
     } catch (_) {}
   }
@@ -221,23 +323,46 @@ class _FlightChartsState extends State<FlightCharts> {
   Future<void> _loadEvents() async {
     final detected = <ChartEvent>[];
     try {
-      // Auto-detect takeoff: first point where alt_rel > 2m
-      final takeoff = await widget.store.query(
-        'SELECT ts FROM gps WHERE alt_rel > 2 ORDER BY ts LIMIT 1',
+      // Use the authoritative protocol from flight_meta (same as _loadSummary).
+      final metaResult = await widget.store.query(
+        "SELECT value FROM flight_meta WHERE key = 'protocol'",
       );
-      DateTime? flightStart;
-      if (takeoff.rowCount > 0) {
-        flightStart = _parseTimestamp(takeoff.rows.first[0]);
-      }
+      final isMsp = metaResult.rowCount > 0 &&
+          metaResult.rows.first[0].toString() == 'msp';
 
-      // Get flight start time for relative calculation
-      final startResult =
-          await widget.store.query('SELECT MIN(ts) FROM gps');
-      if (startResult.rowCount == 0 || startResult.rows.first[0] == null) {
-        _events = [];
-        return;
+      // Auto-detect takeoff and set start reference
+      DateTime? flightStart;
+      DateTime start;
+
+      if (!isMsp) {
+        final takeoff = await widget.store.query(
+          'SELECT ts FROM gps WHERE alt_rel > 2 ORDER BY ts LIMIT 1',
+        );
+        if (takeoff.rowCount > 0) {
+          flightStart = _parseTimestamp(takeoff.rows.first[0]);
+        }
+        final startResult = await widget.store.query('SELECT MIN(ts) FROM gps');
+        if (startResult.rowCount == 0 || startResult.rows.first[0] == null) {
+          _events = [];
+          return;
+        }
+        start = _parseTimestamp(startResult.rows.first[0]);
+      } else {
+        // MSP: use msp_altitude for takeoff detection
+        final takeoff = await widget.store.query(
+          'SELECT ts FROM msp_altitude WHERE altitude_rel_m > 2 ORDER BY ts LIMIT 1',
+        );
+        if (takeoff.rowCount > 0) {
+          flightStart = _parseTimestamp(takeoff.rows.first[0]);
+        }
+        final startResult =
+            await widget.store.query('SELECT MIN(ts) FROM msp_gps');
+        if (startResult.rowCount == 0 || startResult.rows.first[0] == null) {
+          _events = [];
+          return;
+        }
+        start = _parseTimestamp(startResult.rows.first[0]);
       }
-      final start = _parseTimestamp(startResult.rows.first[0]);
 
       if (flightStart != null) {
         detected.add(ChartEvent(
@@ -250,10 +375,10 @@ class _FlightChartsState extends State<FlightCharts> {
 
       // Auto-detect landing: last point where alt_rel drops below 2m after takeoff
       if (flightStart != null) {
-        final landing = await widget.store.query(
-          "SELECT ts FROM gps WHERE alt_rel < 2 AND ts > '${_ts(flightStart)}' "
-          'ORDER BY ts DESC LIMIT 1',
-        );
+        final landingQuery = !isMsp
+            ? "SELECT ts FROM gps WHERE alt_rel < 2 AND ts > '${_ts(flightStart)}' ORDER BY ts DESC LIMIT 1"
+            : "SELECT ts FROM msp_altitude WHERE altitude_rel_m < 2 AND ts > '${_ts(flightStart)}' ORDER BY ts DESC LIMIT 1";
+        final landing = await widget.store.query(landingQuery);
         if (landing.rowCount > 0) {
           final landTime = _parseTimestamp(landing.rows.first[0]);
           detected.add(ChartEvent(
@@ -349,15 +474,30 @@ class _FlightChartsState extends State<FlightCharts> {
           ],
           yLabel: 'm',
         ),
-      if (_airspeed.isNotEmpty)
+      // Speed: show both if MAVLink, groundspeed-only if MSP
+      if (_groundspeed.isNotEmpty || _airspeed.isNotEmpty)
         _ChartDef(
           id: 'speed',
           title: 'Speed',
           series: [
-            ChartSeries('Airspeed', _airspeed, HeliosColors.dark.accent),
-            ChartSeries('Groundspeed', _groundspeed, HeliosColors.dark.success),
+            if (_airspeed.isNotEmpty)
+              ChartSeries('Airspeed', _airspeed, HeliosColors.dark.accent),
+            if (_groundspeed.isNotEmpty)
+              ChartSeries('Groundspeed', _groundspeed, HeliosColors.dark.success),
           ],
           yLabel: 'm/s',
+        ),
+      // Airspeed unavailable for MSP
+      if (_isMspFlight)
+        _ChartDef(
+          id: 'airspeed',
+          title: 'Airspeed',
+          series: const [],
+          yLabel: '',
+          unavailableReason:
+              'Airspeed not available via MSP — Betaflight/iNav do not '
+              'expose airspeed sensor data over MSP. Use an external '
+              'pitot sensor with MAVLink for airspeed telemetry.',
         ),
       if (_climbRate.isNotEmpty)
         _ChartDef(
@@ -410,6 +550,18 @@ class _FlightChartsState extends State<FlightCharts> {
           yLabel: '',
           minY: 0,
         ),
+      // HDOP unavailable for MSP
+      if (_isMspFlight)
+        _ChartDef(
+          id: 'hdop',
+          title: 'HDOP',
+          series: const [],
+          yLabel: '',
+          unavailableReason:
+              'HDOP not available via MSP — MSP_RAW_GPS does not include '
+              'dilution of precision fields. Switch to MAVLink for '
+              'full GPS quality reporting.',
+        ),
       if (_vibeX.isNotEmpty)
         _ChartDef(
           id: 'vibration',
@@ -420,6 +572,18 @@ class _FlightChartsState extends State<FlightCharts> {
             ChartSeries('Z', _vibeZ, HeliosColors.dark.accent),
           ],
           yLabel: 'm/s\u00B2',
+        ),
+      // Vibration unavailable for MSP
+      if (_isMspFlight)
+        _ChartDef(
+          id: 'vibration',
+          title: 'Vibration',
+          series: const [],
+          yLabel: '',
+          unavailableReason:
+              'Vibration data not available via MSP — Betaflight/iNav do not '
+              'stream IMU vibration metrics over MSP. Use Blackbox logging '
+              'for gyro/accelerometer noise analysis.',
         ),
     ];
   }
@@ -499,7 +663,20 @@ class _FlightChartsState extends State<FlightCharts> {
             style: TextStyle(color: hc.danger)),
       );
     }
-    if (_totalRows == 0 && _airspeed.isEmpty) {
+    // Gate: show placeholder only when truly no series has any data.
+    // _totalRows counts GPS rows (MAVLink) or msp_gps rows.
+    // For MSP, _airspeed is always empty and GPS may be absent (no fix),
+    // so check all series rather than only GPS/airspeed.
+    final hasAnyData = _totalRows > 0 ||
+        _altitudeRel.isNotEmpty ||
+        _altitudeMsl.isNotEmpty ||
+        _airspeed.isNotEmpty ||
+        _groundspeed.isNotEmpty ||
+        _climbRate.isNotEmpty ||
+        _roll.isNotEmpty ||
+        _voltage.isNotEmpty ||
+        _satellites.isNotEmpty;
+    if (!hasAnyData) {
       return Center(
         child: Text('No telemetry data in this flight',
             style: TextStyle(color: hc.textTertiary)),
@@ -613,6 +790,7 @@ class _FlightChartsState extends State<FlightCharts> {
             maxSpeed: _maxSpeed,
             avgSpeed: _avgGroundspeed,
             minVoltage: _minVoltage,
+            isMsp: _isMspFlight,
           ),
         ),
         const SizedBox(height: 4),
@@ -749,6 +927,12 @@ class _FlightChartsState extends State<FlightCharts> {
             itemCount: _visibleDefs.length,
             itemBuilder: (context, index) {
               final def = _visibleDefs[index];
+              if (def.unavailableReason != null) {
+                return _ChartCard(
+                  title: def.title,
+                  chart: _UnavailablePlaceholder(reason: def.unavailableReason!),
+                );
+              }
               return _ChartCard(
                 title: def.title,
                 chart: SyncedLineChart(
@@ -796,6 +980,7 @@ class _ChartDef {
     this.minY,
     this.maxY,
     this.referenceLines = const [],
+    this.unavailableReason,
   });
 
   final String id;
@@ -805,11 +990,49 @@ class _ChartDef {
   final double? minY;
   final double? maxY;
   final List<ChartReferenceLine> referenceLines;
+  /// If non-null, renders a "not available" placeholder instead of a chart.
+  final String? unavailableReason;
 }
 
 // -----------------------------------------------------------------------------
 // Summary widgets
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Unavailable-feature placeholder
+// -----------------------------------------------------------------------------
+
+class _UnavailablePlaceholder extends StatelessWidget {
+  const _UnavailablePlaceholder({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    return Container(
+      height: 72,
+      decoration: BoxDecoration(
+        color: hc.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: hc.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 15, color: hc.textTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              reason,
+              style: HeliosTypography.caption.copyWith(color: hc.textTertiary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
@@ -818,6 +1041,7 @@ class _SummaryRow extends StatelessWidget {
     required this.maxSpeed,
     required this.avgSpeed,
     required this.minVoltage,
+    this.isMsp = false,
   });
 
   final Duration duration;
@@ -825,11 +1049,14 @@ class _SummaryRow extends StatelessWidget {
   final double maxSpeed;
   final double avgSpeed;
   final double minVoltage;
+  final bool isMsp;
 
   @override
   Widget build(BuildContext context) {
     final mins = duration.inMinutes;
     final secs = duration.inSeconds % 60;
+    // MAVLink reports airspeed from VFR_HUD; MSP only has groundspeed.
+    final speedLabel = isMsp ? 'Max GS' : 'Max IAS';
     return Row(
       children: [
         _SummaryCard(
@@ -841,7 +1068,7 @@ class _SummaryRow extends StatelessWidget {
             value: maxAlt.toStringAsFixed(0),
             unit: 'm'),
         _SummaryCard(
-            label: 'Max IAS',
+            label: speedLabel,
             value: maxSpeed.toStringAsFixed(1),
             unit: 'm/s'),
         _SummaryCard(
