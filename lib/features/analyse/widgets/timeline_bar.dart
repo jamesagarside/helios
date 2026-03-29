@@ -5,10 +5,18 @@ import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
 import 'synced_line_chart.dart';
 
+enum _DragTarget { none, leftHandle, rightHandle, pan, crosshair }
+
 /// A scrub-able timeline bar that shows the full flight duration, a miniature
 /// altitude profile, the currently visible zoom range, event markers, and a
 /// draggable playhead synced to the shared [crosshairX].
-class TimelineBar extends StatelessWidget {
+///
+/// Interaction model:
+/// - Drag left/right handles → resize the zoom window
+/// - Drag inside zoom window → pan the window left/right
+/// - Tap outside zoom window → move crosshair
+/// - Scroll anywhere → zoom in/out centred on cursor
+class TimelineBar extends StatefulWidget {
   const TimelineBar({
     super.key,
     required this.crosshairX,
@@ -33,43 +41,63 @@ class TimelineBar extends StatelessWidget {
   final double height;
 
   @override
+  State<TimelineBar> createState() => _TimelineBarState();
+}
+
+class _TimelineBarState extends State<TimelineBar> {
+  _DragTarget _dragTarget = _DragTarget.none;
+  double _panStartViewMin = 0;
+  double _panStartViewMax = 0;
+  double _panStartX = 0;
+
+  static const _handleHitZone = 10.0; // px around handle that triggers resize
+
+  @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height,
+      height: widget.height,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final barWidth = constraints.maxWidth;
 
           return Listener(
             onPointerSignal: (event) {
-              if (event is PointerScrollEvent && onZoom != null) {
+              if (event is PointerScrollEvent && widget.onZoom != null) {
                 final fraction =
                     (event.localPosition.dx / barWidth).clamp(0.0, 1.0);
-                final atX = totalDuration * fraction;
-                onZoom!(event.scrollDelta.dy, atX);
+                final atX = widget.totalDuration * fraction;
+                widget.onZoom!(event.scrollDelta.dy, atX);
               }
             },
             child: GestureDetector(
-              onHorizontalDragUpdate: (details) => _onScrub(details, barWidth),
-              onTapDown: (details) => _onTap(details, barWidth),
+              onHorizontalDragStart: (d) =>
+                  _onDragStart(d, barWidth),
+              onHorizontalDragUpdate: (d) =>
+                  _onDragUpdate(d, barWidth),
+              onHorizontalDragEnd: (_) =>
+                  _dragTarget = _DragTarget.none,
+              onTapDown: (d) => _onTap(d, barWidth),
               child: ListenableBuilder(
-                listenable:
-                    Listenable.merge([crosshairX, viewMinX, viewMaxX]),
+                listenable: Listenable.merge(
+                    [widget.crosshairX, widget.viewMinX, widget.viewMaxX]),
                 builder: (context, _) {
                   final hc = context.hc;
-                  return CustomPaint(
-                    size: Size(barWidth, height),
-                    painter: _TimelinePainter(
-                      crosshairX: crosshairX.value,
-                      viewMinX: viewMinX.value,
-                      viewMaxX: viewMaxX.value,
-                      totalDuration: totalDuration,
-                      referenceSeries: referenceSeries,
-                      events: events,
-                      surfaceDimColor: hc.surfaceDim,
-                      backgroundDimColor: hc.background,
-                      accentColor: hc.accent,
-                      textTertiaryColor: hc.textTertiary,
+                  return MouseRegion(
+                    cursor: _cursorForPosition(barWidth),
+                    child: CustomPaint(
+                      size: Size(barWidth, widget.height),
+                      painter: _TimelinePainter(
+                        crosshairX: widget.crosshairX.value,
+                        viewMinX: widget.viewMinX.value,
+                        viewMaxX: widget.viewMaxX.value,
+                        totalDuration: widget.totalDuration,
+                        referenceSeries: widget.referenceSeries,
+                        events: widget.events,
+                        surfaceDimColor: hc.surfaceDim,
+                        backgroundDimColor: hc.background,
+                        accentColor: hc.accent,
+                        textTertiaryColor: hc.textTertiary,
+                      ),
                     ),
                   );
                 },
@@ -81,16 +109,78 @@ class TimelineBar extends StatelessWidget {
     );
   }
 
-  void _onScrub(DragUpdateDetails details, double barWidth) {
-    if (totalDuration <= 0 || barWidth <= 0) return;
-    final fraction = (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
-    crosshairX.value = totalDuration * fraction;
+  /// Determine which zone was tapped/dragged at [localX].
+  _DragTarget _hitTest(double localX, double barWidth) {
+    if (widget.totalDuration <= 0 || barWidth <= 0) return _DragTarget.none;
+    final leftPx = (widget.viewMinX.value / widget.totalDuration) * barWidth;
+    final rightPx = (widget.viewMaxX.value / widget.totalDuration) * barWidth;
+    if ((localX - leftPx).abs() <= _handleHitZone) return _DragTarget.leftHandle;
+    if ((localX - rightPx).abs() <= _handleHitZone) return _DragTarget.rightHandle;
+    if (localX > leftPx && localX < rightPx) return _DragTarget.pan;
+    return _DragTarget.crosshair;
+  }
+
+  MouseCursor _cursorForPosition(double barWidth) {
+    // Always returns system mouse cursor based on drag state or current position.
+    // We can't read mouse position here without a StatefulWidget hover tracker,
+    // so use the active drag target to change cursor during drag.
+    return switch (_dragTarget) {
+      _DragTarget.leftHandle || _DragTarget.rightHandle =>
+        SystemMouseCursors.resizeLeftRight,
+      _DragTarget.pan => SystemMouseCursors.grabbing,
+      _ => SystemMouseCursors.basic,
+    };
+  }
+
+  void _onDragStart(DragStartDetails details, double barWidth) {
+    _dragTarget = _hitTest(details.localPosition.dx, barWidth);
+    if (_dragTarget == _DragTarget.pan) {
+      _panStartViewMin = widget.viewMinX.value;
+      _panStartViewMax = widget.viewMaxX.value;
+      _panStartX = details.localPosition.dx;
+    }
+  }
+
+  void _onDragUpdate(DragUpdateDetails details, double barWidth) {
+    if (widget.totalDuration <= 0 || barWidth <= 0) return;
+    final dx = details.localPosition.dx;
+
+    switch (_dragTarget) {
+      case _DragTarget.leftHandle:
+        final newMin = ((dx / barWidth) * widget.totalDuration)
+            .clamp(0.0, widget.viewMaxX.value - 1.0);
+        widget.viewMinX.value = newMin;
+
+      case _DragTarget.rightHandle:
+        final newMax = ((dx / barWidth) * widget.totalDuration)
+            .clamp(widget.viewMinX.value + 1.0, widget.totalDuration);
+        widget.viewMaxX.value = newMax;
+
+      case _DragTarget.pan:
+        final dSeconds = ((dx - _panStartX) / barWidth) * widget.totalDuration;
+        final range = _panStartViewMax - _panStartViewMin;
+        final newMin = (_panStartViewMin + dSeconds)
+            .clamp(0.0, widget.totalDuration - range);
+        widget.viewMinX.value = newMin;
+        widget.viewMaxX.value = newMin + range;
+
+      case _DragTarget.crosshair:
+        final fraction = (dx / barWidth).clamp(0.0, 1.0);
+        widget.crosshairX.value = widget.totalDuration * fraction;
+
+      case _DragTarget.none:
+        break;
+    }
   }
 
   void _onTap(TapDownDetails details, double barWidth) {
-    if (totalDuration <= 0 || barWidth <= 0) return;
-    final fraction = (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
-    crosshairX.value = totalDuration * fraction;
+    if (widget.totalDuration <= 0 || barWidth <= 0) return;
+    final target = _hitTest(details.localPosition.dx, barWidth);
+    if (target == _DragTarget.crosshair || target == _DragTarget.none) {
+      final fraction =
+          (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
+      widget.crosshairX.value = widget.totalDuration * fraction;
+    }
   }
 }
 
