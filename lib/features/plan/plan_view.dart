@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:dart_mavlink/dart_mavlink.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -122,6 +124,33 @@ class _PlanViewState extends ConsumerState<PlanView> {
           MarkerLayer(
             markers: _buildDirectionArrows(items, hc),
           ),
+
+        // Loiter radius circle for selected loiter waypoint
+        if (editState.hasSelection) ...[
+          () {
+            final sel = editState.selectedItem!;
+            final isLoiter = sel.command == MavCmd.navLoiterUnlim ||
+                sel.command == MavCmd.navLoiterTurns ||
+                sel.command == MavCmd.navLoiterTime ||
+                sel.command == MavCmd.navLoiterToAlt;
+            final radius = sel.param3.abs();
+            if (isLoiter && radius > 0 && sel.isNavCommand) {
+              return CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: LatLng(sel.latitude, sel.longitude),
+                    radius: radius,
+                    useRadiusInMeter: true,
+                    color: hc.accent.withValues(alpha: 0.1),
+                    borderColor: hc.accent.withValues(alpha: 0.6),
+                    borderStrokeWidth: 2,
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink();
+          }(),
+        ],
 
         // Waypoint markers
         if (items.isNotEmpty)
@@ -510,6 +539,17 @@ class _PlanViewState extends ConsumerState<PlanView> {
                 ),
         ),
 
+        // Altitude profile chart
+        if (editState.items.where((i) => i.isNavCommand).length >= 2) ...[
+          Divider(height: 1, color: hc.border),
+          _AltitudeProfileChart(
+            items: editState.items.where((i) => i.isNavCommand).toList(),
+            selectedSeq: editState.selectedIndex,
+            onSelectSeq: (seq) =>
+                ref.read(missionEditProvider.notifier).select(seq),
+          ),
+        ],
+
         // Waypoint editor (when selected)
         if (editState.hasSelection) ...[
           Divider(height: 1, color: hc.border),
@@ -726,6 +766,146 @@ class _MapButton extends StatelessWidget {
           color: onPressed != null
               ? hc.textPrimary
               : hc.textTertiary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Altitude profile chart shown in the side panel.
+/// X-axis: cumulative distance (km), Y-axis: altitude (m).
+class _AltitudeProfileChart extends StatelessWidget {
+  const _AltitudeProfileChart({
+    required this.items,
+    required this.selectedSeq,
+    required this.onSelectSeq,
+  });
+
+  final List<MissionItem> items;
+  final int selectedSeq;
+  final ValueChanged<int> onSelectSeq;
+
+  /// Haversine distance in metres between two lat/lon points.
+  static double _dist(MissionItem a, MissionItem b) {
+    const r = 6371000.0;
+    final lat1 = a.latitude * math.pi / 180;
+    final lat2 = b.latitude * math.pi / 180;
+    final dLat = (b.latitude - a.latitude) * math.pi / 180;
+    final dLon = (b.longitude - a.longitude) * math.pi / 180;
+    final s = math.pow(math.sin(dLat / 2), 2) +
+        math.pow(math.sin(dLon / 2), 2) * math.cos(lat1) * math.cos(lat2);
+    return r * 2.0 * math.asin(math.sqrt(s.clamp(0.0, 1.0)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+
+    // Build (cumDistKm, altitude) pairs
+    final spots = <FlSpot>[];
+    var cumDist = 0.0;
+    for (var i = 0; i < items.length; i++) {
+      if (i > 0) cumDist += _dist(items[i - 1], items[i]) / 1000;
+      spots.add(FlSpot(cumDist, items[i].altitude));
+    }
+
+    // Selected spot index in nav items list
+    final selIdx = items.indexWhere((it) => it.seq == selectedSeq);
+
+    return SizedBox(
+      height: 100,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 12, 4),
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              horizontalInterval: 50,
+              getDrawingHorizontalLine: (_) => FlLine(
+                color: hc.border.withValues(alpha: 0.5),
+                strokeWidth: 0.5,
+              ),
+              drawVerticalLine: false,
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 36,
+                  interval: 50,
+                  getTitlesWidget: (v, _) => Text(
+                    '${v.toInt()}m',
+                    style: TextStyle(
+                      color: hc.textTertiary,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 16,
+                  getTitlesWidget: (v, _) => Text(
+                    '${v.toStringAsFixed(1)}km',
+                    style: TextStyle(
+                      color: hc.textTertiary,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ),
+              topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false)),
+            ),
+            lineTouchData: LineTouchData(
+              touchCallback: (event, response) {
+                if (event is! FlTapUpEvent) return;
+                final idx = response?.lineBarSpots?.firstOrNull?.spotIndex;
+                if (idx != null && idx < items.length) {
+                  onSelectSeq(items[idx].seq);
+                }
+              },
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (spots) => spots
+                    .map((s) => LineTooltipItem(
+                          '${s.y.toStringAsFixed(0)}m',
+                          TextStyle(
+                            color: hc.textPrimary,
+                            fontSize: 10,
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: false,
+                color: hc.accent,
+                barWidth: 1.5,
+                dotData: FlDotData(
+                  show: true,
+                  getDotPainter: (spot, _, _, idx) {
+                    final isSelected = idx == selIdx;
+                    return FlDotCirclePainter(
+                      radius: isSelected ? 5 : 3,
+                      color: isSelected ? hc.accent : hc.surface,
+                      strokeWidth: isSelected ? 0 : 1.5,
+                      strokeColor: hc.accent,
+                    );
+                  },
+                ),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: hc.accent.withValues(alpha: 0.08),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
