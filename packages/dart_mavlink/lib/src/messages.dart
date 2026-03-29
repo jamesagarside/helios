@@ -246,6 +246,9 @@ class SysStatusMessage extends MavlinkMessage {
     required this.voltageBattery,
     required this.currentBattery,
     required this.batteryRemaining,
+    required this.onboardControlSensorsPresent,
+    required this.onboardControlSensorsEnabled,
+    required this.onboardControlSensorsHealth,
   });
 
   @override
@@ -261,6 +264,11 @@ class SysStatusMessage extends MavlinkMessage {
   final int currentBattery;   // cA (10 * mA)
   final int batteryRemaining; // %, -1 = unknown
 
+  /// MAV_SYS_STATUS_SENSOR bitmasks from SYS_STATUS payload bytes 0–11.
+  final int onboardControlSensorsPresent;
+  final int onboardControlSensorsEnabled;
+  final int onboardControlSensorsHealth;
+
   double get voltageVolts => voltageBattery / 1000.0;
   double get currentAmps => currentBattery / 100.0;
 
@@ -272,6 +280,9 @@ class SysStatusMessage extends MavlinkMessage {
       systemId: sysId,
       componentId: compId,
       sequence: seq,
+      onboardControlSensorsPresent: data.getUint32(0, Endian.little),
+      onboardControlSensorsEnabled: data.getUint32(4, Endian.little),
+      onboardControlSensorsHealth: data.getUint32(8, Endian.little),
       voltageBattery: data.getUint16(14, Endian.little),
       currentBattery: data.getInt16(16, Endian.little),
       batteryRemaining: data.getInt8(30),
@@ -1351,6 +1362,49 @@ class MountStatusMessage extends MavlinkMessage {
 }
 
 /// Unrecognised message — payload preserved for inspection.
+/// HOME_POSITION (msg_id=242) — home position set by FC.
+class HomePositionMessage extends MavlinkMessage {
+  HomePositionMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.latitude,
+    required this.longitude,
+    required this.altitude,
+  });
+
+  @override
+  final int messageId = 242;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int latitude;  // degE7
+  final int longitude; // degE7
+  final int altitude;  // mm MSL
+
+  double get latDeg => latitude / 1e7;
+  double get lonDeg => longitude / 1e7;
+  double get altMetres => altitude / 1000.0;
+
+  factory HomePositionMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return HomePositionMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      latitude: data.getInt32(12, Endian.little),
+      longitude: data.getInt32(16, Endian.little),
+      altitude: data.getInt32(20, Endian.little),
+    );
+  }
+}
+
 class UnknownMessage extends MavlinkMessage {
   UnknownMessage({
     required this.messageId,

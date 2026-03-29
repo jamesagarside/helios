@@ -14,6 +14,10 @@ class StatusBar extends StatelessWidget {
     this.currentWaypoint = -1,
     this.totalWaypoints = 0,
     this.alertCount = 0,
+    this.batteryVoltage = 0.0,
+    this.batteryRemaining = -1,
+    this.homeDistance = 0.0,
+    this.hasHome = false,
   });
 
   final String flightMode;
@@ -25,6 +29,10 @@ class StatusBar extends StatelessWidget {
   final int currentWaypoint;
   final int totalWaypoints;
   final int alertCount;
+  final double batteryVoltage;
+  final int batteryRemaining;   // -1 = unknown
+  final double homeDistance;    // metres
+  final bool hasHome;
 
   String _formatDuration(Duration d) {
     final hours = d.inHours.toString().padLeft(2, '0');
@@ -46,6 +54,29 @@ class StatusBar extends StatelessWidget {
     if (messageRate > 5) return hc.success;
     if (messageRate > 0) return hc.warning;
     return hc.textTertiary;
+  }
+
+  Color _batteryColor(HeliosColors hc) {
+    if (batteryRemaining < 0) return hc.textTertiary;
+    if (batteryRemaining <= 10) return hc.danger;
+    if (batteryRemaining <= 25) return hc.warning;
+    return hc.success;
+  }
+
+  String _batteryLabel() {
+    if (batteryRemaining >= 0) {
+      return '$batteryRemaining%  ${batteryVoltage.toStringAsFixed(1)}V';
+    }
+    if (batteryVoltage > 0) return '${batteryVoltage.toStringAsFixed(1)}V';
+    return '—';
+  }
+
+  String _homeDistLabel() {
+    if (!hasHome) return '—';
+    if (homeDistance >= 1000) {
+      return '${(homeDistance / 1000).toStringAsFixed(1)}km';
+    }
+    return '${homeDistance.round()}m';
   }
 
   @override
@@ -117,6 +148,28 @@ class StatusBar extends StatelessWidget {
                 color: _linkColor(hc),
                 mono: true,
               ),
+              // Battery
+              _Separator(color: hc.border),
+              _StatusChip(
+                icon: batteryRemaining > 20 || batteryRemaining < 0
+                    ? Icons.battery_full
+                    : batteryRemaining > 10
+                        ? Icons.battery_3_bar
+                        : Icons.battery_alert,
+                label: _batteryLabel(),
+                color: _batteryColor(hc),
+                mono: true,
+              ),
+              // Home distance
+              if (hasHome) ...[
+                _Separator(color: hc.border),
+                _StatusChip(
+                  icon: Icons.home_outlined,
+                  label: _homeDistLabel(),
+                  color: hc.textPrimary,
+                  mono: true,
+                ),
+              ],
               // Maintenance alerts badge
               if (alertCount > 0) ...[
                 _Separator(color: hc.border),

@@ -233,6 +233,7 @@ class MavlinkParser {
         148 => AutopilotVersionMessage.fromPayload(payload, sysId, compId, seq),
         158 => MountStatusMessage.fromPayload(payload, sysId, compId, seq),
         241 => VibrationMessage.fromPayload(payload, sysId, compId, seq),
+        242 => HomePositionMessage.fromPayload(payload, sysId, compId, seq),
         253 => StatusTextMessage.fromPayload(payload, sysId, compId, seq),
         _ => UnknownMessage(
             messageId: msgId,

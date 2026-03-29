@@ -50,6 +50,8 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
         _handleAutopilotVersion(msg);
       case MountStatusMessage():
         _handleMountStatus(msg);
+      case HomePositionMessage():
+        _handleHomePosition(msg);
       case VibrationMessage():
         break; // Recorded to DuckDB, no UI state update needed
       case StatusTextMessage():
@@ -159,6 +161,16 @@ class VehicleStateNotifier extends StateNotifier<VehicleState> {
       batteryVoltage: msg.voltageVolts,
       batteryCurrent: msg.currentAmps,
       batteryRemaining: msg.batteryRemaining,
+      sensorHealth: msg.onboardControlSensorsHealth,
+    );
+    _dirty = true;
+  }
+
+  void _handleHomePosition(HomePositionMessage msg) {
+    _pending = _pending.copyWith(
+      homeLatitude: msg.latDeg,
+      homeLongitude: msg.lonDeg,
+      homeAltitude: msg.altMetres,
     );
     _dirty = true;
   }

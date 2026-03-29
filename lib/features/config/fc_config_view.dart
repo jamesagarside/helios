@@ -514,10 +514,112 @@ class _PreArmTab extends ConsumerWidget {
               );
             }).toList(),
           ),
+          const SizedBox(height: 24),
+          _Section(
+            title: 'SENSOR HEALTH (SYS_STATUS)',
+            children: [
+              if (!connected || vehicle.sensorHealth == 0)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    connected
+                        ? 'Waiting for SYS_STATUS message...'
+                        : 'Connect to see sensor health.',
+                    style: TextStyle(color: hc.textTertiary, fontSize: 13),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _kSensors.map((s) {
+                      final healthy = (vehicle.sensorHealth & s.bit) != 0;
+                      return _SensorChip(
+                        label: s.label,
+                        healthy: healthy,
+                        present: true,
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
           if (!connected) ...[
             const SizedBox(height: 24),
             const _DisconnectedBanner(),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// MAV_SYS_STATUS_SENSOR bits we show in the sensor health grid.
+const _kSensors = [
+  _SensorDef(0x01,       '3D Gyro'),
+  _SensorDef(0x02,       '3D Accel'),
+  _SensorDef(0x04,       '3D Mag'),
+  _SensorDef(0x08,       'Abs Pressure'),
+  _SensorDef(0x10,       'Diff Pressure'),
+  _SensorDef(0x20,       'GPS'),
+  _SensorDef(0x40,       'Optical Flow'),
+  _SensorDef(0x80,       'Vision Pos'),
+  _SensorDef(0x100,      'Laser Pos'),
+  _SensorDef(0x200,      'Ext Ground Truth'),
+  _SensorDef(0x400,      'Rate Control'),
+  _SensorDef(0x800,      'Attitude'),
+  _SensorDef(0x1000,     'Yaw Pos'),
+  _SensorDef(0x2000,     'Z Altitude'),
+  _SensorDef(0x4000,     'XY Pos'),
+  _SensorDef(0x8000,     'Motor Outputs'),
+  _SensorDef(0x10000,    'RC Receiver'),
+  _SensorDef(0x20000000, 'Pre-arm Check'),
+  _SensorDef(0x40000000, 'Logging'),
+  _SensorDef(0x80000000, 'Battery'),
+];
+
+class _SensorDef {
+  const _SensorDef(this.bit, this.label);
+  final int bit;
+  final String label;
+}
+
+class _SensorChip extends StatelessWidget {
+  const _SensorChip({
+    required this.label,
+    required this.healthy,
+    required this.present,
+  });
+  final String label;
+  final bool healthy;
+  final bool present;
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    final color = healthy ? hc.success : hc.danger;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            healthy ? Icons.check_circle : Icons.cancel,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );

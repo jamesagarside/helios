@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:equatable/equatable.dart';
 
 /// Vehicle type enumeration from MAVLink MAV_TYPE.
@@ -98,6 +100,10 @@ class VehicleState extends Equatable {
     // RC channels (RC_CHANNELS)
     this.rcChannels = const [],
     this.rcChannelCount = 0,
+    // Home position (HOME_POSITION)
+    this.homeLatitude = 0.0,
+    this.homeLongitude = 0.0,
+    this.homeAltitude = 0.0,
   });
 
   // Identity
@@ -170,6 +176,11 @@ class VehicleState extends Equatable {
   final List<int> rcChannels;
   final int rcChannelCount;
 
+  // Home position (HOME_POSITION msg_id=242)
+  final double homeLatitude;
+  final double homeLongitude;
+  final double homeAltitude;
+
   /// Formatted firmware version string (e.g. "4.5.1").
   String get firmwareVersionString {
     if (firmwareVersionMajor == 0 && firmwareVersionMinor == 0) {
@@ -189,6 +200,22 @@ class VehicleState extends Equatable {
 
   /// Convenience — whether we have a valid GPS position.
   bool get hasPosition => latitude != 0.0 || longitude != 0.0;
+
+  /// Whether a home position has been set by the FC.
+  bool get hasHome => homeLatitude != 0.0 || homeLongitude != 0.0;
+
+  /// Distance from current position to home in metres (Haversine).
+  double get distanceToHome {
+    if (!hasHome || !hasPosition) return 0.0;
+    const r = 6371000.0;
+    final lat1 = latitude * math.pi / 180.0;
+    final lat2 = homeLatitude * math.pi / 180.0;
+    final dLat = (homeLatitude - latitude) * math.pi / 180.0;
+    final dLon = (homeLongitude - longitude) * math.pi / 180.0;
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.pow(math.sin(dLon / 2), 2) * math.cos(lat1) * math.cos(lat2);
+    return r * 2.0 * math.asin(math.sqrt(a));
+  }
 
   /// Create a copy with modified fields.
   VehicleState copyWith({
@@ -242,6 +269,9 @@ class VehicleState extends Equatable {
     bool? hasGimbal,
     List<int>? rcChannels,
     int? rcChannelCount,
+    double? homeLatitude,
+    double? homeLongitude,
+    double? homeAltitude,
   }) {
     return VehicleState(
       systemId: systemId ?? this.systemId,
@@ -294,6 +324,9 @@ class VehicleState extends Equatable {
       hasGimbal: hasGimbal ?? this.hasGimbal,
       rcChannels: rcChannels ?? this.rcChannels,
       rcChannelCount: rcChannelCount ?? this.rcChannelCount,
+      homeLatitude: homeLatitude ?? this.homeLatitude,
+      homeLongitude: homeLongitude ?? this.homeLongitude,
+      homeAltitude: homeAltitude ?? this.homeAltitude,
     );
   }
 
@@ -311,5 +344,6 @@ class VehicleState extends Equatable {
         boardVersion, capabilities, vehicleUid,
         gimbalPitch, gimbalYaw, gimbalRoll, hasGimbal,
         rcChannels, rcChannelCount,
+        homeLatitude, homeLongitude, homeAltitude,
       ];
 }
