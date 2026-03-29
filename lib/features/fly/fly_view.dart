@@ -130,6 +130,15 @@ class _DesktopFlyLayout extends ConsumerWidget {
                 bottom: 16,
                 child: GimbalControl(),
               ),
+              // Waypoint ETA strip — top-centre, only when mission active
+              Positioned(
+                top: 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: const _WaypointEtaStrip(),
+                ),
+              ),
               // Connection badge + quick reconnect — top-right
               Positioned(
                 top: 12,
@@ -366,6 +375,12 @@ class _TabletFlyLayout extends ConsumerWidget {
                 right: 12,
                 child: ConnectionBadge(linkState: linkState),
               ),
+              Positioned(
+                bottom: 8,
+                left: 0,
+                right: 0,
+                child: Center(child: const _WaypointEtaStrip()),
+              ),
             ],
           ),
         ),
@@ -466,6 +481,176 @@ class _MobileFlyLayout extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Waypoint ETA strip
+// ---------------------------------------------------------------------------
+
+/// Horizontal strip shown when an auto mission is active.
+/// Displays current waypoint, total, distance, bearing, and ETA.
+class _WaypointEtaStrip extends ConsumerWidget {
+  const _WaypointEtaStrip();
+
+  static double _haversine(
+      double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLon = (lon2 - lon1) * math.pi / 180;
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.pow(math.sin(dLon / 2), 2) *
+            math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180);
+    return r * 2.0 * math.asin(math.sqrt(a.clamp(0.0, 1.0)));
+  }
+
+  static double _bearing(
+      double lat1, double lon1, double lat2, double lon2) {
+    final dLon = (lon2 - lon1) * math.pi / 180;
+    final y = math.sin(dLon) * math.cos(lat2 * math.pi / 180);
+    final x = math.cos(lat1 * math.pi / 180) *
+            math.sin(lat2 * math.pi / 180) -
+        math.sin(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.cos(dLon);
+    return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vehicle = ref.watch(vehicleStateProvider);
+    final items = ref.watch(missionItemsProvider);
+    final currentWp = vehicle.currentWaypoint;
+
+    // Only show during active auto mission
+    if (currentWp < 0 || items.isEmpty) return const SizedBox.shrink();
+
+    final navItems = items.where((i) => i.isNavCommand).toList();
+    if (navItems.isEmpty) return const SizedBox.shrink();
+
+    // Find the current and next target waypoint
+    final wpIdx = navItems.indexWhere((i) => i.seq == currentWp);
+    final target = wpIdx >= 0 ? navItems[wpIdx] : navItems.last;
+    final total = navItems.length;
+    final displayed = wpIdx >= 0 ? wpIdx + 1 : total;
+
+    // Distance + bearing + ETA
+    double? distM;
+    double? etaSec;
+    double? bearing;
+    if (vehicle.hasPosition) {
+      distM = _haversine(
+        vehicle.latitude, vehicle.longitude,
+        target.latitude, target.longitude,
+      );
+      bearing = _bearing(
+        vehicle.latitude, vehicle.longitude,
+        target.latitude, target.longitude,
+      );
+      if (vehicle.groundspeed > 0.5) {
+        etaSec = distM / vehicle.groundspeed;
+      }
+    }
+
+    final hc = context.hc;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: hc.surfaceDim.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: hc.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.route, size: 13, color: hc.warning),
+          const SizedBox(width: 6),
+          Text(
+            'WP $displayed/$total',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: hc.warning,
+            ),
+          ),
+          if (distM != null) ...[
+            const SizedBox(width: 10),
+            _EtaChip(
+              label: distM >= 1000
+                  ? '${(distM / 1000).toStringAsFixed(2)} km'
+                  : '${distM.round()} m',
+              hc: hc,
+            ),
+          ],
+          if (bearing != null) ...[
+            const SizedBox(width: 8),
+            _EtaChip(label: '${bearing.round()}°', hc: hc),
+          ],
+          if (etaSec != null) ...[
+            const SizedBox(width: 8),
+            _EtaChip(
+              label: etaSec < 60
+                  ? 'ETA ${etaSec.round()}s'
+                  : 'ETA ${(etaSec / 60).ceil()}min',
+              hc: hc,
+              accent: true,
+            ),
+          ],
+          // Compact progress dots
+          const SizedBox(width: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(total.clamp(0, 8), (i) {
+              final done = i < displayed - 1;
+              final curr = i == displayed - 1;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: Container(
+                  width: curr ? 8 : 5,
+                  height: curr ? 8 : 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: done
+                        ? hc.success.withValues(alpha: 0.7)
+                        : curr
+                            ? hc.warning
+                            : hc.textTertiary.withValues(alpha: 0.4),
+                  ),
+                ),
+              );
+            }),
+          ),
+          if (total > 8) ...[
+            const SizedBox(width: 4),
+            Text(
+              '+${total - 8}',
+              style: TextStyle(fontSize: 10, color: hc.textTertiary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EtaChip extends StatelessWidget {
+  const _EtaChip({required this.label, required this.hc, this.accent = false});
+  final String label;
+  final HeliosColors hc;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: accent ? hc.accent : hc.textPrimary,
+        fontFamily: 'monospace',
+      ),
     );
   }
 }
