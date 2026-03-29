@@ -22,6 +22,52 @@ import 'connection_settings_provider.dart';
 import 'stream_rate_provider.dart';
 import 'vehicle_state_notifier.dart';
 
+// ─── Alert History ───────────────────────────────────────────────────────────
+
+/// Severity levels for alert entries.
+enum AlertSeverity { info, warning, critical }
+
+/// A single alert entry from STATUSTEXT or internal state changes.
+class AlertEntry {
+  const AlertEntry({
+    required this.message,
+    required this.severity,
+    required this.timestamp,
+  });
+
+  final String message;
+  final AlertSeverity severity;
+  final DateTime timestamp;
+}
+
+/// Ring-buffer notifier: keeps the last [_kMaxAlerts] alert entries.
+class AlertHistoryNotifier extends StateNotifier<List<AlertEntry>> {
+  AlertHistoryNotifier() : super(const []);
+
+  static const _kMaxAlerts = 100;
+
+  void add(AlertEntry entry) {
+    final next = [...state, entry];
+    state = next.length > _kMaxAlerts ? next.sublist(next.length - _kMaxAlerts) : next;
+  }
+
+  void clear() => state = const [];
+}
+
+final alertHistoryProvider =
+    StateNotifierProvider<AlertHistoryNotifier, List<AlertEntry>>(
+  (ref) => AlertHistoryNotifier(),
+);
+
+/// Number of unread critical/warning alerts (resets when user opens drawer).
+final unreadAlertCountProvider = Provider<int>((ref) {
+  return ref.watch(alertHistoryProvider)
+      .where((a) => a.severity != AlertSeverity.info)
+      .length;
+});
+
+// ─── Vehicle State ────────────────────────────────────────────────────────────
+
 /// Vehicle state — updated from MAVLink messages.
 final vehicleStateProvider =
     StateNotifierProvider<VehicleStateNotifier, VehicleState>(
@@ -249,6 +295,22 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       final store = _ref.read(telemetryStoreProvider);
       if (store.isRecording) {
         store.buffer(msg);
+      }
+
+      // Route STATUSTEXT to alert history
+      if (msg is StatusTextMessage) {
+        final severity = switch (msg.severity) {
+          0 || 1 || 2 => AlertSeverity.critical, // EMERGENCY, ALERT, CRITICAL
+          3 => AlertSeverity.critical,            // ERROR
+          4 => AlertSeverity.warning,             // WARNING
+          5 => AlertSeverity.warning,             // NOTICE
+          _ => AlertSeverity.info,                // INFO, DEBUG
+        };
+        _ref.read(alertHistoryProvider.notifier).add(AlertEntry(
+          message: msg.text,
+          severity: severity,
+          timestamp: DateTime.now(),
+        ));
       }
 
       // Track vehicle registry + request streams on first heartbeat per vehicle

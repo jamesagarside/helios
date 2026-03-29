@@ -352,15 +352,30 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     _executeQuery();
   }
 
-  Future<void> _exportParquet() async {
+  Future<void> _exportData(_ExportFormat format) async {
     if (_selectedFlight == null) return;
     final store = ref.read(telemetryStoreProvider);
     try {
-      final dir = _selectedFlight!.filePath.replaceAll('.duckdb', '_export');
-      await store.exportParquet('attitude', '$dir/attitude.parquet');
+      final base = _selectedFlight!.filePath.replaceAll('.duckdb', '_export');
+      final query = _sqlController.text.trim().isNotEmpty
+          ? _sqlController.text.trim()
+          : 'attitude';
+      String path;
+      switch (format) {
+        case _ExportFormat.csv:
+          path = '$base/query_result.csv';
+          await store.exportCsv(query, path);
+        case _ExportFormat.json:
+          path = '$base/query_result.json';
+          await store.exportJson(query, path);
+        case _ExportFormat.parquet:
+          final table = query.toUpperCase().startsWith('SELECT') ? 'attitude' : query;
+          path = '$base/$table.parquet';
+          await store.exportParquet(table, path);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported to $dir')),
+          SnackBar(content: Text('Exported to $path')),
         );
       }
     } catch (e) {
@@ -470,7 +485,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                 _SqlEditor(
                   controller: _sqlController,
                   onExecute: _selectedFlight != null ? _executeQuery : null,
-                  onExport: _selectedFlight != null ? _exportParquet : null,
+                  onExport: _selectedFlight != null ? _exportData : null,
                   isQuerying: _isQuerying,
                 ),
                 Divider(height: 1, color: hc.border),
@@ -882,7 +897,7 @@ class _SqlEditor extends StatelessWidget {
 
   final TextEditingController controller;
   final VoidCallback? onExecute;
-  final VoidCallback? onExport;
+  final ValueChanged<_ExportFormat>? onExport;
   final bool isQuerying;
 
   @override
@@ -920,10 +935,32 @@ class _SqlEditor extends StatelessWidget {
                 label: const Text('Run'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: onExport,
-                icon: const Icon(Icons.save_alt, size: 16),
-                label: const Text('Export Parquet'),
+              // Export dropdown
+              MenuAnchor(
+                menuChildren: [
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.table_chart_outlined, size: 16),
+                    onPressed: onExport != null ? () => onExport!(_ExportFormat.csv) : null,
+                    child: const Text('Export CSV'),
+                  ),
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.data_object, size: 16),
+                    onPressed: onExport != null ? () => onExport!(_ExportFormat.json) : null,
+                    child: const Text('Export JSON'),
+                  ),
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.save_alt, size: 16),
+                    onPressed: onExport != null ? () => onExport!(_ExportFormat.parquet) : null,
+                    child: const Text('Export Parquet'),
+                  ),
+                ],
+                builder: (_, ctrl, child) => OutlinedButton.icon(
+                  onPressed: onExport != null ? () {
+                    if (ctrl.isOpen) { ctrl.close(); } else { ctrl.open(); }
+                  } : null,
+                  icon: const Icon(Icons.save_alt, size: 16),
+                  label: const Text('Export ▾'),
+                ),
               ),
             ],
           ),
@@ -932,6 +969,8 @@ class _SqlEditor extends StatelessWidget {
     );
   }
 }
+
+enum _ExportFormat { csv, json, parquet }
 
 class _ResultsTable extends StatelessWidget {
   const _ResultsTable({required this.result});

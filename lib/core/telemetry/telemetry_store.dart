@@ -421,6 +421,30 @@ class TelemetryStore {
     return outputPath;
   }
 
+  /// Export a table (or arbitrary SQL result) to CSV.
+  Future<String> exportCsv(String tableOrQuery, String outputPath) async {
+    if (_conn == null) throw StateError('No database open');
+    final dir = Directory(p.dirname(outputPath));
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    final src = tableOrQuery.trimLeft().toUpperCase().startsWith('SELECT')
+        ? '($tableOrQuery)'
+        : tableOrQuery;
+    _conn!.execute("COPY $src TO '$outputPath' (FORMAT CSV, HEADER)");
+    return outputPath;
+  }
+
+  /// Export a table (or arbitrary SQL result) to newline-delimited JSON.
+  Future<String> exportJson(String tableOrQuery, String outputPath) async {
+    if (_conn == null) throw StateError('No database open');
+    final dir = Directory(p.dirname(outputPath));
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    final src = tableOrQuery.trimLeft().toUpperCase().startsWith('SELECT')
+        ? '($tableOrQuery)'
+        : tableOrQuery;
+    _conn!.execute("COPY $src TO '$outputPath' (FORMAT JSON)");
+    return outputPath;
+  }
+
   /// List all recorded flights.
   Future<List<FlightSummary>> listFlights() async {
     final dir = await _flightsDir;

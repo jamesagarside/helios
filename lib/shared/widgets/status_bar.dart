@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/providers.dart';
 import '../theme/helios_colors.dart';
 
 /// Bottom status bar showing vehicle state summary.
-class StatusBar extends StatelessWidget {
+class StatusBar extends ConsumerWidget {
   const StatusBar({
     super.key,
     this.flightMode = 'UNKNOWN',
@@ -80,8 +82,9 @@ class StatusBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hc = context.hc;
+    final alerts = ref.watch(alertHistoryProvider);
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -170,11 +173,28 @@ class StatusBar extends StatelessWidget {
                   mono: true,
                 ),
               ],
+              // STATUSTEXT alert history badge (tappable)
+              if (alerts.isNotEmpty) ...[
+                _Separator(color: hc.border),
+                GestureDetector(
+                  onTap: () => _showAlertDrawer(context, alerts),
+                  child: _StatusChip(
+                    icon: alerts.any((a) => a.severity == AlertSeverity.critical)
+                        ? Icons.error_outline
+                        : Icons.warning_amber,
+                    label: '${alerts.length} msg${alerts.length == 1 ? '' : 's'}',
+                    color: alerts.any((a) => a.severity == AlertSeverity.critical)
+                        ? hc.danger
+                        : hc.warning,
+                    bold: true,
+                  ),
+                ),
+              ],
               // Maintenance alerts badge
               if (alertCount > 0) ...[
                 _Separator(color: hc.border),
                 _StatusChip(
-                  icon: Icons.warning_amber,
+                  icon: Icons.build_outlined,
                   label: '$alertCount alert${alertCount == 1 ? '' : 's'}',
                   color: hc.warning,
                   bold: true,
@@ -185,6 +205,106 @@ class StatusBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showAlertDrawer(BuildContext context, List<AlertEntry> alerts) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+      ),
+      builder: (_) => _AlertDrawer(alerts: alerts),
+    );
+  }
+}
+
+class _AlertDrawer extends StatelessWidget {
+  const _AlertDrawer({required this.alerts});
+  final List<AlertEntry> alerts;
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    final reversed = alerts.reversed.toList();
+    return Column(
+      children: [
+        Container(
+          height: 48,
+          color: hc.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Text('Flight Messages',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: hc.textPrimary)),
+              const Spacer(),
+              Text('${alerts.length} entries',
+                  style: TextStyle(fontSize: 12, color: hc.textTertiary)),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () => Navigator.of(context).pop(),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: hc.border),
+        Expanded(
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            itemCount: reversed.length,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: hc.border, indent: 16),
+            itemBuilder: (_, i) {
+              final entry = reversed[i];
+              final color = switch (entry.severity) {
+                AlertSeverity.critical => hc.danger,
+                AlertSeverity.warning => hc.warning,
+                AlertSeverity.info => hc.textSecondary,
+              };
+              final icon = switch (entry.severity) {
+                AlertSeverity.critical => Icons.error_outline,
+                AlertSeverity.warning => Icons.warning_amber_outlined,
+                AlertSeverity.info => Icons.info_outline,
+              };
+              final hh = entry.timestamp.hour.toString().padLeft(2, '0');
+              final mm = entry.timestamp.minute.toString().padLeft(2, '0');
+              final ss = entry.timestamp.second.toString().padLeft(2, '0');
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, size: 16, color: color),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        entry.message,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: hc.textPrimary,
+                            fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('$hh:$mm:$ss',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: hc.textTertiary,
+                            fontFamily: 'monospace')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
