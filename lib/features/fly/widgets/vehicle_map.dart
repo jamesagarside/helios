@@ -30,6 +30,9 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
   bool _mapReady = false;
   bool _initialCenterDone = false;
 
+  /// Set when the user taps the map to show the quicklook card.
+  LatLng? _quicklookPoint;
+
   @override
   Widget build(BuildContext context) {
     final hc = context.hc;
@@ -83,6 +86,18 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                 : const LatLng(-35.3632, 149.1652), // Default: Canberra
             initialZoom: 16,
             onMapReady: () => _mapReady = true,
+            onTap: (_, latLng) {
+              setState(() {
+                // Dismiss quicklook on second tap at same point
+                if (_quicklookPoint != null &&
+                    (_quicklookPoint!.latitude - latLng.latitude).abs() < 1e-6 &&
+                    (_quicklookPoint!.longitude - latLng.longitude).abs() < 1e-6) {
+                  _quicklookPoint = null;
+                } else {
+                  _quicklookPoint = latLng;
+                }
+              });
+            },
             onPositionChanged: (pos, hasGesture) {
               // Disable follow when user pans manually
               if (hasGesture) {
@@ -213,6 +228,21 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
               ),
           ],
         ),
+
+        // Quicklook card — shown after map tap
+        if (_quicklookPoint != null)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: _QuicklookCard(
+              point: _quicklookPoint!,
+              vehicleLat: vehicle.hasPosition ? vehicle.latitude : null,
+              vehicleLon: vehicle.hasPosition ? vehicle.longitude : null,
+              homeLat: vehicle.hasHome ? vehicle.homeLatitude : null,
+              homeLon: vehicle.hasHome ? vehicle.homeLongitude : null,
+              onDismiss: () => setState(() => _quicklookPoint = null),
+            ),
+          ),
 
         // Map type picker — bottom-centre to avoid top-left profile/toolbar overlay
         Positioned(
@@ -560,6 +590,176 @@ class _MapTypePicker extends StatelessWidget {
           border: Border.all(color: hc.border),
         ),
         child: Icon(_icon(current), size: 18, color: hc.accent),
+      ),
+    );
+  }
+}
+
+/// Compact overlay card shown when user taps the map.
+/// Displays lat/lon, distance from vehicle, and distance from home.
+class _QuicklookCard extends StatelessWidget {
+  const _QuicklookCard({
+    required this.point,
+    required this.onDismiss,
+    this.vehicleLat,
+    this.vehicleLon,
+    this.homeLat,
+    this.homeLon,
+  });
+
+  final LatLng point;
+  final VoidCallback onDismiss;
+  final double? vehicleLat;
+  final double? vehicleLon;
+  final double? homeLat;
+  final double? homeLon;
+
+  static double _haversine(
+      double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLon = (lon2 - lon1) * math.pi / 180;
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.pow(math.sin(dLon / 2), 2) *
+            math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180);
+    return r * 2.0 * math.asin(math.sqrt(a.clamp(0.0, 1.0)));
+  }
+
+  static String _fmtDist(double metres) {
+    if (metres >= 1000) return '${(metres / 1000).toStringAsFixed(2)} km';
+    return '${metres.round()} m';
+  }
+
+  static String _fmtCoord(double deg, bool isLat) {
+    final dir = isLat ? (deg >= 0 ? 'N' : 'S') : (deg >= 0 ? 'E' : 'W');
+    final abs = deg.abs();
+    final d = abs.floor();
+    final mFrac = (abs - d) * 60;
+    final m = mFrac.floor();
+    final s = (mFrac - m) * 60;
+    return "$d° $m' ${s.toStringAsFixed(1)}\" $dir";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+
+    final distVehicle = vehicleLat != null
+        ? _haversine(vehicleLat!, vehicleLon!, point.latitude, point.longitude)
+        : null;
+    final distHome = homeLat != null
+        ? _haversine(homeLat!, homeLon!, point.latitude, point.longitude)
+        : null;
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 180, maxWidth: 240),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: hc.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: hc.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Icon(Icons.location_pin, size: 12, color: hc.accent),
+              const SizedBox(width: 4),
+              Text(
+                'Point',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: hc.accent,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onDismiss,
+                child: Icon(Icons.close, size: 14, color: hc.textTertiary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _Row(label: 'Lat', value: _fmtCoord(point.latitude, true), hc: hc),
+          _Row(label: 'Lon', value: _fmtCoord(point.longitude, false), hc: hc),
+          if (distVehicle != null) ...[
+            const SizedBox(height: 4),
+            _Row(
+              label: 'From UAV',
+              value: _fmtDist(distVehicle),
+              hc: hc,
+              valueColor: hc.accent,
+            ),
+          ],
+          if (distHome != null)
+            _Row(
+              label: 'From Home',
+              value: _fmtDist(distHome),
+              hc: hc,
+              valueColor: hc.textSecondary,
+            ),
+          const SizedBox(height: 4),
+          Text(
+            '${point.latitude.toStringAsFixed(6)}, '
+            '${point.longitude.toStringAsFixed(6)}',
+            style: TextStyle(
+              fontSize: 9,
+              color: hc.textTertiary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.label,
+    required this.value,
+    required this.hc,
+    this.valueColor,
+  });
+  final String label;
+  final String value;
+  final HeliosColors hc;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: hc.textTertiary),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? hc.textPrimary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }
