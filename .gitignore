@@ -1,0 +1,90 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android signing (never commit)
+android/key.properties
+android/*.jks
+android/*.keystore
+
+# Package build artifacts
+packages/*/build/
+packages/*/.dart_tool/
+packages/*/pubspec.lock
+
+# Claude / AI tooling
+CLAUDE.md
+.claude/
+.claude-flow/
+.mcp.json
+
+# OpenSpec (internal planning docs)
+openspec/
+
+# Internal planning docs
+helios-inital-spec.md
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Screenshots (root level)
+/mobile-*.png
+/Screenshot*.png
+
+# Android build cache
+/android/build/
+
+# MAVLink XML sources (downloaded at build time)
+scripts/mavlink_xml/
+
+# Flutter generated
+.flutter-plugins
+.metadata
+*.lock
+!pubspec.lock
+
+.env
+AuthKey_HN2BKU9XK9.p8
+notary_output.json

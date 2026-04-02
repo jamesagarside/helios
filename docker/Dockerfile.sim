@@ -1,0 +1,37 @@
+# Helios MAVLink Telemetry Simulator
+#
+# Simulates an ArduPlane flying a survey pattern over Hampshire, UK.
+# Sends MAVLink v2 telemetry to a Helios GCS instance over UDP.
+#
+# Build:
+#   docker build -f docker/Dockerfile.sim -t helios-sim:latest .
+#
+# Run (Docker Desktop — GCS on the host machine):
+#   docker run --rm -e HELIOS_GCS_HOST=host.docker.internal helios-sim:latest
+#
+# Run (Linux — no host.docker.internal):
+#   docker run --rm --network host helios-sim:latest
+#
+# Environment variables:
+#   HELIOS_GCS_HOST   IP or hostname of the GCS (default: host.docker.internal)
+#   HELIOS_GCS_PORT   UDP port (default: 14550)
+
+FROM dart:stable AS runtime
+
+LABEL org.opencontainers.image.title="Helios Simulator"
+LABEL org.opencontainers.image.description="MAVLink telemetry simulator — Hampshire survey flight"
+LABEL org.opencontainers.image.source="https://github.com/jamesagarside/helios"
+
+WORKDIR /helios
+
+# Copy the MAVLink library sources used by the simulator script
+COPY packages/dart_mavlink/lib/src/ packages/dart_mavlink/lib/src/
+
+# Copy the simulator script
+COPY scripts/sim_telemetry.dart scripts/sim_telemetry.dart
+
+# Default: send to host machine running Helios GCS
+ENV HELIOS_GCS_HOST=host.docker.internal
+ENV HELIOS_GCS_PORT=14550
+
+CMD ["dart", "run", "scripts/sim_telemetry.dart"]
