@@ -107,8 +107,13 @@ install-android-apk: build-android ## Build APK and push directly via adb (bypas
 test: ## Run all Flutter tests
 	flutter test
 
-analyze: ## Run Dart analyzer with fatal warnings
-	cd packages/dart_mavlink && dart pub get && cd ../..
+analyze: ## Run Dart analyzer with fatal warnings (matches CI exactly)
+	@for dir in packages/*/; do \
+		if [ -f "$$dir/pubspec.yaml" ]; then \
+			echo "pub get $$dir"; \
+			(cd "$$dir" && dart pub get); \
+		fi; \
+	done
 	dart analyze --fatal-warnings lib/ test/ packages/dart_mavlink/
 
 lint: analyze ## Alias for analyze

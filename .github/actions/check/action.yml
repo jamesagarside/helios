@@ -1,0 +1,33 @@
+name: 'Analyze and Test'
+description: 'Run Dart analyzer and Flutter tests — single source of truth for all CI and release workflows'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+
+    - name: Get root dependencies
+      shell: bash
+      run: flutter pub get
+
+    - name: Get nested package dependencies
+      shell: bash
+      run: |
+        for dir in packages/*/; do
+          if [ -f "$dir/pubspec.yaml" ]; then
+            echo "::group::pub get $dir"
+            (cd "$dir" && dart pub get)
+            echo "::endgroup::"
+          fi
+        done
+
+    - name: Analyze
+      shell: bash
+      run: dart analyze --fatal-warnings lib/ test/ packages/dart_mavlink/
+
+    - name: Test
+      shell: bash
+      run: flutter test
