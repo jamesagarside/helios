@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Helios GCS
+Comment=Open-source ground control station for MAVLink UAVs
+Exec=helios_gcs
+Icon=helios-gcs
+Categories=Utility;Science;
+Terminal=false
+StartupWMClass=helios_gcs
+Keywords=drone;uav;mavlink;gcs;flight;

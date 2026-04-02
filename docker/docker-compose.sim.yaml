@@ -1,0 +1,24 @@
+## Helios MAVLink Telemetry Simulator
+##
+## Simulates an ArduPlane flying a rectangular survey pattern over Hampshire, UK.
+## Sends MAVLink v2 telemetry to Helios GCS running on the host machine.
+##
+## Usage:
+##   docker compose -f docker/docker-compose.sim.yaml up
+##
+## Connect Helios with:
+##   Transport: UDP  |  Bind: 0.0.0.0  |  Port: 14550
+##
+## To target a different GCS host or port:
+##   HELIOS_GCS_HOST=192.168.1.100 docker compose -f docker/docker-compose.sim.yaml up
+
+services:
+  helios-sim:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.sim
+    image: helios-sim:latest
+    environment:
+      - HELIOS_GCS_HOST=${HELIOS_GCS_HOST:-host.docker.internal}
+      - HELIOS_GCS_PORT=${HELIOS_GCS_PORT:-14550}
+    restart: unless-stopped

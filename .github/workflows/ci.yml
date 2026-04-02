@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: cd packages/dart_mavlink && dart pub get && cd ../..
+      - run: dart analyze --fatal-warnings lib/ test/ packages/dart_mavlink/
+      - run: flutter test

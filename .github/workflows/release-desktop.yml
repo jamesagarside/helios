@@ -1,0 +1,214 @@
+name: Release Desktop
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install build dependencies
+        run: brew install automake libtool
+
+      - run: flutter pub get
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Sign app (inside-out framework signing)
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain \
+            | grep "Developer ID Application" | awk '{print $2}')
+          APP=build/macos/Build/Products/Release/helios_gcs.app
+          # Sign each nested framework individually (--deep is unreliable for Versions/A/ structure)
+          find "$APP/Contents/Frameworks" \( -name "*.framework" -o -name "*.dylib" \) \
+            | sort -r \
+            | while read f; do
+                codesign --force --options runtime --timestamp \
+                  --entitlements macos/Runner/Release.entitlements \
+                  --sign "$SIGNING_IDENTITY" "$f" || exit 1
+              done
+          # Sign the app bundle itself
+          codesign --force --options runtime --timestamp \
+            --entitlements macos/Runner/Release.entitlements \
+            --sign "$SIGNING_IDENTITY" "$APP"
+
+      - name: Create and sign DMG
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain \
+            | grep "Developer ID Application" | awk '{print $2}')
+          cd build/macos/Build/Products/Release
+          mkdir -p dmg_contents
+          cp -R helios_gcs.app dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+          hdiutil create -volname "Helios GCS" \
+            -srcfolder dmg_contents -ov -format UDZO ../helios-gcs-macos.dmg
+          rm -rf dmg_contents
+          codesign --force --timestamp --sign "$SIGNING_IDENTITY" \
+            ../helios-gcs-macos.dmg
+
+      - name: Notarize DMG
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          echo "$APPLE_API_KEY_CONTENT" | base64 --decode > /tmp/AuthKey.p8
+          xcrun notarytool submit build/macos/Build/Products/helios-gcs-macos.dmg \
+            --key /tmp/AuthKey.p8 \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait
+          rm /tmp/AuthKey.p8
+
+      - name: Staple notarization ticket to DMG
+        run: xcrun stapler staple build/macos/Build/Products/helios-gcs-macos.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: build/macos/Build/Products/helios-gcs-macos.dmg
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libserialport-dev libmpv-dev
+
+      - run: flutter pub get
+      - run: flutter build linux --release
+
+      - name: Create tarball
+        run: |
+          cd build/linux/x64/release/bundle
+          tar czf ../../../helios-gcs-linux-x64.tar.gz .
+
+      - name: Build AppImage
+        run: |
+          sudo apt-get install -y librsvg2-bin
+          chmod +x packaging/linux/build_appimage.sh
+          ./packaging/linux/build_appimage.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: build/linux/x64/release/helios-gcs-linux-x64.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: build/helios-gcs-linux-x64.AppImage
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter pub get
+      - run: flutter build windows --release
+
+      - name: Create zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath build\helios-gcs-windows-x64.zip
+
+      - name: Build Windows installer
+        run: |
+          choco install innosetup -y --no-progress
+          iscc packaging\windows\inno_setup.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: build/helios-gcs-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: build/helios-gcs-windows-x64-setup.exe
+
+  build-relay:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            name: macos-arm64
+          - os: ubuntu-latest
+            name: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Compile relay binary
+        run: |
+          dart pub get
+          dart compile exe scripts/helios_relay.dart -o helios-relay-${{ matrix.name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-${{ matrix.name }}
+          path: helios-relay-${{ matrix.name }}
+
+  create-release:
+    needs: [build-macos, build-linux, build-windows, build-relay]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/macos-dmg/helios-gcs-macos.dmg
+            artifacts/linux-tarball/helios-gcs-linux-x64.tar.gz
+            artifacts/linux-appimage/helios-gcs-linux-x64.AppImage
+            artifacts/windows-zip/helios-gcs-windows-x64.zip
+            artifacts/windows-installer/helios-gcs-windows-x64-setup.exe
+            artifacts/relay-*/helios-relay-*
