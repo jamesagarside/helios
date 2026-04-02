@@ -1,0 +1,126 @@
+name: Release
+
+# Manual trigger — click "Run workflow" in GitHub Actions UI
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.5.0-alpha, 0.6.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release?'
+        required: true
+        type: boolean
+        default: true
+      skip_tests:
+        description: 'Skip test suite (use only if tests already passed on this commit)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Step 1: Validate and test ─────────────────────────────────────────────
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ inputs.version }}
+      tag: v${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Validate version format
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-suffix (e.g. 0.5.0-alpha)"
+            exit 1
+          fi
+
+      - name: Check tag does not already exist
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Tag v${VERSION} already exists"
+            exit 1
+          fi
+
+  test:
+    needs: validate
+    if: ${{ !inputs.skip_tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/check
+
+  # ── Step 2: Bump version in pubspec.yaml ──────────────────────────────────
+  bump-version:
+    needs: [validate, test]
+    if: ${{ always() && needs.validate.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ needs.validate.outputs.tag }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Update pubspec.yaml version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Extract build number (increment from current)
+          CURRENT_BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+          NEW_BUILD=$((CURRENT_BUILD + 1))
+          sed -i "s/^version: .*/version: ${VERSION}+${NEW_BUILD}/" pubspec.yaml
+          echo "Updated to version: ${VERSION}+${NEW_BUILD}"
+
+      - name: Commit version bump
+        id: commit
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git diff --cached --quiet && echo "No version change needed" && exit 0
+          git commit -m "chore: bump version to ${VERSION}"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # ── Step 3: Create tag and GitHub Release ─────────────────────────────────
+  create-release:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
+
+      - name: Create and push tag
+        env:
+          TAG: ${{ needs.bump-version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-version.outputs.tag }}
+          name: Helios GCS ${{ needs.bump-version.outputs.tag }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true

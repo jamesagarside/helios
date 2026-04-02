@@ -1,0 +1,10 @@
+name: dart_mavlink
+description: "MAVLink v2 parser and serializer for Dart — generated from MAVLink XML definitions"
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.7
+
+dev_dependencies:
+  test: ^1.25.8

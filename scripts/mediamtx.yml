@@ -1,0 +1,5 @@
+# Minimal mediamtx config for Helios GCS video simulation
+logLevel: warn
+
+paths:
+  all_others:

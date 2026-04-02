@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Features — Helios GCS</title>
+  <meta name="description" content="See how Helios compares to other ground control software. Feature matrix, flight analytics, mission planning, and more.">
+  <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
+  <link rel="icon" href="img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/features.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <img src="img/logo.svg" alt="Helios">
+      Helios
+    </a>
+    <ul class="nav-links">
+      <li><a href="features.html" class="active">Features</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li>
+        <div class="nav-download">
+          <button class="nav-download-btn">Download <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></button>
+          <div class="nav-download-menu">
+            <div class="nav-download-menu-inner">
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M7 7h6M7 10h6M7 13h3"/></svg>
+                macOS (.dmg)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1"/><path d="M7 8l3 3 3-3M10 5v6"/></svg>
+                Windows (.exe)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2 2"/></svg>
+                Linux (.AppImage)
+              </a>
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <a href="https://github.com/jamesagarside/helios" class="nav-github" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <button class="menu-toggle" aria-label="Toggle menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Features Hero -->
+<section class="features-hero">
+  <h1>Features</h1>
+  <p>Everything you need to fly, plan, and understand your flights  - in one place.</p>
+</section>
+
+<!-- Feature Detail Grid -->
+<section class="section feature-details-section">
+  <div class="feature-details-grid">
+    <div class="feature-detail-card" id="fly">
+      <div class="feature-detail-label">Fly</div>
+      <h3>Real-time flight awareness</h3>
+      <p>See exactly what your aircraft is doing with a primary flight display, live map tracking, and configurable telemetry tiles.</p>
+      <ul class="feature-detail-list">
+        <li>Attitude indicator, compass, speed and altitude tapes</li>
+        <li>Live GPS position on a scrollable map</li>
+        <li>Customisable telemetry grid</li>
+        <li>Quick-access flight mode switching</li>
+        <li>Emergency RTL, land, and kill switch</li>
+        <li>Smooth 60fps rendering</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="plan">
+      <div class="feature-detail-label">Plan</div>
+      <h3>Visual mission planning</h3>
+      <p>Build complex missions with an intuitive drag-and-drop editor. From simple waypoint routes to automated area surveys.</p>
+      <ul class="feature-detail-list">
+        <li>Drag-and-drop waypoints on the map</li>
+        <li>Polygon survey and corridor scan patterns</li>
+        <li>Geofence and rally point management</li>
+        <li>Import routes from KML and GPX files</li>
+        <li>Upload and download missions to your FC</li>
+        <li>Real-time mission progress tracking</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="analyse">
+      <div class="feature-detail-label">Analyse</div>
+      <h3>Flight data that works for you</h3>
+      <p>Every flight is automatically saved into a queryable database. No manual log downloads, no conversion steps  - just land and start analysing.</p>
+      <ul class="feature-detail-list">
+        <li>Automatic recording of every parameter</li>
+        <li>Browse and compare past flights</li>
+        <li>Chart any parameter with synchronised zoom</li>
+        <li>Query your data with SQL</li>
+        <li>Export to Parquet or CSV</li>
+        <li>Fleet-wide analytics across vehicles</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="connect">
+      <div class="feature-detail-label">Connect</div>
+      <h3>Works with your hardware</h3>
+      <p>Connects to ArduPilot, PX4, iNav, and Betaflight over USB, Wi-Fi, or telemetry radio. No special adapters needed.</p>
+      <ul class="feature-detail-list">
+        <li>USB serial, TCP, and UDP connections</li>
+        <li>Automatic protocol detection</li>
+        <li>Plug-and-play auto-connect</li>
+        <li>SiK and Holybro radio support</li>
+        <li>Multi-vehicle fleet operations</li>
+        <li>Persistent connection settings</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="video">
+      <div class="feature-detail-label">Video</div>
+      <h3>Live video with telemetry overlay</h3>
+      <p>Stream video from your aircraft with flight data overlaid in real time. Record footage with synchronised telemetry.</p>
+      <ul class="feature-detail-list">
+        <li>RTSP video streaming</li>
+        <li>Telemetry HUD overlay</li>
+        <li>Record video with synced flight data</li>
+        <li>Full-screen monitoring mode</li>
+        <li>Hardware-accelerated decoding</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="simulate">
+      <div class="feature-detail-label">Simulate</div>
+      <h3>Practice without risk</h3>
+      <p>Launch a full simulation with one click. Test missions, learn the interface, or practise emergency procedures before flying for real.</p>
+      <ul class="feature-detail-list">
+        <li>One-click simulator launch</li>
+        <li>Multiple vehicle types and locations</li>
+        <li>Wind and failure injection</li>
+        <li>Speed multiplier for fast testing</li>
+        <li>Full Helios functionality in sim</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- What's Different -->
+<section class="section comparison-section" id="compare">
+  <h2 class="section-title">What Helios Does Differently</h2>
+  <p class="comparison-intro">Existing ground control software does a great job of getting you in the air. Helios builds on that foundation with a focus on modern design, flight data, and broader hardware support.</p>
+
+  <div class="differentiators-grid">
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="16" height="16" rx="3"/><polyline points="5,14 8,8 11,11 15,5"/></svg>
+      </div>
+      <h3>Queryable Flight Database</h3>
+      <p>Every flight is automatically recorded into a columnar database you can query with SQL. Most GCS software requires manual log downloads and external tools for analysis.</p>
+      <div class="diff-tag">Unique to Helios</div>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M4 10h12M4 14h8"/><circle cx="16" cy="14" r="2"/></svg>
+      </div>
+      <h3>Cross-Flight Comparison</h3>
+      <p>Compare telemetry across flights and vehicles side by side. Spot trends, regressions, and anomalies that single-flight viewers can't show you.</p>
+      <div class="diff-tag">Unique to Helios</div>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="11" rx="2"/><path d="M6 17h8M10 14v3"/></svg>
+      </div>
+      <h3>Modern, Responsive UI</h3>
+      <p>Designed for high-DPI displays with dark mode, smooth 60fps instruments, and a clean layout. No menus five levels deep.</p>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></svg>
+      </div>
+      <h3>Automatic Recording</h3>
+      <p>No need to remember to start logging. Connect and fly  - Helios captures everything from the moment you arm to the moment you land.</p>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="14" cy="6" r="3"/><circle cx="6" cy="14" r="3"/><circle cx="14" cy="14" r="3"/></svg>
+      </div>
+      <h3>Broadest FC Support</h3>
+      <p>Works with ArduPilot, PX4, iNav, and Betaflight. Most GCS software only supports one or two protocols  - Helios speaks MAVLink and MSP.</p>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M17 3v14"/></svg>
+      </div>
+      <h3>Fleet Analytics</h3>
+      <p>Aggregate data across your entire fleet. Track maintenance intervals, compare performance across airframes, and export to Parquet for use in your own data pipeline.</p>
+      <div class="diff-tag">Unique to Helios</div>
+    </div>
+  </div>
+
+  <!-- Shared Foundation -->
+  <div class="shared-foundation">
+    <h3>Everything you'd expect, too</h3>
+    <p>Helios covers all the essentials: waypoint and survey mission planning, geofencing, rally points, KML/GPX import, USB/UDP/TCP connections, parameter editing, sensor calibration, video streaming, and simulation. If you've used other GCS software before, you'll feel right at home.</p>
+  </div>
+</section>
+
+<!-- Community -->
+<section class="section community-section">
+  <div class="community-inner">
+    <h2 class="section-title">Built on the Shoulders of Giants</h2>
+    <p>The open-source drone community has built incredible software over the past decade. Projects like ArduPilot, PX4, and the ground stations that support them have made autonomous flight accessible to everyone. Helios wouldn't exist without that work.</p>
+    <p>We're not here to replace what came before  - we're building on it. Helios focuses on the areas we think deserve a fresh approach: flight data, modern UI, and broad hardware support. If another tool works better for your workflow, use it. They're all open source, and that's the point.</p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="features-cta">
+  <h2>Ready to try a better GCS?</h2>
+  <p>Helios is free, open source, and ready to fly.</p>
+  <div class="hero-actions">
+    <a href="index.html#download" class="btn btn-primary">Download Free</a>
+    <a href="docs.html?page=getting-started" class="btn btn-secondary">Getting Started Guide</a>
+  </div>
+</section>
+
+<footer class="footer">
+  Part of the <a href="https://github.com/jamesagarside">Argus Platform</a>
+  &middot; <a href="https://github.com/jamesagarside/helios/blob/main/LICENSE">GPL 3.0</a>
+</footer>
+
+</body>
+</html>
