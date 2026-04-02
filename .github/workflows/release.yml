@@ -61,14 +61,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - run: flutter pub get
-      - run: dart analyze --fatal-warnings lib/ test/ packages/dart_mavlink/
-      - run: flutter test
+      - uses: ./.github/actions/check
 
   # ── Step 2: Bump version in pubspec.yaml ──────────────────────────────────
   bump-version:
