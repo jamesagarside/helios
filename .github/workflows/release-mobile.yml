@@ -113,6 +113,7 @@ jobs:
 
   upload-to-release:
     needs: [build-android, build-ios]
+    if: ${{ always() && (needs.build-android.result == 'success' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

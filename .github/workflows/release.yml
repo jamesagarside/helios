@@ -102,6 +102,7 @@ jobs:
   # ── Step 3: Create tag and GitHub Release ─────────────────────────────────
   create-release:
     needs: bump-version
+    if: ${{ always() && needs.bump-version.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
