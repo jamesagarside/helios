@@ -44,10 +44,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Android signing (never commit)
+# Signing credentials (never commit)
 android/key.properties
 android/*.jks
 android/*.keystore
+*.p12
+*.p8
 
 # Package build artifacts
 packages/*/build/
@@ -86,5 +88,6 @@ scripts/mavlink_xml/
 !pubspec.lock
 
 .env
-AuthKey_HN2BKU9XK9.p8
+AuthKey_*.p8
 notary_output.json
+Helios_GCS_App_Store.mobileprovision
