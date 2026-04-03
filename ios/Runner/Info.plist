@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Helios Gcs</string>
+	<string>Helios GCS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>helios_gcs</string>
+	<string>Helios GCS</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,6 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Required by file_picker for importing KML/GPX/param files -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Helios needs access to your photo library to import flight plans, KML files, and parameter files.</string>
 	<!-- Required for iOS 14+ local network access (MAVLink UDP/TCP) -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Helios needs local network access to connect to your flight controller over UDP or TCP.</string>

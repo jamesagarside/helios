@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="helios_gcs"
+        android:label="Helios GCS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

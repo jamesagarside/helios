@@ -1,12 +1,54 @@
-# Helios GCS
+<p align="center">
+  <img src="assets/social_banner.png" alt="Helios GCS - Open-source ground control for UAVs" width="100%"/>
+</p>
 
-Open-source ground control station for MAVLink and MSP UAVs. Part of the [Argus Platform](https://github.com/jamesagarside).
+<p align="center">
+  <strong>A modern ground control station built for pilots who want more from their flight data.</strong><br/>
+  <sub>Plan missions. Fly with confidence. Record everything. Analyse it all.</sub>
+</p>
 
-Flutter + DuckDB + MAVLink v2 + MSP | GPL-3.0
+<p align="center">
+  <a href="https://jamesagarside.github.io/helios/">Website</a> &middot;
+  <a href="https://jamesagarside.github.io/helios/features.html">Features</a> &middot;
+  <a href="https://jamesagarside.github.io/helios/docs.html">Docs</a> &middot;
+  <a href="https://github.com/jamesagarside/helios/releases/latest">Download</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/license/jamesagarside/helios?style=flat-square" alt="License"/>
+  <img src="https://img.shields.io/github/v/release/jamesagarside/helios?style=flat-square" alt="Release"/>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20iOS%20%7C%20Android-blue?style=flat-square" alt="Platforms"/>
+</p>
+
+---
+
+Helios is a free, open-source ground control station for drones and unmanned vehicles. It connects to your flight controller over USB, Wi-Fi, or telemetry radio and gives you everything you need in one place: live flight instruments, mission planning, video streaming, airspace awareness, and post-flight analytics that go far beyond what other GCS software offers.
+
+What makes Helios different is how it treats your flight data. Every flight is automatically recorded into a queryable database -- not just a log file you'll never open. After you land, browse past flights, compare performance across sessions, chart any telemetry parameter, or run custom queries. It's a flight recorder that you'll actually use.
+
+Helios works with the hardware you already own. ArduPilot, PX4, Betaflight, iNav -- multirotor, fixed-wing, VTOL, rover, or submarine. Connect over UDP, TCP, or USB serial and the protocol is detected automatically. No configuration wizards, no firmware-specific builds. One app for your entire fleet.
+
+### What you can do with Helios
+
+- **Fly** -- Real-time PFD with attitude, speed, and altitude tapes. Live map with vehicle tracking, home marker, and mission path overlay. Configurable telemetry tiles you can drag and rearrange. One-tap arm, disarm, RTL, land, and mode switching.
+- **Plan** -- Visual mission editor with drag-and-drop waypoints and DO_ action commands. Area surveys with automatic lawnmower grid generation. Geofencing, rally points, and KML/GPX import from other tools.
+- **Record** -- Every connected flight is recorded to a local database automatically. No manual start/stop. No cloud uploads. Your data stays on your machine.
+- **Analyse** -- SQL query editor, pre-built analysis templates, interactive charts, flight replay on the map, and Parquet export for external tools. Compare vibration, battery health, or GPS accuracy across dozens of flights in seconds.
+- **Airspace** -- Live no-fly zone and restricted airspace overlays from OpenAIP. Draw custom planning zones. Automatic waypoint conflict detection warns you before upload.
+- **Video** -- RTSP video streaming with picture-in-picture overlay on the Fly view. Hardware-accelerated playback.
+- **Simulate** -- One-click ArduPilot SITL with wind and failure injection. Practice missions, test failsafes, and train new pilots without risk.
+
+### Why Helios over other GCS software?
+
+- **Your data, queryable.** Other software gives you a log file. Helios gives you a database. Every flight. Automatically.
+- **Modern interface.** Clean, responsive design. No cluttered toolbars or buried menus. 60fps rendering even at high telemetry rates.
+- **All platforms.** macOS, Windows, Linux, iOS, and Android. Same experience everywhere.
+- **All flight controllers.** ArduPilot, PX4, Betaflight, iNav. MAVLink and MSP. Auto-detected.
+- **No lock-in.** Open source (GPL 3.0). No accounts, no subscriptions, no telemetry phoning home. Free forever.
 
 ## Protocol & Feature Support
 
-Helios supports both MAVLink (ArduPilot, PX4, iNav with MAVLink) and MSP (Betaflight, iNav with Cleanflight protocol). Protocol is auto-detected on connect, or you can force a specific protocol in Setup.
+Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, Cleanflight). Protocol is auto-detected on connect.
 
 ### Flight Controller Compatibility
 
@@ -61,7 +103,7 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav with MAVLink) and MSP (Betafl
 | Flight Forensics | ✅ | ✅ | Cross-flight DuckDB analytics |
 | **Setup & Configuration** | | | |
 | Connection (UDP / TCP) | ✅ | ✅ | |
-| Connection (Serial / USB) | ✅ | ✅ | macOS, Linux, Windows only — not available on iOS/Android |
+| Connection (Serial / USB) | ✅ | ✅ | macOS, Linux, Windows only -- not available on iOS/Android |
 | Protocol auto-detection | ✅ | ✅ | 5 s probe; first valid frame wins |
 | Parameter editor | ✅ | ❌ | MSP has no parameter protocol in Helios |
 | Sensor calibration | ✅ | ❌ | ArduPilot/PX4 calibration commands only |
@@ -80,7 +122,7 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav with MAVLink) and MSP (Betafl
 | Predefined start locations | ✅ | ❌ | CMAC, Duxford, SFO Bay, Sydney + custom lat/lon |
 | Wind injection | ✅ | ❌ | SIM_WIND_SPD + SIM_WIND_DIR via MAVLink params |
 | Failure injection (GPS, compass, battery) | ✅ | ❌ | Live toggle while SITL running |
-| Speed multiplier (1×–8×) | ✅ | ❌ | SIM_SPEEDUP param; test long missions fast |
+| Speed multiplier (1×-8×) | ✅ | ❌ | SIM_SPEEDUP param; test long missions fast |
 | SITL log viewer | ✅ | ❌ | Live stdout/stderr stream in Setup tab |
 | **Points of Interest** | | | |
 | POI markers (pin/star/camera/target/home/flag) | ✅ | ✅ | 6 icons × 6 colours; Plan + Fly View |
@@ -92,115 +134,96 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav with MAVLink) and MSP (Betafl
 | User-drawn NFZ overlays | ✅ | ✅ | Local planning overlays, not sent to FC |
 | Waypoint conflict detection | ✅ | ✅ | Highlights wps inside restricted zones |
 | **Diagnostic Panels** | | | |
-| Servo output viewer (CH1–CH16 PWM bar graphs) | ✅ | ❌ | SERVO_OUTPUT_RAW; traffic-light colour coding |
-| RC input viewer (CH1–CH18, RSSI, failsafe) | ✅ | ❌ | RC_CHANNELS; per-channel bars + failsafe badge |
+| Servo output viewer (CH1-CH16 PWM bar graphs) | ✅ | ❌ | SERVO_OUTPUT_RAW; traffic-light colour coding |
+| RC input viewer (CH1-CH18, RSSI, failsafe) | ✅ | ❌ | RC_CHANNELS; per-channel bars + failsafe badge |
 | **Other** | | | |
 | Dataflash log download | ✅ | ❌ | Use Betaflight Configurator for Blackbox |
 | Video streaming (RTSP) | ✅ | ✅ | Transport-independent |
 | Dark / light mode | ✅ | ✅ | |
 | Offline map tiles | ✅ | ✅ | |
 
+## Core Features
+
+| | Feature | Description |
+|---|---|---|
+| **Fly** | Real-time flight instruments | PFD, live map, configurable telemetry tiles, flight action panel |
+| **Plan** | Visual mission editor | Drag-and-drop waypoints, area surveys, geofencing, rally points, KML/GPX import |
+| **Analyse** | Post-flight analytics | SQL query editor, flight browser, cross-flight comparison, Parquet export |
+| **Connect** | Any hardware | UDP, TCP, USB serial. Auto-detects MAVLink or MSP on connect |
+| **Video** | Live RTSP streaming | Picture-in-picture with flight data overlay |
+| **Simulate** | One-click SITL | Downloads ArduPilot binaries on demand. No Docker. Wind and failure injection |
+| **Airspace** | No-fly zone overlays | OpenAIP integration, custom NFZ drawing, waypoint conflict detection |
+| **Record** | Every flight, automatically | DuckDB columnar storage. 10-100x faster analytics than SQLite |
+
+See the full feature breakdown at [jamesagarside.github.io/helios/features](https://jamesagarside.github.io/helios/features.html).
+
 ## Quick Start
 
-### Prerequisites
+### Download
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.x (stable channel)
-- Platform toolchain for your OS:
-  - **macOS**: Xcode 15+
-  - **Linux**: clang, cmake, ninja-build, pkg-config, libgtk-3-dev
-  - **Windows**: Visual Studio 2022 with C++ workload
-  - **Android**: Android SDK, Android Studio or cmdline-tools
-  - **iOS**: Xcode 15+, CocoaPods
+Pre-built binaries for macOS, Windows, and Linux are available on the [Releases](https://github.com/jamesagarside/helios/releases/latest) page. iOS alpha builds are on TestFlight.
 
-### Install & Run
+### Build from Source
+
+Requires [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.38+ and platform toolchain (Xcode for macOS/iOS, Visual Studio for Windows, clang/cmake for Linux).
 
 ```bash
 git clone https://github.com/jamesagarside/helios.git
 cd helios
 flutter pub get
-```
-
-Run on your platform:
-
-```bash
-flutter run -d macos       # macOS
-flutter run -d linux       # Linux
-flutter run -d windows     # Windows
-flutter run -d <device_id>  # Android/iOS (use `flutter devices` to list)
-```
-
-Or build a release:
-
-```bash
-flutter build macos --release
-flutter build linux --release
-flutter build windows --release
-flutter build apk --release
-flutter build ipa --release   # iOS (requires signing)
+flutter run -d macos   # or linux, windows, <device_id>
 ```
 
 ### Connect to a Vehicle
 
-1. Open the app and go to **Setup** (4th tab or press `4`)
-2. Select transport: **UDP** (default), **TCP**, or **Serial**
-3. Set address/port (defaults: UDP `0.0.0.0:14550`, TCP `127.0.0.1:5760`)
-4. Click **Connect**
-5. Switch to **Fly** view (press `1`) to see live telemetry
+1. Open **Setup** (press `4`)
+2. Choose transport: **UDP** (default `0.0.0.0:14550`), **TCP**, or **Serial**
+3. Click **Connect**
+4. Switch to **Fly** (press `1`) to see live telemetry
 
-### Telemetry Simulator (no drone needed)
+### No Drone? No Problem
 
-For development and testing without a real vehicle:
+**Telemetry simulator** -- sends synthetic ArduPlane data to localhost:
 
 ```bash
 dart run scripts/sim_telemetry.dart
 ```
 
-This sends simulated ArduPlane telemetry (circular flight over Canberra) to `localhost:14550`. Connect Helios with UDP and you'll see live attitude, GPS, battery, and speed data.
-
-### ArduPilot SITL (built-in)
-
-For a full autopilot simulation, open the **Setup** tab > **Simulate** panel. Helios downloads official ArduPilot SITL binaries on first use (no Docker required). Pick a vehicle type, airframe, and start location, then click **Launch**.
-
-Available on macOS and Linux. See the [Simulate docs](https://jamesagarside.github.io/helios/docs.html?page=simulate) for details.
+**Built-in SITL** -- full ArduPilot simulation from the Setup tab. Pick a vehicle, airframe, and start location. Helios downloads the binary on first use. Available on macOS and Linux.
 
 ## Recording & Analysis
 
-1. **Setup** > click **Start Recording** while connected
-2. Telemetry is written to a DuckDB file in real time
-3. Click **Stop** when done
-4. Switch to **Data** view > select the flight > run SQL queries or use template buttons
-
-Every flight is a `.duckdb` file. Query it with SQL, export to Parquet.
-
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `1` | Fly View |
-| `2` | Plan View |
-| `3` | Data View |
-| `4` | Setup View |
+Every flight is automatically recorded to a DuckDB file. Switch to the **Data** tab to browse past flights, run SQL queries, chart any parameter, or export to Parquet. Think of it as a flight recorder that speaks SQL.
 
 ## Project Structure
 
 ```
 lib/
-  core/mavlink/        MAVLink parser, transports, heartbeat watchdog
-  core/telemetry/      DuckDB store, schema, analytics templates
-  features/fly/        Fly View (map, PFD, telemetry strip)
-  features/plan/       Plan View (mission planning)
-  features/analyse/    Data View (SQL editor, flight browser)
-  features/setup/      Setup View (connection, recording)
-  shared/              Models, providers, theme, widgets
-packages/dart_mavlink/ MAVLink v2 parser (pure Dart)
+  core/           Business logic (MAVLink, telemetry, mission, airspace)
+  features/       UI views (fly, plan, analyse, setup)
+  shared/         Models, providers, theme, widgets
+packages/
+  dart_mavlink/   MAVLink v2 parser (pure Dart)
 ```
 
 ## Tests
 
 ```bash
-flutter test
+flutter test           # 558 tests
+dart analyze lib/      # zero warnings
 ```
+
+## Contributing
+
+Contributions are welcome. Please open an issue first to discuss what you'd like to change. See the [docs](https://jamesagarside.github.io/helios/docs.html) for architecture details.
 
 ## Licence
 
-GPL-3.0 — see [LICENSE](LICENSE) for details.
+[GPL-3.0](LICENSE)
+
+---
+
+<p align="center">
+  Part of the <a href="https://github.com/jamesagarside">Argus Platform</a><br/>
+  <em>Helios sees from the sky. Argus sees from the ground.</em>
+</p>

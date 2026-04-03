@@ -186,6 +186,22 @@ class LayoutNotifier extends StateNotifier<LayoutState> {
     ));
   }
 
+  /// Update PFD overlay position.
+  void updatePfdPosition(double x, double y) {
+    final profile = state.activeProfile;
+    _updateActiveProfile(profile.copyWith(
+      pfd: profile.pfd.copyWith(x: snapToGrid(x), y: snapToGrid(y)),
+    ));
+  }
+
+  /// Update PFD overlay size.
+  void updatePfdSize(double width, double height) {
+    final profile = state.activeProfile;
+    _updateActiveProfile(profile.copyWith(
+      pfd: profile.pfd.copyWith(width: width, height: height),
+    ));
+  }
+
   /// Toggle PFD visibility.
   void togglePfd() {
     final profile = state.activeProfile;

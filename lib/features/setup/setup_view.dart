@@ -19,6 +19,8 @@ import '../../shared/providers/theme_mode_provider.dart';
 import '../../shared/providers/layout_provider.dart';
 import '../../core/telemetry/maintenance_service.dart';
 import '../../shared/providers/providers.dart';
+import '../../shared/providers/airspace_provider.dart';
+import '../../shared/providers/openaip_key_provider.dart';
 import '../../shared/providers/video_provider.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
@@ -871,9 +873,19 @@ class _MapsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: _SetupSection(
-        title: 'OFFLINE MAPS',
-        child: _MapCacheSettings(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SetupSection(
+            title: 'OFFLINE MAPS',
+            child: _MapCacheSettings(),
+          ),
+          const SizedBox(height: 24),
+          const _SetupSection(
+            title: 'AIRSPACE OVERLAYS',
+            child: _OpenAipKeyField(),
+          ),
+        ],
       ),
     );
   }
@@ -1401,6 +1413,128 @@ class _MapCacheSettingsState extends State<_MapCacheSettings> {
               label: Text(_clearing ? 'Clearing...' : 'Clear Cache'),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// OpenAIP API key input + airspace toggle.
+class _OpenAipKeyField extends ConsumerStatefulWidget {
+  const _OpenAipKeyField();
+
+  @override
+  ConsumerState<_OpenAipKeyField> createState() => _OpenAipKeyFieldState();
+}
+
+class _OpenAipKeyFieldState extends ConsumerState<_OpenAipKeyField> {
+  late TextEditingController _controller;
+  bool _obscured = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: ref.read(openAipKeyProvider));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = context.hc;
+    final enabled = ref.watch(airspaceProvider).enabled;
+    final currentKey = ref.watch(openAipKeyProvider);
+
+    // Keep controller in sync if key changes externally
+    if (_controller.text != currentKey && !_controller.text.contains(currentKey)) {
+      _controller.text = currentKey;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Switch(
+              value: enabled,
+              onChanged: (_) =>
+                  ref.read(airspaceProvider.notifier).toggleEnabled(),
+              activeColor: hc.accent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Show airspace zones on map',
+              style: TextStyle(
+                fontSize: 13,
+                color: hc.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'OpenAIP API Key',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: hc.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                obscureText: _obscured,
+                style: TextStyle(fontSize: 13, color: hc.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Paste your API key from openaip.net',
+                  hintStyle: TextStyle(color: hc.textTertiary, fontSize: 12),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: hc.border),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscured ? Icons.visibility_off : Icons.visibility,
+                      size: 16,
+                      color: hc.textTertiary,
+                    ),
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  ),
+                ),
+                onSubmitted: (value) {
+                  ref.read(openAipKeyProvider.notifier).setKey(value);
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () {
+                ref
+                    .read(openAipKeyProvider.notifier)
+                    .setKey(_controller.text);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Get a free API key at openaip.net to display airspace zones, '
+          'no-fly zones, and restricted areas on the map.',
+          style: TextStyle(
+            fontSize: 11,
+            color: hc.textTertiary,
+          ),
         ),
       ],
     );

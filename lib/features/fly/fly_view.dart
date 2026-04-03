@@ -104,18 +104,13 @@ class _DesktopFlyLayout extends ConsumerWidget {
               const VehicleMap(),
               // Edit mode grid overlay
               if (editMode) const _GridOverlay(),
-              // PFD overlay — bottom-left
+              // PFD overlay — draggable when edit mode is on
               if (showPfd)
-                Positioned(
-                  left: 16,
-                  bottom: 16,
-                  child: _PfdOverlay(
-                    vehicle: vehicle,
-                    pfdExtras: layout.pfdExtras,
-                    editMode: editMode,
-                    onToggleExtra: (extra) =>
-                        notifier.togglePfdExtra(extra),
-                  ),
+                _DraggablePfd(
+                  vehicle: vehicle,
+                  layout: layout,
+                  editMode: editMode,
+                  notifier: notifier,
                 ),
               // Wind estimation chip — bottom-left, above PFD + extras
               const Positioned(
@@ -160,7 +155,7 @@ class _DesktopFlyLayout extends ConsumerWidget {
                   children: [
                     // Layout profile toolbar
                     const LayoutToolbar(),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     // Chart toggles + compact widget menu
                     Row(
                       children: [
@@ -430,6 +425,129 @@ class _WidgetMenuButton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Draggable PFD wrapper — positioned from LayoutProfile, draggable in edit mode
+// ---------------------------------------------------------------------------
+
+class _DraggablePfd extends StatefulWidget {
+  const _DraggablePfd({
+    required this.vehicle,
+    required this.layout,
+    required this.editMode,
+    required this.notifier,
+  });
+
+  final VehicleState vehicle;
+  final LayoutProfile layout;
+  final bool editMode;
+  final LayoutNotifier notifier;
+
+  @override
+  State<_DraggablePfd> createState() => _DraggablePfdState();
+}
+
+class _DraggablePfdState extends State<_DraggablePfd> {
+  late double _x;
+  late double _y;
+  late double _width;
+  late double _height;
+  bool _initialised = false;
+
+  static const double _minWidth = 240;
+  static const double _maxWidth = 500;
+  static const double _minHeight = 180;
+  static const double _maxHeight = 380;
+
+  void _initPosition(BoxConstraints constraints) {
+    if (_initialised) return;
+    _initialised = true;
+    final pfd = widget.layout.pfd;
+    _width = (pfd.width ?? 320).clamp(_minWidth, _maxWidth);
+    _height = (pfd.height ?? 240).clamp(_minHeight, _maxHeight);
+    _x = pfd.x;
+    // y == -1 means "bottom-left" default
+    _y = pfd.y < 0
+        ? constraints.maxHeight - _height - 16
+        : pfd.y;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _initPosition(constraints);
+        return Positioned(
+          left: _x,
+          top: _y,
+          child: GestureDetector(
+            onPanUpdate: widget.editMode
+                ? (details) {
+                    setState(() {
+                      _x = (_x + details.delta.dx)
+                          .clamp(0, constraints.maxWidth - _width);
+                      _y = (_y + details.delta.dy)
+                          .clamp(0, constraints.maxHeight - _height);
+                    });
+                  }
+                : null,
+            onPanEnd: widget.editMode
+                ? (_) => widget.notifier.updatePfdPosition(_x, _y)
+                : null,
+            child: Stack(
+              children: [
+                SizedBox(
+                  width: _width,
+                  height: _height + 30, // extra space for readout chips
+                  child: _PfdOverlay(
+                    vehicle: widget.vehicle,
+                    pfdExtras: widget.layout.pfdExtras,
+                    editMode: widget.editMode,
+                    onToggleExtra: (extra) =>
+                        widget.notifier.togglePfdExtra(extra),
+                    width: _width,
+                    height: _height,
+                  ),
+                ),
+                // Resize handle — bottom-right (only in edit mode)
+                if (widget.editMode)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        setState(() {
+                          _width = (_width + details.delta.dx)
+                              .clamp(_minWidth, _maxWidth);
+                          _height = (_height + details.delta.dy)
+                              .clamp(_minHeight, _maxHeight);
+                        });
+                      },
+                      onPanEnd: (_) =>
+                          widget.notifier.updatePfdSize(_width, _height),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.resizeDownRight,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.drag_handle,
+                            size: 12,
+                            color: context.hc.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // PFD Overlay — PFD + extra readouts + settings gear
 // ---------------------------------------------------------------------------
 
@@ -439,12 +557,16 @@ class _PfdOverlay extends StatefulWidget {
     required this.pfdExtras,
     required this.editMode,
     required this.onToggleExtra,
+    this.width = 320,
+    this.height = 240,
   });
 
   final VehicleState vehicle;
   final Set<PfdExtra> pfdExtras;
   final bool editMode;
   final ValueChanged<PfdExtra> onToggleExtra;
+  final double width;
+  final double height;
 
   @override
   State<_PfdOverlay> createState() => _PfdOverlayState();
@@ -507,8 +629,8 @@ class _PfdOverlayState extends State<_PfdOverlay> {
           clipBehavior: Clip.none,
           children: [
             Container(
-              width: 320,
-              height: 240,
+              width: widget.width,
+              height: widget.height,
               decoration: BoxDecoration(
                 color: hc.surfaceDim.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(8),

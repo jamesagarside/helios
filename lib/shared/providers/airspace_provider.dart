@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/airspace/airspace_service.dart';
 import '../../core/airspace/openair_fetch_service.dart';
 import '../models/airspace_zone.dart';
@@ -9,27 +12,72 @@ class AirspaceState {
   const AirspaceState({
     this.zones = const [],
     this.isFetching = false,
+    this.enabled = false,
   });
 
   final List<AirspaceZone> zones;
   final bool isFetching;
 
+  /// Whether airspace overlay is enabled (auto-fetches on viewport change).
+  final bool enabled;
+
   AirspaceState copyWith({
     List<AirspaceZone>? zones,
     bool? isFetching,
+    bool? enabled,
   }) =>
       AirspaceState(
         zones: zones ?? this.zones,
         isFetching: isFetching ?? this.isFetching,
+        enabled: enabled ?? this.enabled,
       );
 }
 
+const _enabledKey = 'airspace_enabled';
+
 /// Holds the currently loaded airspace zones.
 class AirspaceNotifier extends StateNotifier<AirspaceState> {
-  AirspaceNotifier() : super(const AirspaceState());
+  AirspaceNotifier() : super(const AirspaceState()) {
+    _loadEnabled();
+  }
 
   final _service = AirspaceService();
   final _fetchService = OpenAirFetchService();
+
+  Timer? _debounce;
+
+  Future<void> _loadEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(_enabledKey) ?? false;
+    state = state.copyWith(enabled: enabled);
+  }
+
+  /// Toggle the airspace overlay on/off.
+  Future<void> toggleEnabled() async {
+    final next = !state.enabled;
+    state = state.copyWith(enabled: next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_enabledKey, next);
+    if (!next) {
+      clear();
+    }
+  }
+
+  /// Debounced fetch triggered by viewport changes.
+  /// Call this when the map camera moves while airspace is enabled.
+  void fetchForViewport({
+    required double minLat,
+    required double maxLat,
+    required double minLon,
+    required double maxLon,
+    required String apiKey,
+  }) {
+    if (!state.enabled || apiKey.isEmpty) return;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 800), () {
+      fetchFromOpenAip(minLat, maxLat, minLon, maxLon, apiKey);
+    });
+  }
 
   /// Convenience accessor for the zones list.
   List<AirspaceZone> get zones => state.zones;
