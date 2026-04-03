@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>A modern ground control station built for pilots who want more from their flight data.</strong>
+  <strong>A modern ground control station built for pilots who want more from their flight data.</strong><br/>
+  <sub>Plan missions. Fly with confidence. Record everything. Analyse it all.</sub>
 </p>
 
 <p align="center">
@@ -17,20 +18,33 @@
   <img src="https://img.shields.io/github/license/jamesagarside/helios?style=flat-square" alt="License"/>
   <img src="https://img.shields.io/github/v/release/jamesagarside/helios?style=flat-square" alt="Release"/>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20iOS%20%7C%20Android-blue?style=flat-square" alt="Platforms"/>
-  <img src="https://img.shields.io/badge/Flutter-3.38-02569B?style=flat-square&logo=flutter" alt="Flutter"/>
 </p>
 
 ---
 
-## Why Helios?
+Helios is a free, open-source ground control station for drones and unmanned vehicles. It connects to your flight controller over USB, Wi-Fi, or telemetry radio and gives you everything you need in one place: live flight instruments, mission planning, video streaming, airspace awareness, and post-flight analytics that go far beyond what other GCS software offers.
 
-Ground control software hasn't changed much in a decade. Helios is a fresh take -- designed for the way pilots actually work today.
+What makes Helios different is how it treats your flight data. Every flight is automatically recorded into a queryable database -- not just a log file you'll never open. After you land, browse past flights, compare performance across sessions, chart any telemetry parameter, or run custom queries. It's a flight recorder that you'll actually use.
 
-- **Every flight is data.** Other GCS software treats flight logs as an afterthought. Helios records every telemetry point into a DuckDB database automatically. Analyse flights with SQL, not just basic graphs.
-- **Modern interface.** Clean, responsive design that works the way you expect. No cluttered toolbars or hidden menus. Smooth 60fps rendering even at high data rates.
-- **Truly cross-platform.** Native performance on macOS, Windows, Linux, iOS, and Android from a single codebase. No emulation layers, no compromises.
-- **Open source, no lock-in.** GPL 3.0 licensed. No telemetry, no accounts, no cloud dependency. Your data stays on your machine.
-- **Works with your hardware.** ArduPilot, PX4, Betaflight, iNav -- USB, Wi-Fi, or telemetry radio. Just plug in and fly.
+Helios works with the hardware you already own. ArduPilot, PX4, Betaflight, iNav -- multirotor, fixed-wing, VTOL, rover, or submarine. Connect over UDP, TCP, or USB serial and the protocol is detected automatically. No configuration wizards, no firmware-specific builds. One app for your entire fleet.
+
+### What you can do with Helios
+
+- **Fly** -- Real-time PFD with attitude, speed, and altitude tapes. Live map with vehicle tracking, home marker, and mission path overlay. Configurable telemetry tiles you can drag and rearrange. One-tap arm, disarm, RTL, land, and mode switching.
+- **Plan** -- Visual mission editor with drag-and-drop waypoints and DO_ action commands. Area surveys with automatic lawnmower grid generation. Geofencing, rally points, and KML/GPX import from other tools.
+- **Record** -- Every connected flight is recorded to a local database automatically. No manual start/stop. No cloud uploads. Your data stays on your machine.
+- **Analyse** -- SQL query editor, pre-built analysis templates, interactive charts, flight replay on the map, and Parquet export for external tools. Compare vibration, battery health, or GPS accuracy across dozens of flights in seconds.
+- **Airspace** -- Live no-fly zone and restricted airspace overlays from OpenAIP. Draw custom planning zones. Automatic waypoint conflict detection warns you before upload.
+- **Video** -- RTSP video streaming with picture-in-picture overlay on the Fly view. Hardware-accelerated playback.
+- **Simulate** -- One-click ArduPilot SITL with wind and failure injection. Practice missions, test failsafes, and train new pilots without risk.
+
+### Why Helios over other GCS software?
+
+- **Your data, queryable.** Other software gives you a log file. Helios gives you a database. Every flight. Automatically.
+- **Modern interface.** Clean, responsive design. No cluttered toolbars or buried menus. 60fps rendering even at high telemetry rates.
+- **All platforms.** macOS, Windows, Linux, iOS, and Android. Same experience everywhere.
+- **All flight controllers.** ArduPilot, PX4, Betaflight, iNav. MAVLink and MSP. Auto-detected.
+- **No lock-in.** Open source (GPL 3.0). No accounts, no subscriptions, no telemetry phoning home. Free forever.
 
 ## Protocol & Feature Support
 
