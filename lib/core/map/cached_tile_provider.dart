@@ -5,6 +5,12 @@ import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 /// Default FMTC store name used for browse caching.
 const _defaultStoreName = 'helios_tiles';
 
+/// User-Agent header identifying Helios GCS to tile servers.
+///
+/// Required by OSM tile usage policy:
+/// https://operations.osmfoundation.org/policies/tiles/
+const heliosUserAgent = 'HeliosGCS/0.5.0 (+https://github.com/jamesagarside/helios)';
+
 /// Tile provider backed by flutter_map_tile_caching (FMTC).
 ///
 /// Wraps FMTC's ObjectBox-based tile cache while preserving the same
@@ -23,6 +29,7 @@ class CachedTileProvider extends TileProvider {
       stores: const {_defaultStoreName: BrowseStoreStrategy.readUpdateCreate},
       loadingStrategy: BrowseLoadingStrategy.onlineFirst,
       cachedValidDuration: Duration(days: maxCacheAgeDays),
+      headers: const {'User-Agent': heliosUserAgent},
     );
   }
 

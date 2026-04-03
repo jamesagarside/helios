@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/map/cached_tile_provider.dart';
 import '../../../core/telemetry/telemetry_store.dart';
+import '../../../shared/providers/map_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
 
 /// A flight replay map that shows the full GPS track with a moving vehicle
 /// marker synchronised to the shared [crosshairX] timeline position.
-class ReplayMap extends StatefulWidget {
+class ReplayMap extends ConsumerStatefulWidget {
   const ReplayMap({
     super.key,
     required this.store,
@@ -19,10 +21,10 @@ class ReplayMap extends StatefulWidget {
   final ValueNotifier<double?> crosshairX;
 
   @override
-  State<ReplayMap> createState() => _ReplayMapState();
+  ConsumerState<ReplayMap> createState() => _ReplayMapState();
 }
 
-class _ReplayMapState extends State<ReplayMap> {
+class _ReplayMapState extends ConsumerState<ReplayMap> {
   final MapController _mapController = MapController();
   bool _mapReady = false;
   bool _loading = true;
@@ -164,14 +166,10 @@ class _ReplayMapState extends State<ReplayMap> {
               },
             ),
             children: [
-              // Dark OSM tiles
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.argus.helios_gcs',
-                maxZoom: 19,
-                tileProvider: CachedTileProvider(),
-                tileBuilder: _darkTileBuilder,
+              // Tile layers based on shared map type
+              ..._buildTileLayers(
+                ref.watch(mapTileTypeProvider),
+                Theme.of(context).brightness == Brightness.dark,
               ),
 
               // Full flight path
@@ -275,6 +273,59 @@ class _ReplayMapState extends State<ReplayMap> {
         },
       ),
     );
+  }
+
+  List<Widget> _buildTileLayers(MapTileType tileType, bool dark) {
+    switch (tileType) {
+      case MapTileType.hybrid:
+        return [
+          TileLayer(
+            urlTemplate:
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 18,
+            tileProvider: CachedTileProvider(),
+          ),
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 18,
+            tileProvider: CachedTileProvider(),
+            tileBuilder: (context, tile, tileImage) =>
+                Opacity(opacity: 0.5, child: tile),
+          ),
+        ];
+      case MapTileType.satellite:
+        return [
+          TileLayer(
+            urlTemplate:
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 18,
+            tileProvider: CachedTileProvider(),
+          ),
+        ];
+      case MapTileType.terrain:
+        return [
+          TileLayer(
+            urlTemplate: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 17,
+            tileProvider: CachedTileProvider(),
+            tileBuilder: dark ? _darkTileBuilder : null,
+          ),
+        ];
+      case MapTileType.osm:
+        return [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.argus.helios_gcs',
+            maxZoom: 18,
+            tileProvider: CachedTileProvider(),
+            tileBuilder: dark ? _darkTileBuilder : null,
+          ),
+        ];
+    }
   }
 
   Widget _darkTileBuilder(

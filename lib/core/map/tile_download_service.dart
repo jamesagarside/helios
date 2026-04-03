@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'cached_tile_provider.dart' show heliosUserAgent;
+
 /// A named country/region bounding box for offline tile download.
 class CountryRegion {
   const CountryRegion({
@@ -102,7 +104,10 @@ class TileDownloadService {
       final downloadable = fmtcRegion.toDownloadable(
         minZoom: 1,
         maxZoom: maxZoom,
-        options: TileLayer(urlTemplate: urlTemplate),
+        options: TileLayer(
+          urlTemplate: urlTemplate,
+          userAgentPackageName: heliosUserAgent,
+        ),
       );
 
       // Get expected tile count so we can report accurate progress.
@@ -167,7 +172,10 @@ class TileDownloadService {
       final downloadable = fmtcRegion.toDownloadable(
         minZoom: minZoom,
         maxZoom: maxZoom,
-        options: TileLayer(urlTemplate: urlTemplate),
+        options: TileLayer(
+          urlTemplate: urlTemplate,
+          userAgentPackageName: heliosUserAgent,
+        ),
       );
 
       _total = await store.download.countTiles(downloadable);

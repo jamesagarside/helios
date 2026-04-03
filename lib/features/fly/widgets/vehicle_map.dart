@@ -9,12 +9,15 @@ import '../../../shared/models/airspace_zone.dart';
 import '../../../shared/models/fence_zone.dart';
 import '../../../shared/models/point_of_interest.dart';
 import '../../../shared/providers/airspace_provider.dart';
+import '../../../shared/providers/openaip_key_provider.dart';
 import '../../../shared/providers/poi_provider.dart';
 import '../../../shared/providers/joystick_provider.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../core/map/cached_tile_provider.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/providers/map_tile_provider.dart';
+import '../../../shared/widgets/expandable_tool_column.dart';
+import '../../../shared/widgets/map_search_bar.dart';
 import '../../plan/providers/fence_edit_notifier.dart';
 
 /// Maximum number of trail points to display.
@@ -57,7 +60,10 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
     final activeId = ref.watch(activeVehicleIdProvider);
     final tileType = ref.watch(mapTileTypeProvider);
     final adsbTraffic = ref.watch(adsbProvider);
-    final airspaceZones = ref.watch(airspaceProvider).zones;
+    final airspaceState = ref.watch(airspaceProvider);
+    final airspaceZones = airspaceState.zones;
+    final airspaceEnabled = airspaceState.enabled;
+    final openAipKey = ref.watch(openAipKeyProvider);
     final pois = ref.watch(poiProvider);
 
     // Update trail
@@ -131,6 +137,17 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
               // Disable follow when user pans manually
               if (hasGesture) {
                 setState(() => _followVehicle = false);
+              }
+              // Auto-fetch airspace for current viewport
+              if (airspaceEnabled && openAipKey.isNotEmpty) {
+                final bounds = _mapController.camera.visibleBounds;
+                ref.read(airspaceProvider.notifier).fetchForViewport(
+                  minLat: bounds.south,
+                  maxLat: bounds.north,
+                  minLon: bounds.west,
+                  maxLon: bounds.east,
+                  apiKey: openAipKey,
+                );
               }
             },
           ),
@@ -354,11 +371,11 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             ),
           ),
 
-        // Quicklook card — shown after map tap
+        // Quicklook card — shown after map tap (below toolbar area)
         if (_quicklookPoint != null)
           Positioned(
-            top: 12,
-            left: 12,
+            top: 80,
+            left: 16,
             child: _QuicklookCard(
               point: _quicklookPoint!,
               vehicleLat: vehicle.hasPosition ? vehicle.latitude : null,
@@ -368,6 +385,18 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
               onDismiss: () => setState(() => _quicklookPoint = null),
             ),
           ),
+
+        // Location search — top-left, below toolbar area
+        Positioned(
+          top: 56,
+          left: 16,
+          child: MapSearchBar(
+            mapController: _mapController,
+            onLocationSelected: (_) {
+              setState(() => _followVehicle = false);
+            },
+          ),
+        ),
 
         // Map type picker — bottom-right to avoid overlap with action panel
         Positioned(
@@ -379,51 +408,72 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
           ),
         ),
 
-        // Zoom controls + re-centre button
-        // Zoom controls — centre-right to avoid top-right connection/EKF overlay
-        // and bottom-right gimbal overlay
+        // Map tool buttons — centre-right with hover expansion
         Positioned(
           right: 12,
           top: 0,
           bottom: 0,
           child: Align(
             alignment: Alignment.centerRight,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _MapButton(
+            child: ExpandableToolColumn(
+              buttons: [
+                ToolButtonDef(
                   icon: Icons.add,
+                  label: 'Zoom In',
                   onPressed: () => _mapController.move(
                     _mapController.camera.center,
                     (_mapController.camera.zoom + 1).clamp(2, 18),
                   ),
                 ),
-                const SizedBox(height: 4),
-                _MapButton(
+                ToolButtonDef(
                   icon: Icons.remove,
+                  label: 'Zoom Out',
                   onPressed: () => _mapController.move(
                     _mapController.camera.center,
                     (_mapController.camera.zoom - 1).clamp(2, 18),
                   ),
                 ),
-                const SizedBox(height: 4),
-                // Click & Go toggle
-                _MapButton(
+                ToolButtonDef(
+                  icon: Icons.layers,
+                  label: 'Airspace',
+                  active: airspaceEnabled,
+                  color: airspaceEnabled ? hc.accent : null,
+                  onPressed: () {
+                    ref.read(airspaceProvider.notifier).toggleEnabled();
+                    if (!airspaceEnabled && openAipKey.isNotEmpty && _mapReady) {
+                      final bounds = _mapController.camera.visibleBounds;
+                      ref.read(airspaceProvider.notifier).fetchForViewport(
+                        minLat: bounds.south,
+                        maxLat: bounds.north,
+                        minLon: bounds.west,
+                        maxLon: bounds.east,
+                        apiKey: openAipKey,
+                      );
+                    }
+                  },
+                ),
+                ToolButtonDef(
                   icon: Icons.ads_click,
+                  label: 'Click & Go',
+                  active: _clickGoMode,
                   color: _clickGoMode ? hc.accent : null,
                   onPressed: () => setState(() {
                     _clickGoMode = !_clickGoMode;
                     if (!_clickGoMode) _clickGoTarget = null;
                   }),
                 ),
-                const SizedBox(height: 4),
-                // Joystick RC override toggle
-                const _JoystickButton(),
-                // Re-centre button (shown when not following)
-                if (!_followVehicle && hasPosition) ...[
-                  const SizedBox(height: 4),
-                  _MapButton(
+                ToolButtonDef(
+                  icon: Icons.sports_esports,
+                  label: 'Joystick',
+                  active: ref.watch(joystickProvider).enabled,
+                  color: ref.watch(joystickProvider).enabled ? hc.accent : null,
+                  onPressed: () => ref.read(joystickProvider.notifier).toggle(),
+                ),
+                if (!_followVehicle && hasPosition)
+                  ToolButtonDef(
                     icon: Icons.my_location,
+                    label: 'Re-centre',
+                    color: hc.accent,
                     onPressed: () {
                       setState(() => _followVehicle = true);
                       _mapController.move(
@@ -431,9 +481,7 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
                         _mapController.camera.zoom,
                       );
                     },
-                    color: hc.accent,
                   ),
-                ],
               ],
             ),
           ),
@@ -1105,53 +1153,3 @@ class _ClickGoConfirmChipState extends State<_ClickGoConfirmChip> {
   }
 }
 
-/// Small map control button.
-class _MapButton extends StatelessWidget {
-  const _MapButton({required this.icon, required this.onPressed, this.color});
-
-  final IconData icon;
-  final VoidCallback onPressed;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final hc = context.hc;
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: FloatingActionButton.small(
-        heroTag: null,
-        onPressed: onPressed,
-        backgroundColor: hc.surface.withValues(alpha: 0.85),
-        elevation: 2,
-        child: Icon(icon, size: 16, color: color ?? hc.textPrimary),
-      ),
-    );
-  }
-}
-
-/// Joystick RC override toggle button.
-class _JoystickButton extends ConsumerWidget {
-  const _JoystickButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hc = context.hc;
-    final joystick = ref.watch(joystickProvider);
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: FloatingActionButton.small(
-        heroTag: null,
-        onPressed: () => ref.read(joystickProvider.notifier).toggle(),
-        backgroundColor: hc.surface.withValues(alpha: 0.85),
-        elevation: 2,
-        child: Icon(
-          Icons.sports_esports,
-          size: 16,
-          color: joystick.enabled ? hc.accent : hc.textPrimary,
-        ),
-      ),
-    );
-  }
-}
