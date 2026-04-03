@@ -103,7 +103,7 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, C
 | Flight Forensics | ✅ | ✅ | Cross-flight DuckDB analytics |
 | **Setup & Configuration** | | | |
 | Connection (UDP / TCP) | ✅ | ✅ | |
-| Connection (Serial / USB) | ✅ | ✅ | macOS, Linux, Windows only — not available on iOS/Android |
+| Connection (Serial / USB) | ✅ | ✅ | macOS, Linux, Windows only -- not available on iOS/Android |
 | Protocol auto-detection | ✅ | ✅ | 5 s probe; first valid frame wins |
 | Parameter editor | ✅ | ❌ | MSP has no parameter protocol in Helios |
 | Sensor calibration | ✅ | ❌ | ArduPilot/PX4 calibration commands only |
@@ -122,7 +122,7 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, C
 | Predefined start locations | ✅ | ❌ | CMAC, Duxford, SFO Bay, Sydney + custom lat/lon |
 | Wind injection | ✅ | ❌ | SIM_WIND_SPD + SIM_WIND_DIR via MAVLink params |
 | Failure injection (GPS, compass, battery) | ✅ | ❌ | Live toggle while SITL running |
-| Speed multiplier (1×–8×) | ✅ | ❌ | SIM_SPEEDUP param; test long missions fast |
+| Speed multiplier (1×-8×) | ✅ | ❌ | SIM_SPEEDUP param; test long missions fast |
 | SITL log viewer | ✅ | ❌ | Live stdout/stderr stream in Setup tab |
 | **Points of Interest** | | | |
 | POI markers (pin/star/camera/target/home/flag) | ✅ | ✅ | 6 icons × 6 colours; Plan + Fly View |
@@ -134,8 +134,8 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, C
 | User-drawn NFZ overlays | ✅ | ✅ | Local planning overlays, not sent to FC |
 | Waypoint conflict detection | ✅ | ✅ | Highlights wps inside restricted zones |
 | **Diagnostic Panels** | | | |
-| Servo output viewer (CH1–CH16 PWM bar graphs) | ✅ | ❌ | SERVO_OUTPUT_RAW; traffic-light colour coding |
-| RC input viewer (CH1–CH18, RSSI, failsafe) | ✅ | ❌ | RC_CHANNELS; per-channel bars + failsafe badge |
+| Servo output viewer (CH1-CH16 PWM bar graphs) | ✅ | ❌ | SERVO_OUTPUT_RAW; traffic-light colour coding |
+| RC input viewer (CH1-CH18, RSSI, failsafe) | ✅ | ❌ | RC_CHANNELS; per-channel bars + failsafe badge |
 | **Other** | | | |
 | Dataflash log download | ✅ | ❌ | Use Betaflight Configurator for Blackbox |
 | Video streaming (RTSP) | ✅ | ✅ | Transport-independent |
