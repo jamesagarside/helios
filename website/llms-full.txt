@@ -1,0 +1,182 @@
+# Helios GCS - Full Reference
+
+> Helios is a free, open-source ground control station (GCS) for MAVLink UAVs. It connects to ArduPilot and PX4 flight controllers over USB, UDP, or TCP and provides real-time telemetry, mission planning, flight recording, and post-flight analytics. Every flight is automatically recorded into a DuckDB database, making post-flight analysis as powerful as the live display.
+
+Helios is part of the Argus Platform. Licensed under GPL 3.0.
+Website: https://heliosgcs.com
+Repository: https://github.com/jamesagarside/helios
+Author: James Garside
+Current Version: 0.5.0-alpha
+
+---
+
+## Architecture
+
+Helios follows a 4-layer pattern: Presentation -> State (Riverpod) -> Service -> Data.
+
+### Tech Stack
+- **Framework**: Flutter 3.38, Dart 3.10
+- **State Management**: Riverpod
+- **Database**: DuckDB (columnar OLAP, per-flight databases)
+- **Maps**: flutter_map with OpenStreetMap tiles (no API key required)
+- **Video**: media_kit (LGPL, cross-platform RTSP)
+- **Serial**: flutter_libserialport (C-based, macOS/Linux/Windows)
+- **Tile Caching**: flutter_map_tile_caching (GPL-3.0, offline region download)
+
+### Project Structure
+```
+lib/
+  core/           # Business logic (no UI)
+    mavlink/      # MAVLink parser, transports (UDP/TCP/Serial)
+    mission/      # Mission download/upload protocol
+    params/       # Parameter fetch/set/export
+    calibration/  # Sensor calibration service
+    fence/        # Geofence upload/download
+    logs/         # Dataflash log download
+    telemetry/    # DuckDB recording + schema + analytics
+    map/          # Offline tile caching
+  features/       # UI views (one directory per tab)
+    fly/          # Real-time PFD, map, charts
+    plan/         # Mission + geofence + rally planning
+    analyse/      # SQL editor, charts, flight browser
+    video/        # RTSP video streaming
+    setup/        # Connection, params, calibration, settings
+  shared/         # Cross-feature code
+    models/       # Immutable Equatable models
+    providers/    # Riverpod state management
+    widgets/      # Shared widgets (status bar, etc.)
+    theme/        # Colors, typography tokens
+packages/
+  dart_mavlink/           # Vendored MAVLink v2 parser + frame builder
+  duckdb_dart_patched/    # DuckDB FFI bindings (patched for macOS)
+```
+
+### Key Technical Decisions
+- DuckDB per flight (not SQLite): Columnar OLAP, 10-100x faster for analytics queries
+- Vendored dart_mavlink: No mature MAVLink package on pub.dev; full parser control
+- 30Hz state batching: Prevents 50Hz ATTITUDE from triggering 50 widget rebuilds/sec
+- PFD Ticker interpolation: 60fps smooth rendering between 10Hz telemetry samples
+- 305 auto-generated CRC extras from MAVLink XML at build time
+- SITL via native binary (not Docker): On-demand download, cached per vehicle type
+
+---
+
+## Fly View
+
+The Fly View provides real-time flight monitoring:
+
+- **Primary Flight Display (PFD)**: Compound design with attitude indicator, speed tape, altitude tape, heading compass, vertical speed indicator, and flight mode annunciator.
+- **Live Map**: OpenStreetMap with vehicle position, heading, trail, home position, and mission overlay. Supports offline tile caching for field use.
+- **Telemetry Strips**: Configurable data strips showing GPS status, battery, RC signal, link quality, armed state, and flight mode.
+- **Emergency Controls**: One-tap RTL (Return to Launch), Land, and arm/disarm with safety confirmation.
+
+Technical: 60fps rendering using Flutter's Ticker for PFD interpolation between 10Hz telemetry samples. Vehicle state batched at 30Hz via a pending buffer to prevent excessive widget rebuilds.
+
+---
+
+## Mission Planning
+
+The Plan View supports:
+
+- **Waypoint Editor**: Drag-and-drop waypoints on the map with altitude, speed, and action parameters. Reorder, insert, delete waypoints.
+- **Survey Patterns**: Automatic grid/zigzag patterns for area coverage missions.
+- **Corridor Scan**: Linear survey along a path with configurable swath width.
+- **Geofencing**: Inclusion and exclusion polygons with breach actions (RTL, Land, Report).
+- **Rally Points**: Alternate landing locations for RTL.
+- **File Import/Export**: KML and GPX format support for interoperability with other tools.
+- **Upload/Download**: Full MAVLink mission protocol implementation for transferring missions to/from the flight controller.
+
+---
+
+## Flight Analytics (Analyse View)
+
+Every flight is automatically recorded to a per-flight DuckDB database:
+
+- **Flight Browser**: List all recorded flights with date, duration, vehicle type, and summary statistics.
+- **SQL Editor**: Write custom SQL queries against flight telemetry data. Syntax highlighting, auto-complete, query history.
+- **Chart Builder**: Visualise any telemetry parameter over time. Multi-axis charts, zoom, pan, crosshair.
+- **Analytics Templates**: Pre-built queries for common analysis (max altitude, flight path length, battery discharge curve, vibration analysis).
+- **Parquet Export**: Export flight data to Apache Parquet for external tools (Python, R, Jupyter).
+- **Cross-Flight Comparison**: Compare parameters across multiple flights side-by-side.
+
+DuckDB Schema: Telemetry stored in columnar format with timestamps, message types, and all field values. Schema auto-migrates when new message types are recorded.
+
+---
+
+## Connections
+
+Supported transports:
+- **USB Serial**: Direct connection to flight controller via USB cable. Auto-detection of baud rate (57600, 115200). Requires libserialport.
+- **UDP**: Default MAVLink port 14550. Used with telemetry radios, Wi-Fi bridges, and SITL simulators.
+- **TCP**: Port 5760. Used with SITL and some telemetry configurations.
+- **Telemetry Radios**: SiK radio (57600 baud), Holybro (57600 baud), and other MAVLink-compatible radio modems.
+
+Connection persistence: Last-used connection is saved and auto-reconnected on startup. Heartbeat watchdog with configurable timeout detects disconnection.
+
+Platform limitations:
+- iOS: No USB serial support (Apple restriction). Use UDP/TCP via Wi-Fi bridge or telemetry radio with network output.
+- Android: No USB serial support in current alpha. Same workaround as iOS.
+
+---
+
+## Setup & Configuration
+
+- **Parameter Editor**: Full list of flight controller parameters with search, filtering by category, and inline editing. Modified parameters highlighted, with reset-to-default option.
+- **Sensor Calibration**: Step-by-step wizards for accelerometer, compass, and RC calibration with visual guidance.
+- **EKF Status**: Real-time Extended Kalman Filter health monitoring with variance indicators.
+- **Stream Rate Control**: Per-message rate configuration using MAV_CMD_SET_MESSAGE_INTERVAL with legacy fallback.
+
+---
+
+## Simulation (SITL)
+
+One-click simulation without Docker:
+- Downloads ArduPilot SITL binary from firmware.ardupilot.org on first use
+- Cached per vehicle type (copter, plane, rover, submarine)
+- Connects via TCP 5760
+- Supports custom start locations, vehicle parameters, and failure injection
+- Works on macOS and Linux (Windows support planned)
+
+---
+
+## Video Streaming
+
+- RTSP stream integration with configurable URL
+- Flight data overlay (altitude, speed, coordinates, timestamp)
+- Full-screen mode for focused monitoring
+- Hardware-accelerated playback via media_kit
+- Recording capability with synced telemetry timestamps
+
+---
+
+## Frequently Asked Questions
+
+**What drones does Helios support?**
+Helios works with any drone running ArduPilot or PX4 firmware that communicates via MAVLink v2. This includes multirotors, fixed-wing aircraft, rovers, and submarines. It also has experimental support for iNav, Betaflight, and Cleanflight via MSP protocol.
+
+**How does Helios compare to QGroundControl?**
+Both are open-source MAVLink GCS applications. Helios differentiates with DuckDB-powered flight analytics (queryable SQL database for every flight), a modern Flutter UI, and cross-platform mobile support. QGroundControl has a larger user base, more mature codebase, and broader hardware integration.
+
+**How does Helios compare to Mission Planner?**
+Mission Planner is Windows-only (.NET) and deeply integrated with ArduPilot. Helios is cross-platform, supports both ArduPilot and PX4, and focuses on flight data analytics. Mission Planner has more advanced configuration options for ArduPilot-specific features.
+
+**Is Helios free?**
+Yes. Helios is free and open-source under GPL 3.0. No accounts, no subscriptions, no telemetry collection. Your data stays on your device.
+
+**What platforms does Helios run on?**
+macOS (13+), Windows (10+), Linux (with GTK3), iOS (alpha via TestFlight), and Android (alpha via APK). Desktop platforms support USB serial connections; mobile platforms require UDP/TCP via Wi-Fi bridge or telemetry radio.
+
+**What database does Helios use for flight data?**
+DuckDB, a columnar OLAP database. Each flight gets its own DuckDB file. This gives 10-100x faster analytical queries compared to row-oriented databases like SQLite, which is what most GCS tools use for logging.
+
+**Can I use Helios offline?**
+Yes. Map tiles can be cached for offline use. Flight recording works entirely locally. No internet connection is required for any core functionality.
+
+**Can I export flight data?**
+Yes. Flight data can be exported to Apache Parquet format for use in external tools like Python (pandas), R, or Jupyter notebooks. The DuckDB files can also be queried directly with any DuckDB client.
+
+**Does Helios support multiple vehicles?**
+Multi-vehicle support is on the roadmap (Sprint 2). Currently Helios connects to one vehicle at a time, identified by MAVLink system ID.
+
+**How do I contribute?**
+Helios is on GitHub at https://github.com/jamesagarside/helios. See the contributing guide at https://heliosgcs.com/docs.html?page=contributing for setup instructions and coding guidelines.

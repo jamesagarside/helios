@@ -1,0 +1,67 @@
+# Helios GCS
+
+> Helios is a free, open-source ground control station (GCS) for MAVLink UAVs. It connects to ArduPilot and PX4 flight controllers over USB, UDP, or TCP and provides real-time telemetry, mission planning, flight recording, and post-flight analytics. Every flight is automatically recorded into a DuckDB database, making post-flight analysis as powerful as the live display.
+
+Helios is part of the Argus Platform. Licensed under GPL 3.0.
+
+## Key Facts
+
+- **Type**: Desktop and mobile ground control station for drones
+- **Protocol**: MAVLink v2 (ArduPilot, PX4, iNav, Betaflight, Cleanflight)
+- **Platforms**: macOS, Windows, Linux, iOS (alpha), Android (alpha)
+- **Tech Stack**: Flutter 3.38, Dart 3.10, DuckDB, Riverpod
+- **License**: GPL 3.0
+- **Author**: James Garside
+- **Website**: https://heliosgcs.com
+- **Repository**: https://github.com/jamesagarside/helios
+- **Current Version**: 0.5.0-alpha
+
+## Core Features
+
+- **Fly View**: Real-time primary flight display (PFD) with attitude, speed, altitude tapes, heading compass, and live map tracking. 60fps rendering with 30Hz state batching.
+- **Mission Planning**: Visual drag-and-drop waypoint editor, area surveys, corridor scans, geofencing, rally points. KML/GPX import support.
+- **Flight Analytics**: Every telemetry point automatically recorded to DuckDB. SQL editor for custom queries, chart builder, Parquet export, cross-flight comparison.
+- **Video Streaming**: RTSP video integration with telemetry overlay and hardware-accelerated playback.
+- **Connections**: USB serial, UDP (14550), TCP (5760), SiK radio, Holybro telemetry. Auto-detection of protocol and baud rate.
+- **Setup & Calibration**: Full parameter editor with search and categories, accelerometer/compass/RC calibration, EKF status monitoring.
+- **Simulation**: One-click SITL (Software In The Loop) with on-demand ArduPilot binary download. No Docker required.
+
+## What Makes Helios Different
+
+- **Flight data as a first-class citizen**: DuckDB columnar database gives 10-100x faster analytics than SQLite-based alternatives.
+- **Modern UI**: Clean, responsive Flutter interface vs legacy Qt/Java GCS tools.
+- **Cross-platform from one codebase**: Native performance on desktop and mobile without emulation layers.
+- **No cloud dependency**: No accounts, no telemetry collection, no API keys. Data stays on the user's machine.
+- **Open source with no lock-in**: GPL 3.0 licensed, all data in open formats (DuckDB, Parquet).
+
+## Comparison with Alternatives
+
+Helios is an alternative to QGroundControl, Mission Planner, and APM Planner 2. Key differences:
+- QGroundControl (Qt/C++) is the most widely used open-source GCS but lacks queryable flight databases and has a dated UI.
+- Mission Planner (Windows-only, .NET) is feature-rich for ArduPilot but not cross-platform and has a steep learning curve.
+- Helios focuses on flight data analytics and modern UX while maintaining full MAVLink compatibility.
+
+## Documentation
+
+- [Getting Started](https://heliosgcs.com/docs.html?page=getting-started)
+- [Installation](https://heliosgcs.com/docs.html?page=installation)
+- [Connecting to a Drone](https://heliosgcs.com/docs.html?page=connection-guide)
+- [Fly View Guide](https://heliosgcs.com/docs.html?page=fly_view)
+- [Mission Planning](https://heliosgcs.com/docs.html?page=mission_planning)
+- [Data & Analytics](https://heliosgcs.com/docs.html?page=analyse-view)
+- [Video Streaming](https://heliosgcs.com/docs.html?page=video-streaming)
+- [SITL Simulator](https://heliosgcs.com/docs.html?page=simulate)
+- [Building from Source](https://heliosgcs.com/docs.html?page=building-from-source)
+- [Architecture](https://heliosgcs.com/docs.html?page=architecture)
+- [Contributing](https://heliosgcs.com/docs.html?page=contributing)
+
+## Downloads
+
+- macOS (.dmg): https://github.com/jamesagarside/helios/releases/latest
+- Windows (.exe): https://github.com/jamesagarside/helios/releases/latest
+- Linux (.AppImage): https://github.com/jamesagarside/helios/releases/latest
+- Source: https://github.com/jamesagarside/helios
+
+## Optional
+
+- [Full details](https://heliosgcs.com/llms-full.txt)

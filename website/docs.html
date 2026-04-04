@@ -3,11 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentation - Helios GCS</title>
-  <meta name="description" content="Helios GCS documentation.">
+  <title>Documentation - Helios GCS | Installation, Setup, and User Guides</title>
+  <meta name="description" content="Helios GCS documentation: installation guides, connecting to ArduPilot and PX4 drones, mission planning tutorials, flight data analysis with DuckDB, video streaming setup, and developer guides for building from source.">
+  <link rel="canonical" href="https://heliosgcs.com/docs.html">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heliosgcs.com/docs.html">
+  <meta property="og:title" content="Documentation - Helios GCS | Installation, Setup, and User Guides">
+  <meta property="og:description" content="Complete documentation for Helios GCS: installation, drone connection, mission planning, flight data analysis, video streaming, and developer guides.">
+  <meta property="og:image" content="https://heliosgcs.com/img/og-image.png">
+  <meta property="og:site_name" content="Helios GCS">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Documentation - Helios GCS">
+  <meta name="twitter:description" content="Complete documentation for Helios GCS: installation, drone connection, mission planning, flight data analysis, video streaming, and developer guides.">
+  <meta name="twitter:image" content="https://heliosgcs.com/img/og-image.png">
+  <!-- Additional SEO -->
+  <meta name="robots" content="index, follow">
+  <link rel="help" href="/llms.txt" type="text/plain" title="LLM content">
   <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
   <link rel="icon" href="img/favicon.png" type="image/png">
   <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Helios GCS", "item": "https://heliosgcs.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Documentation", "item": "https://heliosgcs.com/docs.html" }
+    ]
+  }
+  </script>
 </head>
 <body>
 
@@ -35,7 +61,47 @@
 
 <div class="docs-layout">
   <aside class="docs-sidebar" id="docs-sidebar"></aside>
-  <main class="docs-content" id="docs-content"></main>
+  <main class="docs-content" id="docs-content">
+    <!-- Static fallback for search engines (JS replaces this on load) -->
+    <noscript>
+      <h1>Helios GCS Documentation</h1>
+      <p>Helios is an open-source ground control station for MAVLink UAVs, supporting ArduPilot and PX4 flight controllers.</p>
+      <h2>Getting Started</h2>
+      <ul>
+        <li><a href="docs.html?page=getting-started">Quick Start Guide</a></li>
+        <li><a href="docs.html?page=installation">Installation</a> - macOS, Windows, Linux, iOS, Android</li>
+        <li><a href="docs.html?page=connection-guide">Connecting to Your Drone</a> - USB, UDP, TCP</li>
+      </ul>
+      <h2>Features</h2>
+      <ul>
+        <li><a href="docs.html?page=features-overview">Features Overview</a></li>
+        <li><a href="docs.html?page=fly_view">Fly View</a> - Real-time PFD, map, and telemetry</li>
+        <li><a href="docs.html?page=mission_planning">Mission Planning</a> - Waypoints, survey patterns, geofencing</li>
+        <li><a href="docs.html?page=analyse-view">Data and Analytics</a> - DuckDB-powered flight analysis and SQL queries</li>
+        <li><a href="docs.html?page=video-streaming">Video Streaming</a> - RTSP video integration</li>
+        <li><a href="docs.html?page=setup-guide">Setup and Configuration</a> - Parameters, calibration, settings</li>
+      </ul>
+      <h2>Mission Patterns</h2>
+      <ul>
+        <li><a href="docs.html?page=points_of_interest">Points of Interest</a></li>
+        <li><a href="docs.html?page=corridor-scan">Corridor Scan</a></li>
+        <li><a href="docs.html?page=no_fly_zones">No-Fly Zones</a></li>
+        <li><a href="docs.html?page=terrain-planning">Terrain Planning</a></li>
+      </ul>
+      <h2>Advanced</h2>
+      <ul>
+        <li><a href="docs.html?page=emergency-procedures">Emergency Procedures</a></li>
+        <li><a href="docs.html?page=mavlink-terminal">MAVLink Terminal</a></li>
+        <li><a href="docs.html?page=simulate">SITL Simulator</a></li>
+      </ul>
+      <h2>Developer</h2>
+      <ul>
+        <li><a href="docs.html?page=building-from-source">Building from Source</a></li>
+        <li><a href="docs.html?page=architecture">Architecture</a></li>
+        <li><a href="docs.html?page=contributing">Contributing</a></li>
+      </ul>
+    </noscript>
+  </main>
   <aside class="docs-toc" id="docs-toc"></aside>
 </div>
 

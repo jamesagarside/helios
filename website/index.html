@@ -3,11 +3,123 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Helios GCS</title>
-  <meta name="description" content="Modern, open-source ground control station for drones. Every flight recorded, every data point queryable. macOS, Windows, Linux.">
+  <title>Helios GCS - Open-Source Drone Ground Control Station</title>
+  <meta name="description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, flight recording with DuckDB analytics. Supports ArduPilot and PX4 on macOS, Windows, Linux, iOS, and Android.">
+  <link rel="canonical" href="https://heliosgcs.com/">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heliosgcs.com/">
+  <meta property="og:title" content="Helios GCS - Open-Source Drone Ground Control Station">
+  <meta property="og:description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
+  <meta property="og:image" content="https://heliosgcs.com/img/og-image.png">
+  <meta property="og:site_name" content="Helios GCS">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Helios GCS - Open-Source Drone Ground Control Station">
+  <meta name="twitter:description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
+  <meta name="twitter:image" content="https://heliosgcs.com/img/og-image.png">
+  <!-- Additional SEO -->
+  <meta name="keywords" content="drone ground control station, GCS, MAVLink, open source, ArduPilot, PX4, flight data, telemetry, mission planning, DuckDB, QGroundControl alternative">
+  <meta name="author" content="James Garside">
+  <meta name="robots" content="index, follow">
+  <link rel="help" href="/llms.txt" type="text/plain" title="LLM content">
   <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
   <link rel="icon" href="img/favicon.png" type="image/png">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Helios GCS",
+    "description": "Open-source ground control station for MAVLink drones with real-time telemetry, mission planning, and flight data analytics powered by DuckDB.",
+    "url": "https://heliosgcs.com",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "macOS, Windows, Linux, iOS, Android",
+    "license": "https://opensource.org/licenses/GPL-3.0",
+    "downloadUrl": "https://github.com/jamesagarside/helios/releases/latest",
+    "softwareVersion": "0.5.0-alpha",
+    "author": {
+      "@type": "Person",
+      "name": "James Garside",
+      "url": "https://github.com/jamesagarside"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "screenshot": "https://heliosgcs.com/img/og-image.png",
+    "featureList": [
+      "Real-time telemetry display",
+      "Mission planning with waypoints",
+      "Flight recording to DuckDB",
+      "SQL-powered flight analytics",
+      "MAVLink v2 protocol support",
+      "ArduPilot and PX4 compatible",
+      "Offline map tile caching",
+      "RTSP video streaming",
+      "Parameter editor",
+      "Sensor calibration"
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What drones does Helios GCS support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Helios works with any drone running ArduPilot or PX4 firmware that communicates via MAVLink v2. This includes multirotors, fixed-wing aircraft, rovers, and submarines. It also has experimental support for iNav, Betaflight, and Cleanflight via MSP protocol."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does Helios compare to QGroundControl?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Both are open-source MAVLink GCS applications. Helios differentiates with DuckDB-powered flight analytics (a queryable SQL database for every flight), a modern Flutter-based UI, and cross-platform mobile support. QGroundControl has a larger user base and broader hardware integration."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Helios GCS free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Helios is free and open-source under GPL 3.0. No accounts, no subscriptions, no telemetry collection. Your data stays on your device."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What platforms does Helios run on?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "macOS (13+), Windows (10+), Linux (with GTK3), iOS (alpha via TestFlight), and Android (alpha via APK). Desktop platforms support USB serial connections; mobile platforms require UDP or TCP via a Wi-Fi bridge or telemetry radio."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What database does Helios use for flight data?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "DuckDB, a columnar OLAP database. Each flight gets its own DuckDB file, giving 10-100x faster analytical queries compared to row-oriented databases like SQLite. Flight data can be exported to Apache Parquet for use in Python, R, or Jupyter notebooks."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use Helios offline?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Map tiles can be cached for offline use, and flight recording works entirely locally. No internet connection is required for any core functionality."
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 

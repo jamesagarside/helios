@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://heliosgcs.com/sitemap.xml
+
+# LLM-readable content
+# https://llmstxt.org
+# llms.txt: https://heliosgcs.com/llms.txt
+# llms-full.txt: https://heliosgcs.com/llms-full.txt
