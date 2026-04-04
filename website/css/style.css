@@ -873,8 +873,8 @@ body.splash-active { overflow: hidden; }
   .docs-sidebar {
     position: fixed;
     left: -280px;
-    top: 56px;
-    height: calc(100vh - 56px);
+    top: 96px;
+    height: calc(100vh - 96px);
     background: var(--bg);
     z-index: 99;
     transition: left 0.25s;
@@ -882,5 +882,42 @@ body.splash-active { overflow: hidden; }
   }
 
   .docs-sidebar.open { left: 0; }
-  .docs-content { padding: 24px 16px 60px; }
+  .docs-content { padding: 24px 16px 60px; padding-top: 56px; }
+
+  .docs-sidebar-toggle { display: flex; }
+}
+
+/* ─── Docs Sidebar Toggle (mobile only) ─────────────────────── */
+
+.docs-sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 98;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+}
+
+.docs-sidebar-toggle svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.docs-sidebar-toggle:hover,
+.docs-sidebar-toggle.active {
+  color: var(--text-primary);
+  background: var(--surface-light);
 }
