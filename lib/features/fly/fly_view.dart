@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderStack;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/telemetry/replay_service.dart';
@@ -446,10 +447,10 @@ class _DraggablePfd extends StatefulWidget {
 }
 
 class _DraggablePfdState extends State<_DraggablePfd> {
-  late double _x;
-  late double _y;
-  late double _width;
-  late double _height;
+  double _x = 16;
+  double _y = 0;
+  double _width = 320;
+  double _height = 240;
   bool _initialised = false;
 
   static const double _minWidth = 240;
@@ -457,7 +458,9 @@ class _DraggablePfdState extends State<_DraggablePfd> {
   static const double _minHeight = 180;
   static const double _maxHeight = 380;
 
-  void _initPosition(BoxConstraints constraints) {
+  Size _stackSize = Size.zero;
+
+  void _initPosition(Size stackSize) {
     if (_initialised) return;
     _initialised = true;
     final pfd = widget.layout.pfd;
@@ -466,83 +469,96 @@ class _DraggablePfdState extends State<_DraggablePfd> {
     _x = pfd.x;
     // y == -1 means "bottom-left" default
     _y = pfd.y < 0
-        ? constraints.maxHeight - _height - 16
+        ? stackSize.height - _height - 16
         : pfd.y;
+  }
+
+  void _resolveStackSize() {
+    final stack = context.findAncestorRenderObjectOfType<RenderStack>();
+    if (stack != null && stack.hasSize) {
+      _stackSize = stack.size;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _initPosition(constraints);
-        return Positioned(
-          left: _x,
-          top: _y,
-          child: GestureDetector(
-            onPanUpdate: widget.editMode
-                ? (details) {
+    // Resolve parent Stack size after layout to initialise default position.
+    if (!_initialised) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resolveStackSize();
+        if (!_initialised && _stackSize != Size.zero) {
+          _initPosition(_stackSize);
+          if (mounted) setState(() {});
+        }
+      });
+    }
+    return Positioned(
+      left: _x,
+      top: _y,
+      child: GestureDetector(
+        onPanUpdate: widget.editMode
+            ? (details) {
+                _resolveStackSize();
+                setState(() {
+                  _x = (_x + details.delta.dx)
+                      .clamp(0, _stackSize.width - _width);
+                  _y = (_y + details.delta.dy)
+                      .clamp(0, _stackSize.height - _height);
+                });
+              }
+            : null,
+        onPanEnd: widget.editMode
+            ? (_) => widget.notifier.updatePfdPosition(_x, _y)
+            : null,
+        child: Stack(
+          children: [
+            SizedBox(
+              width: _width,
+              height: _height + 30, // extra space for readout chips
+              child: _PfdOverlay(
+                vehicle: widget.vehicle,
+                pfdExtras: widget.layout.pfdExtras,
+                editMode: widget.editMode,
+                onToggleExtra: (extra) =>
+                    widget.notifier.togglePfdExtra(extra),
+                width: _width,
+                height: _height,
+              ),
+            ),
+            // Resize handle — bottom-right (only in edit mode)
+            if (widget.editMode)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
                     setState(() {
-                      _x = (_x + details.delta.dx)
-                          .clamp(0, constraints.maxWidth - _width);
-                      _y = (_y + details.delta.dy)
-                          .clamp(0, constraints.maxHeight - _height);
+                      _width = (_width + details.delta.dx)
+                          .clamp(_minWidth, _maxWidth);
+                      _height = (_height + details.delta.dy)
+                          .clamp(_minHeight, _maxHeight);
                     });
-                  }
-                : null,
-            onPanEnd: widget.editMode
-                ? (_) => widget.notifier.updatePfdPosition(_x, _y)
-                : null,
-            child: Stack(
-              children: [
-                SizedBox(
-                  width: _width,
-                  height: _height + 30, // extra space for readout chips
-                  child: _PfdOverlay(
-                    vehicle: widget.vehicle,
-                    pfdExtras: widget.layout.pfdExtras,
-                    editMode: widget.editMode,
-                    onToggleExtra: (extra) =>
-                        widget.notifier.togglePfdExtra(extra),
-                    width: _width,
-                    height: _height,
-                  ),
-                ),
-                // Resize handle — bottom-right (only in edit mode)
-                if (widget.editMode)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onPanUpdate: (details) {
-                        setState(() {
-                          _width = (_width + details.delta.dx)
-                              .clamp(_minWidth, _maxWidth);
-                          _height = (_height + details.delta.dy)
-                              .clamp(_minHeight, _maxHeight);
-                        });
-                      },
-                      onPanEnd: (_) =>
-                          widget.notifier.updatePfdSize(_width, _height),
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.resizeDownRight,
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.drag_handle,
-                            size: 12,
-                            color: context.hc.textTertiary,
-                          ),
-                        ),
+                  },
+                  onPanEnd: (_) =>
+                      widget.notifier.updatePfdSize(_width, _height),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.resizeDownRight,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.drag_handle,
+                        size: 12,
+                        color: context.hc.textTertiary,
                       ),
                     ),
                   ),
-              ],
-            ),
-          ),
-        );
-      },
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
