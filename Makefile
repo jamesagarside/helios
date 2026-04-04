@@ -206,6 +206,14 @@ package-windows-installer: build-windows ## Create Windows installer (requires I
 	iscc packaging/windows/inno_setup.iss
 	@echo "Installer: build/helios-gcs-windows-x64-setup.exe"
 
+# ── Website ─────────────────────────────────────────────────
+
+.PHONY: serve-website
+
+serve-website: ## Serve the website locally at http://localhost:8000
+	@echo "Serving website at http://localhost:8000"
+	@cd website && python3 -m http.server 8000
+
 # ── Code Generation ──────────────────────────────────────────
 
 .PHONY: gen-crc gen-all

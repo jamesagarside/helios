@@ -65,16 +65,8 @@ Changes to the `website/` directory on the `main` branch are automatically deplo
 To preview locally:
 
 ```bash
-cd website
-python3 -m http.server 8000
+make serve-website
 # Open http://localhost:8000
-```
-
-Or use the included helper:
-
-```bash
-cd website
-./serve.sh
 ```
 
 ## SEO
