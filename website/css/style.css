@@ -596,7 +596,7 @@ body.splash-active { overflow: hidden; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-tertiary);
+  color: var(--accent);
   margin: 20px 0 8px;
   padding: 0 8px;
 }
