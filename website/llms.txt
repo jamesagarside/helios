@@ -53,6 +53,7 @@ Helios is an alternative to QGroundControl, Mission Planner, and APM Planner 2. 
 - [SITL Simulator](https://heliosgcs.com/docs.html?page=simulate)
 - [Building from Source](https://heliosgcs.com/docs.html?page=building-from-source)
 - [Architecture](https://heliosgcs.com/docs.html?page=architecture)
+- [Web App](https://heliosgcs.com/docs.html?page=webapp)
 - [Contributing](https://heliosgcs.com/docs.html?page=contributing)
 
 ## Downloads

@@ -1,12 +1,12 @@
 {
-    "name": "helios_gcs",
-    "short_name": "helios_gcs",
+    "name": "Helios GCS",
+    "short_name": "Helios",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
+    "background_color": "#0a1929",
+    "theme_color": "#0a1929",
     "description": "Open-source ground control station for MAVLink UAVs",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -22,6 +22,9 @@ run-linux: ## Run debug on Linux
 run-windows: ## Run debug on Windows
 	flutter run -d windows
 
+run-web: ## Run debug in Chrome browser
+	flutter run -d chrome
+
 run-android: ## Run debug on connected Android device
 	flutter run -d android
 

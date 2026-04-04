@@ -20,7 +20,7 @@ const ALLOWED_SLUGS = new Set([
   'points_of_interest', 'corridor-scan', 'no_fly_zones', 'terrain-planning',
   'emergency-procedures', 'gimbal-control', 'guided-commands', 'joystick-control',
   'mavlink-terminal', 'diagnostic_panels', 'simulate',
-  'building-from-source', 'architecture', 'telemetry-schema', 'ci-cd', 'contributing', 'website',
+  'building-from-source', 'architecture', 'webapp', 'telemetry-schema', 'ci-cd', 'contributing', 'website',
 ]);
 
 // Sidebar structure — order matters
@@ -75,6 +75,7 @@ const DOCS_NAV = [
     pages: [
       { slug: 'building-from-source', title: 'Building from Source' },
       { slug: 'architecture', title: 'Architecture' },
+      { slug: 'webapp', title: 'Web App' },
       { slug: 'telemetry-schema', title: 'Telemetry Schema' },
       { slug: 'ci-cd', title: 'CI/CD' },
       { slug: 'contributing', title: 'Contributing' },
