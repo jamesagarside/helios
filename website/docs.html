@@ -3,39 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentation - Helios GCS</title>
-  <meta name="description" content="Helios GCS documentation.">
+  <title>Documentation - Helios GCS | Installation, Setup, and User Guides</title>
+  <meta name="description" content="Helios GCS documentation: installation guides, connecting to ArduPilot and PX4 drones, mission planning tutorials, flight data analysis with DuckDB, video streaming setup, and developer guides for building from source.">
+  <link rel="canonical" href="https://heliosgcs.com/docs.html">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heliosgcs.com/docs.html">
+  <meta property="og:title" content="Documentation - Helios GCS | Installation, Setup, and User Guides">
+  <meta property="og:description" content="Complete documentation for Helios GCS: installation, drone connection, mission planning, flight data analysis, video streaming, and developer guides.">
+  <meta property="og:image" content="https://heliosgcs.com/img/og-image.png">
+  <meta property="og:site_name" content="Helios GCS">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Documentation - Helios GCS">
+  <meta name="twitter:description" content="Complete documentation for Helios GCS: installation, drone connection, mission planning, flight data analysis, video streaming, and developer guides.">
+  <meta name="twitter:image" content="https://heliosgcs.com/img/og-image.png">
+  <!-- Additional SEO -->
+  <meta name="robots" content="index, follow">
+  <link rel="help" href="/llms.txt" type="text/plain" title="LLM content">
+  <link rel="icon" href="img/favicon-48.png" sizes="48x48" type="image/png">
+  <link rel="icon" href="img/favicon-192.png" sizes="192x192" type="image/png">
   <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
-  <link rel="icon" href="img/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Helios GCS", "item": "https://heliosgcs.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Documentation", "item": "https://heliosgcs.com/docs.html" }
+    ]
+  }
+  </script>
 </head>
 <body>
 
 <nav class="nav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-brand">
+    <a href="/" class="nav-brand">
       <img src="img/logo.svg" alt="Helios">
       Helios
     </a>
     <ul class="nav-links">
-      <li><a href="index.html#features">Features</a></li>
+      <li><a href="features.html">Features</a></li>
       <li><a href="docs.html" class="active">Docs</a></li>
-      <li><a href="index.html#download">Download</a></li>
+      <li>
+        <div class="nav-download">
+          <button class="nav-download-btn" onclick="this.parentElement.classList.toggle('open')">Download <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></button>
+          <div class="nav-download-menu">
+            <div class="nav-download-menu-inner">
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M7 7h6M7 10h6M7 13h3"/></svg>
+                macOS (.dmg)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1"/><path d="M7 8l3 3 3-3M10 5v6"/></svg>
+                Windows (.exe)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2 2"/></svg>
+                Linux (.AppImage)
+              </a>
+              <a href="/#download" style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px;">
+                <svg viewBox="0 0 20 20"><path d="M3 10a7 7 0 1114 0 7 7 0 01-14 0z"/><path d="M10 7v6m-3-3l3 3 3-3"/></svg>
+                All platforms
+              </a>
+            </div>
+          </div>
+        </div>
+      </li>
     </ul>
     <div class="nav-right">
       <a href="https://github.com/jamesagarside/helios" class="nav-github" target="_blank" rel="noopener">
-        <svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
-    </div>
-    <button class="menu-toggle" aria-label="Toggle menu" onclick="document.querySelector('.nav-links').classList.toggle('open'); document.getElementById('docs-sidebar').classList.toggle('open')">
+      <button class="menu-toggle" aria-label="Toggle menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>
       </button>
+    </div>
   </div>
 </nav>
 
 <div class="docs-layout">
+  <button class="docs-sidebar-toggle" id="docs-sidebar-toggle" aria-label="Toggle documentation sidebar" onclick="document.getElementById('docs-sidebar').classList.toggle('open'); this.classList.toggle('active')">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 4h12M3 9h8M3 14h10"/></svg>
+    <span>Docs menu</span>
+  </button>
   <aside class="docs-sidebar" id="docs-sidebar"></aside>
-  <main class="docs-content" id="docs-content"></main>
+  <main class="docs-content" id="docs-content">
+    <!-- Static fallback for search engines (JS replaces this on load) -->
+    <noscript>
+      <h1>Helios GCS Documentation</h1>
+      <p>Helios is an open-source ground control station for MAVLink UAVs, supporting ArduPilot and PX4 flight controllers.</p>
+      <h2>Getting Started</h2>
+      <ul>
+        <li><a href="docs.html?page=getting-started">Quick Start Guide</a></li>
+        <li><a href="docs.html?page=installation">Installation</a> - macOS, Windows, Linux, iOS, Android</li>
+        <li><a href="docs.html?page=connection-guide">Connecting to Your Drone</a> - USB, UDP, TCP</li>
+      </ul>
+      <h2>Features</h2>
+      <ul>
+        <li><a href="docs.html?page=features-overview">Features Overview</a></li>
+        <li><a href="docs.html?page=fly_view">Fly View</a> - Real-time PFD, map, and telemetry</li>
+        <li><a href="docs.html?page=mission_planning">Mission Planning</a> - Waypoints, survey patterns, geofencing</li>
+        <li><a href="docs.html?page=analyse-view">Data and Analytics</a> - DuckDB-powered flight analysis and SQL queries</li>
+        <li><a href="docs.html?page=video-streaming">Video Streaming</a> - RTSP video integration</li>
+        <li><a href="docs.html?page=setup-guide">Setup and Configuration</a> - Parameters, calibration, settings</li>
+      </ul>
+      <h2>Mission Patterns</h2>
+      <ul>
+        <li><a href="docs.html?page=points_of_interest">Points of Interest</a></li>
+        <li><a href="docs.html?page=corridor-scan">Corridor Scan</a></li>
+        <li><a href="docs.html?page=no_fly_zones">No-Fly Zones</a></li>
+        <li><a href="docs.html?page=terrain-planning">Terrain Planning</a></li>
+      </ul>
+      <h2>Advanced</h2>
+      <ul>
+        <li><a href="docs.html?page=emergency-procedures">Emergency Procedures</a></li>
+        <li><a href="docs.html?page=mavlink-terminal">MAVLink Terminal</a></li>
+        <li><a href="docs.html?page=simulate">SITL Simulator</a></li>
+      </ul>
+      <h2>Developer</h2>
+      <ul>
+        <li><a href="docs.html?page=building-from-source">Building from Source</a></li>
+        <li><a href="docs.html?page=architecture">Architecture</a></li>
+        <li><a href="docs.html?page=contributing">Contributing</a></li>
+        <li><a href="docs.html?page=website">Website</a> - Architecture, hosting, SEO, and how to make changes</li>
+      </ul>
+    </noscript>
+  </main>
   <aside class="docs-toc" id="docs-toc"></aside>
 </div>
 

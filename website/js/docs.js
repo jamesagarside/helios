@@ -20,7 +20,7 @@ const ALLOWED_SLUGS = new Set([
   'points_of_interest', 'corridor-scan', 'no_fly_zones', 'terrain-planning',
   'emergency-procedures', 'gimbal-control', 'guided-commands', 'joystick-control',
   'mavlink-terminal', 'diagnostic_panels', 'simulate',
-  'building-from-source', 'architecture', 'telemetry-schema', 'ci-cd', 'contributing',
+  'building-from-source', 'architecture', 'telemetry-schema', 'ci-cd', 'contributing', 'website',
 ]);
 
 // Sidebar structure — order matters
@@ -78,6 +78,7 @@ const DOCS_NAV = [
       { slug: 'telemetry-schema', title: 'Telemetry Schema' },
       { slug: 'ci-cd', title: 'CI/CD' },
       { slug: 'contributing', title: 'Contributing' },
+      { slug: 'website', title: 'Website' },
     ],
   },
 ];
