@@ -14,7 +14,7 @@ var DOCS_BASE = 'docs/';
 
 // Allowed page slugs — only these can be loaded (prevents arbitrary file reads)
 const ALLOWED_SLUGS = new Set([
-  'getting-started', 'installation', 'connection-guide',
+  'getting-started', 'installation', 'connection-guide', 'web-app-guide',
   'features-overview', 'fly_view', 'mission_planning',
   'analyse-view', 'video-streaming', 'setup-guide',
   'points_of_interest', 'corridor-scan', 'no_fly_zones', 'terrain-planning',
@@ -31,6 +31,7 @@ const DOCS_NAV = [
       { slug: 'getting-started', title: 'Quick Start' },
       { slug: 'installation', title: 'Installation' },
       { slug: 'connection-guide', title: 'Connecting' },
+      { slug: 'web-app-guide', title: 'Web App Guide' },
     ],
   },
   {

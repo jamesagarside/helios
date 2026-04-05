@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/geotag/geotag_service.dart';
@@ -1005,21 +1006,29 @@ class _SqlEditor extends StatelessWidget {
               // Export dropdown
               MenuAnchor(
                 menuChildren: [
-                  MenuItemButton(
-                    leadingIcon: const Icon(Icons.table_chart_outlined, size: 16),
-                    onPressed: onExport != null ? () => onExport!(_ExportFormat.csv) : null,
-                    child: const Text('Export CSV'),
-                  ),
-                  MenuItemButton(
-                    leadingIcon: const Icon(Icons.data_object, size: 16),
-                    onPressed: onExport != null ? () => onExport!(_ExportFormat.json) : null,
-                    child: const Text('Export JSON'),
-                  ),
-                  MenuItemButton(
-                    leadingIcon: const Icon(Icons.save_alt, size: 16),
-                    onPressed: onExport != null ? () => onExport!(_ExportFormat.parquet) : null,
-                    child: const Text('Export Parquet'),
-                  ),
+                  if (!kIsWeb) ...[
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.table_chart_outlined, size: 16),
+                      onPressed: onExport != null ? () => onExport!(_ExportFormat.csv) : null,
+                      child: const Text('Export CSV'),
+                    ),
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.data_object, size: 16),
+                      onPressed: onExport != null ? () => onExport!(_ExportFormat.json) : null,
+                      child: const Text('Export JSON'),
+                    ),
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.save_alt, size: 16),
+                      onPressed: onExport != null ? () => onExport!(_ExportFormat.parquet) : null,
+                      child: const Text('Export Parquet'),
+                    ),
+                  ],
+                  if (kIsWeb)
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.info_outline, size: 16),
+                      onPressed: null,
+                      child: const Text('Export not available on web'),
+                    ),
                 ],
                 builder: (_, ctrl, child) => OutlinedButton.icon(
                   onPressed: onExport != null ? () {
