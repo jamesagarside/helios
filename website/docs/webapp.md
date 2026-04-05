@@ -2,6 +2,8 @@
 
 Helios GCS runs as a Progressive Web App (PWA) at [app.heliosgcs.com](https://app.heliosgcs.com). This document covers the web architecture, platform abstraction layer, connectivity via the Helios Relay, and deployment.
 
+> **Looking for the user guide?** See the [Web App Guide](docs.html?page=web-app-guide) for setup instructions, browser compatibility, relay installation, and troubleshooting.
+
 ## Architecture Overview
 
 The web app is the same Flutter codebase compiled to JavaScript. Platform-specific features (native sockets, DuckDB FFI, serial ports) are handled through compile-time conditional imports that swap in web-compatible implementations.
