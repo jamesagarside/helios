@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import 'cached_tile_provider_native.dart'
@@ -11,35 +10,23 @@ import 'cached_tile_provider_native.dart'
 const heliosUserAgent =
     'HeliosGCS/0.5.0 (+https://github.com/jamesagarside/helios)';
 
-/// Tile provider that uses FMTC on native and plain HTTP on web.
+/// Factory that returns the platform-appropriate [TileProvider].
 ///
-/// All map widgets use this — the platform switch is transparent.
-class CachedTileProvider extends TileProvider {
-  CachedTileProvider({this.maxCacheAgeDays = 30});
-
-  final int maxCacheAgeDays;
-
-  late final TileProvider _delegate = impl.createDelegate(
-    maxCacheAgeDays: maxCacheAgeDays,
-  );
-
-  @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
-    return _delegate.getImage(coordinates, options);
-  }
-
-  @override
-  void dispose() {
-    _delegate.dispose();
-    super.dispose();
-  }
-
-  /// Initialise platform-specific backend (no-op on web).
-  static Future<void> initialise() => impl.initialise();
-
-  /// Get the current cache size in bytes.
-  static Future<int> cacheSize() => impl.cacheSize();
-
-  /// Clear all cached tiles.
-  static Future<void> clearCache() => impl.clearCache();
+/// On native: FMTC-backed with ObjectBox cache.
+/// On web: plain [NetworkTileProvider] (browser HTTP cache handles caching).
+///
+/// Returns the actual provider directly — no wrapping — so flutter_map's
+/// full API (including supportsCancelLoading) works correctly.
+// ignore: non_constant_identifier_names
+TileProvider CachedTileProvider({int maxCacheAgeDays = 30}) {
+  return impl.createDelegate(maxCacheAgeDays: maxCacheAgeDays);
 }
+
+/// Initialise platform-specific backend (no-op on web).
+Future<void> initialiseTileCache() => impl.initialise();
+
+/// Get the current cache size in bytes.
+Future<int> tileCacheSize() => impl.cacheSize();
+
+/// Clear all cached tiles.
+Future<void> clearTileCache() => impl.clearCache();

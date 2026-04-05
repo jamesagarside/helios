@@ -6,11 +6,17 @@ import 'cached_tile_provider.dart' show heliosUserAgent;
 const _defaultStoreName = 'helios_tiles';
 
 TileProvider createDelegate({int maxCacheAgeDays = 30}) {
+  if (!_initialised) {
+    // FMTC not initialised (e.g. in tests) — fall back to plain HTTP.
+    return NetworkTileProvider(
+      headers: {'User-Agent': heliosUserAgent},
+    );
+  }
   return FMTCTileProvider(
     stores: const {_defaultStoreName: BrowseStoreStrategy.readUpdateCreate},
     loadingStrategy: BrowseLoadingStrategy.onlineFirst,
     cachedValidDuration: Duration(days: maxCacheAgeDays),
-    headers: const {'User-Agent': heliosUserAgent},
+    headers: {'User-Agent': heliosUserAgent},
   );
 }
 

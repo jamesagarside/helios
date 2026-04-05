@@ -1363,7 +1363,7 @@ class _MapCacheSettingsState extends State<_MapCacheSettings> {
   }
 
   Future<void> _refreshSize() async {
-    final size = await CachedTileProvider.cacheSize();
+    final size = await tileCacheSize();
     if (mounted) setState(() => _cacheBytes = size);
   }
 
@@ -1403,7 +1403,7 @@ class _MapCacheSettingsState extends State<_MapCacheSettings> {
                   ? null
                   : () async {
                       setState(() => _clearing = true);
-                      await CachedTileProvider.clearCache();
+                      await clearTileCache();
                       await _refreshSize();
                       if (mounted) setState(() => _clearing = false);
                     },
@@ -2208,7 +2208,7 @@ class _ResetSection extends ConsumerWidget {
 
     // 3. Clear map tile cache
     try {
-      await CachedTileProvider.clearCache();
+      await clearTileCache();
     } catch (_) {}
 
     if (context.mounted) {
