@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -261,7 +261,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
       ),
     );
 
-    if (!Platform.isMacOS) return body;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) return body;
 
     // macOS menu bar: live flight status in the system menu bar.
     // Labels update each time the widget rebuilds (state change).

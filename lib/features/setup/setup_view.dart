@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -510,7 +511,7 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
                     wsPortController: _wsPortController,
                     isConnected: isConnected,
                   ),
-                ] else if (Platform.isIOS) ...[
+                ] else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
                   // iOS does not support USB serial (libserialport has no iOS backend).
                   // Users must connect via UDP or TCP (WiFi telemetry radio / network bridge).
                   Container(
@@ -926,8 +927,8 @@ class _InfoTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hc = context.hc;
-    final os = Platform.operatingSystem;
-    final osVersion = Platform.operatingSystemVersion;
+    final os = kIsWeb ? 'web' : defaultTargetPlatform.name;
+    final osVersion = kIsWeb ? 'Browser' : defaultTargetPlatform.name;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
