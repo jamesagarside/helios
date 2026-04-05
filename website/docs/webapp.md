@@ -132,7 +132,7 @@ The web app includes a relay status provider (`lib/shared/providers/relay_status
 | Mission planning | Yes | Yes | Full mission editor |
 | Flight recording (DuckDB) | Yes | Yes | sql.js on web, IndexedDB persistence |
 | Post-flight analytics | Yes | Yes | SQL queries, charts (no Parquet export) |
-| Parquet/CSV export | Yes | No | Web cannot write to file system directly |
+| Parquet/CSV/JSON export | Yes | No | Hidden on web (requires file system) |
 | USB serial connection | Yes | No | Web Serial API planned for Chrome |
 | TCP/UDP direct connection | Yes | No | Use WebSocket relay instead |
 | RTSP video streaming | Yes | No | media_kit requires native platform |
@@ -141,7 +141,7 @@ The web app includes a relay status provider (`lib/shared/providers/relay_status
 | Parameter editor | Yes | Yes | Via WebSocket relay |
 | Rally points | Yes | Yes | |
 | Calibration | Yes | Yes | Via WebSocket relay |
-| Log download | Yes | Partial | Download via relay, limited by IndexedDB size |
+| Log download | Yes | No | Hidden on web (requires file system) |
 | Offline tile caching | Yes | Yes | Via browser Cache API |
 | PWA install (Add to Home Screen) | N/A | Yes | Standalone app experience |
 
@@ -151,7 +151,7 @@ The web app includes a relay status provider (`lib/shared/providers/relay_status
 
 The web app is hosted on GitHub Pages at [app.heliosgcs.com](https://app.heliosgcs.com), deployed from a separate repository (`jamesagarside/helios-app`).
 
-A GitHub Actions workflow in the main Helios repo builds the Flutter web output and pushes it to the deployment repo on every push to `main` that touches application code.
+A GitHub Actions workflow in the main Helios repo builds the Flutter web output and pushes it to the deployment repo when a new release is published (or triggered manually via workflow_dispatch).
 
 ### DNS Setup
 
@@ -223,3 +223,21 @@ Use `kIsWeb` from `package:flutter/foundation.dart` sparingly — prefer compile
 3. Implement the web version in `*_web.dart` (uses `dart:js_interop`, IndexedDB, etc.)
 4. Re-export with a conditional import in the barrel file
 5. Update the feature parity table above
+
+### Hiding Features on Web
+
+Features that use native APIs and cannot work on web are hidden from the UI using `kIsWeb`:
+
+- **Video tab**: Removed from `responsive_scaffold.dart` destination list
+- **Simulate tab**: Removed from `setup_view.dart` tab list
+- **Logs tab**: Removed from `setup_view.dart` tab list
+- **Video settings tab**: Removed from `setup_view.dart` tab list
+- **Serial/UDP/TCP transport**: Removed from connection transport selector
+- **Export buttons**: Hidden in analyse view, replaced with "not available" message
+- **Default transport**: Set to WebSocket on web (instead of UDP)
+
+When adding new features, check if they depend on native APIs and add `kIsWeb` guards accordingly. Prefer hiding the UI entirely over showing disabled buttons — it's a cleaner experience.
+
+### User Documentation
+
+The user-facing web app guide is at `website/docs/web-app-guide.md`. Keep it in sync when changing feature parity.

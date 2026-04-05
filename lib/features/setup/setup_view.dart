@@ -38,16 +38,19 @@ class _SetupViewState extends ConsumerState<SetupView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabs = [
+  static final _tabs = [
     (icon: Icons.link_outlined, label: 'Connection'),
     (icon: Icons.speed_outlined, label: 'Telemetry'),
-    (icon: Icons.videocam_outlined, label: 'Video'),
+    // Video settings hidden on web — media_kit not available.
+    if (!kIsWeb) (icon: Icons.videocam_outlined, label: 'Video'),
     (icon: Icons.dashboard_customize_outlined, label: 'Display'),
     (icon: Icons.map_outlined, label: 'Offline Maps'),
     (icon: Icons.build_outlined, label: 'System'),
     (icon: Icons.info_outline, label: 'Info'),
-    (icon: Icons.storage_outlined, label: 'Logs'),
-    (icon: Icons.rocket_launch_outlined, label: 'Simulate'),
+    // Log download hidden on web — requires file system access.
+    if (!kIsWeb) (icon: Icons.storage_outlined, label: 'Logs'),
+    // SITL simulator hidden on web — requires native binary execution.
+    if (!kIsWeb) (icon: Icons.rocket_launch_outlined, label: 'Simulate'),
   ];
 
   @override
@@ -123,13 +126,13 @@ class _SetupViewState extends ConsumerState<SetupView>
                     children: [
                       _ConnectionTab(),
                       const _TelemetryTab(),
-                      const _VideoTab(),
+                      if (!kIsWeb) const _VideoTab(),
                       const _DisplayTab(),
                       const _MapsTab(),
                       const _SystemTab(),
                       const _InfoTab(),
-                      const _LogsTab(),
-                      const SimulatePanel(),
+                      if (!kIsWeb) const _LogsTab(),
+                      if (!kIsWeb) const SimulatePanel(),
                     ],
                   ),
                 ),
@@ -154,13 +157,13 @@ class _SetupViewState extends ConsumerState<SetupView>
                     children: [
                       _ConnectionTab(),
                       const _TelemetryTab(),
-                      const _VideoTab(),
+                      if (!kIsWeb) const _VideoTab(),
                       const _DisplayTab(),
                       const _MapsTab(),
                       const _SystemTab(),
                       const _InfoTab(),
-                      const _LogsTab(),
-                      const SimulatePanel(),
+                      if (!kIsWeb) const _LogsTab(),
+                      if (!kIsWeb) const SimulatePanel(),
                     ],
                   ),
                 ),
@@ -272,7 +275,7 @@ class _ConnectionTab extends ConsumerStatefulWidget {
 }
 
 class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
-  String _transportType = 'UDP';
+  String _transportType = kIsWeb ? 'WebSocket' : 'UDP';
   ProtocolType _protocol = ProtocolType.auto;
   final _addressController = TextEditingController(text: '0.0.0.0');
   final _portController = TextEditingController(text: '14550');
@@ -464,11 +467,11 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'UDP', label: Text('UDP')),
-                    ButtonSegment(value: 'TCP', label: Text('TCP')),
-                    ButtonSegment(value: 'Serial', label: Text('Serial')),
-                    ButtonSegment(value: 'WebSocket', label: Text('WS')),
+                  segments: [
+                    if (!kIsWeb) const ButtonSegment(value: 'UDP', label: Text('UDP')),
+                    if (!kIsWeb) const ButtonSegment(value: 'TCP', label: Text('TCP')),
+                    if (!kIsWeb) const ButtonSegment(value: 'Serial', label: Text('Serial')),
+                    const ButtonSegment(value: 'WebSocket', label: Text('WS')),
                   ],
                   selected: {_transportType},
                   onSelectionChanged: isConnected
@@ -2617,9 +2620,38 @@ class _WebSocketPanelState extends ConsumerState<_WebSocketPanel> {
   Widget build(BuildContext context) {
     final relayStatus = ref.watch(relayStatusProvider);
 
+    final hc = context.hc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (kIsWeb) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: hc.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: hc.accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: hc.accent, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Web connections require the Helios Relay running on your '
+                    'local machine. The relay bridges WebSocket to your flight '
+                    'controller over TCP.\n\n'
+                    'Install: dart compile exe scripts/helios_relay.dart -o helios-relay\n'
+                    'Run: ./helios-relay --fc-host <FC_IP>',
+                    style: TextStyle(color: hc.textSecondary, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         TextField(
           controller: widget.wsHostController,
           decoration: const InputDecoration(

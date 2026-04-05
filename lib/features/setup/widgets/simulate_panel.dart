@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -202,7 +203,7 @@ class _SimulatePanelState extends ConsumerState<SimulatePanel> {
   @override
   Widget build(BuildContext context) {
     // iOS / Android: Docker/SITL is not available.
-    if (Platform.isIOS || Platform.isAndroid) {
+    if (kIsWeb || Platform.isIOS || Platform.isAndroid) {
       return _PlatformUnavailable();
     }
 

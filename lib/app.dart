@@ -111,7 +111,17 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
         children: _coreViews,
       );
     }
-    // Video, Config, Inspect, Setup are built on-demand
+    // On web: Video tab is hidden, so indices shift down by 1.
+    // Native: Fly(0) Plan(1) Data(2) Video(3) Config(4) Inspect(5) Setup(6)
+    // Web:    Fly(0) Plan(1) Data(2)          Config(3) Inspect(4) Setup(5)
+    if (kIsWeb) {
+      return switch (_selectedIndex) {
+        3 => const FcConfigView(),
+        4 => const InspectView(),
+        5 => const SetupView(),
+        _ => const SizedBox(),
+      };
+    }
     return switch (_selectedIndex) {
       3 => const VideoView(),
       4 => const FcConfigView(),
@@ -144,8 +154,8 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
       LogicalKeyboardKey.digit3 => 2,
       LogicalKeyboardKey.digit4 => 3,
       LogicalKeyboardKey.digit5 => 4,
-      LogicalKeyboardKey.digit6 => 5,
-      LogicalKeyboardKey.digit7 => 6,
+      LogicalKeyboardKey.digit6 when !kIsWeb => 5,
+      LogicalKeyboardKey.digit7 when !kIsWeb => 6,
       _ => null,
     };
 

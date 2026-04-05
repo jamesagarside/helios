@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../theme/helios_colors.dart';
 import 'helios_logo.dart';
@@ -21,38 +22,40 @@ class HeliosDestination {
   final IconData selectedIcon;
 }
 
-const _destinations = [
-  HeliosDestination(
+final List<HeliosDestination> _destinations = [
+  const HeliosDestination(
     label: 'Fly',
     icon: Icons.flight_outlined,
     selectedIcon: Icons.flight,
   ),
-  HeliosDestination(
+  const HeliosDestination(
     label: 'Plan',
     icon: Icons.map_outlined,
     selectedIcon: Icons.map,
   ),
-  HeliosDestination(
+  const HeliosDestination(
     label: 'Data',
     icon: Icons.analytics_outlined,
     selectedIcon: Icons.analytics,
   ),
-  HeliosDestination(
-    label: 'Video',
-    icon: Icons.videocam_outlined,
-    selectedIcon: Icons.videocam,
-  ),
-  HeliosDestination(
+  // Video tab hidden on web — media_kit requires native platform.
+  if (!kIsWeb)
+    const HeliosDestination(
+      label: 'Video',
+      icon: Icons.videocam_outlined,
+      selectedIcon: Icons.videocam,
+    ),
+  const HeliosDestination(
     label: 'Config',
     icon: Icons.tune_outlined,
     selectedIcon: Icons.tune,
   ),
-  HeliosDestination(
+  const HeliosDestination(
     label: 'Inspect',
     icon: Icons.bug_report_outlined,
     selectedIcon: Icons.bug_report,
   ),
-  HeliosDestination(
+  const HeliosDestination(
     label: 'Setup',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
