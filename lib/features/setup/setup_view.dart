@@ -2633,20 +2633,53 @@ class _WebSocketPanelState extends ConsumerState<_WebSocketPanel> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: hc.accent.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, color: hc.accent, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Web connections require the Helios Relay running on your '
-                    'local machine. The relay bridges WebSocket to your flight '
-                    'controller over TCP.\n\n'
-                    'Install: dart compile exe scripts/helios_relay.dart -o helios-relay\n'
-                    'Run: ./helios-relay --fc-host <FC_IP>',
-                    style: TextStyle(color: hc.textSecondary, fontSize: 12),
+                Row(
+                  children: [
+                    Icon(Icons.swap_horiz, color: hc.accent, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Helios Relay Required',
+                      style: TextStyle(
+                        color: hc.accent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Browsers cannot connect directly via TCP or UDP. The Helios '
+                  'Relay bridges WebSocket (browser) to TCP (flight controller), '
+                  'giving you the same connectivity as the desktop app.\n\n'
+                  'Install and run the relay on a computer on the same network '
+                  'as your drone:',
+                  style: TextStyle(color: hc.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: hc.surfaceDim,
+                    borderRadius: BorderRadius.circular(4),
                   ),
+                  child: SelectableText(
+                    'curl -fsSL https://heliosgcs.com/relay/install.sh | sh\n'
+                    'helios-relay --fc-host <FLIGHT_CONTROLLER_IP>',
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      color: hc.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Then enter the relay address below (default: localhost:8765).',
+                  style: TextStyle(color: hc.textTertiary, fontSize: 11),
                 ),
               ],
             ),

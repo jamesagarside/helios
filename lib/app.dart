@@ -81,6 +81,7 @@ class _HeliosShell extends ConsumerStatefulWidget {
 class _HeliosShellState extends ConsumerState<_HeliosShell> {
   int _selectedIndex = 0;
   final _focusNode = FocusNode();
+  bool _webBannerDismissed = false;
 
   @override
   void initState() {
@@ -182,6 +183,52 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
       onKeyEvent: _handleKeyPress,
       child: Column(
         children: [
+          // Web platform notice (dismissible)
+          if (kIsWeb && !_webBannerDismissed)
+            Container(
+              color: hc.accent.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.language, size: 16, color: hc.accent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        style: TextStyle(fontSize: 12, color: hc.textSecondary),
+                        children: [
+                          const TextSpan(
+                            text: 'Web version ',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const TextSpan(
+                            text: '— Connect via WebSocket relay (bridges to TCP/UDP). '
+                                'Video, serial, SITL, and file export are desktop-only. ',
+                          ),
+                          WidgetSpan(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedIndex = kIsWeb ? 5 : 6),
+                              child: Text(
+                                'Setup > Connection',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: hc.accent,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _webBannerDismissed = true),
+                    child: Icon(Icons.close, size: 16, color: hc.textTertiary),
+                  ),
+                ],
+              ),
+            ),
           // Vehicle selector (only shown with 2+ vehicles)
           if (vehicleCount > 1)
             Container(
