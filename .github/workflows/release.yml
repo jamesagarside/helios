@@ -125,3 +125,21 @@ jobs:
           name: Helios GCS ${{ needs.bump-version.outputs.tag }}
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
+
+  # ── Step 4: Build all platform assets ───────────────────────────────────
+  # Tags pushed by GITHUB_TOKEN don't trigger other workflows, so we
+  # call them explicitly here.
+  build-desktop:
+    needs: create-release
+    uses: ./.github/workflows/release-desktop.yml
+    secrets: inherit
+
+  build-mobile:
+    needs: create-release
+    uses: ./.github/workflows/release-mobile.yml
+    secrets: inherit
+
+  deploy-webapp:
+    needs: create-release
+    uses: ./.github/workflows/deploy-webapp.yml
+    secrets: inherit

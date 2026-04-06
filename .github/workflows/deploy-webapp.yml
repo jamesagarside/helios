@@ -3,6 +3,7 @@ name: Deploy Web App
 on:
   release:
     types: [published]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
