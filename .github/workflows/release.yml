@@ -130,13 +130,17 @@ jobs:
   # Tags pushed by GITHUB_TOKEN don't trigger other workflows, so we
   # call them explicitly here.
   build-desktop:
-    needs: create-release
+    needs: [create-release, bump-version]
     uses: ./.github/workflows/release-desktop.yml
+    with:
+      tag: ${{ needs.bump-version.outputs.tag }}
     secrets: inherit
 
   build-mobile:
-    needs: create-release
+    needs: [create-release, bump-version]
     uses: ./.github/workflows/release-mobile.yml
+    with:
+      tag: ${{ needs.bump-version.outputs.tag }}
     secrets: inherit
 
   deploy-webapp:
