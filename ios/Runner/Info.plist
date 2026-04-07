@@ -43,6 +43,9 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- App uses only Apple-provided HTTPS/TLS, no custom encryption -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<!-- Required by file_picker for importing KML/GPX/param files -->
