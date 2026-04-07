@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
+import '../../shared/widgets/responsive_scaffold.dart';
 import 'widgets/mavlink_terminal.dart';
 
 /// MAVLink Inspector + Terminal — tabbed view with live packet log and
@@ -174,6 +175,8 @@ class _InspectorTab extends ConsumerWidget {
     final packets = ref.watch(mavlinkInspectorProvider);
     final notifier = ref.read(mavlinkInspectorProvider.notifier);
     final isPaused = ref.watch(inspectorPausedProvider);
+    final isMobile =
+        MediaQuery.sizeOf(context).width < HeliosBreakpoints.tablet;
 
     // Apply text + type + severity filters
     final filtered = packets.where((pk) {
@@ -195,6 +198,258 @@ class _InspectorTab extends ConsumerWidget {
     final sortedTypes = typeCounts.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key)); // alphabetical, not by count
 
+    if (isMobile) {
+      return _buildMobileLayout(
+        context, ref, hc, packets, filtered, notifier, isPaused, sortedTypes,
+      );
+    }
+
+    return _buildDesktopLayout(
+      context, ref, hc, packets, filtered, notifier, isPaused, sortedTypes,
+    );
+  }
+
+  Widget _buildMobileLayout(
+    BuildContext context,
+    WidgetRef ref,
+    HeliosColors hc,
+    List<MavlinkPacketEntry> packets,
+    List<MavlinkPacketEntry> filtered,
+    MavlinkInspectorNotifier notifier,
+    bool isPaused,
+    List<MapEntry<String, int>> sortedTypes,
+  ) {
+    return Column(
+      children: [
+        // ── Mobile toolbar — compact multi-row ────────────────────────────
+        Container(
+          color: hc.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            children: [
+              // Row 1: filter field + action icons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: TextField(
+                        controller: filterController,
+                        style: TextStyle(fontSize: 13, color: hc.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Filter…',
+                          hintStyle:
+                              TextStyle(fontSize: 12, color: hc.textTertiary),
+                          prefixIcon: Icon(Icons.search,
+                              size: 16, color: hc.textTertiary),
+                          suffixIcon: filter.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      size: 14, color: hc.textTertiary),
+                                  onPressed: onFilterCleared,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 24, minHeight: 24),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            borderSide: BorderSide(color: hc.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            borderSide: BorderSide(color: hc.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            borderSide: BorderSide(color: hc.accent),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                        ),
+                        onChanged: onFilterChanged,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Pause / Resume
+                  _MobileIconButton(
+                    icon: isPaused ? Icons.play_arrow : Icons.pause,
+                    color: isPaused ? hc.success : hc.warning,
+                    onTap: () {
+                      if (isPaused) {
+                        notifier.resume();
+                        ref.read(inspectorPausedProvider.notifier).state =
+                            false;
+                      } else {
+                        notifier.pause();
+                        ref.read(inspectorPausedProvider.notifier).state = true;
+                      }
+                    },
+                  ),
+                  _MobileIconButton(
+                    icon: Icons.delete_outline,
+                    color: hc.textSecondary,
+                    onTap: () => notifier.clear(),
+                  ),
+                  if (filtered.isNotEmpty) ...[
+                    _MobileIconButton(
+                      icon: Icons.download,
+                      color: hc.textSecondary,
+                      onTap: () => _exportLog(context, filtered),
+                    ),
+                    _CopyAllButton(packets: filtered),
+                  ],
+                  // Stats panel toggle
+                  _MobileIconButton(
+                    icon: Icons.bar_chart,
+                    color: sortedTypes.isNotEmpty ? hc.accent : hc.textTertiary,
+                    onTap: sortedTypes.isEmpty
+                        ? null
+                        : () => _showStatsSheet(
+                              context, hc, sortedTypes, packets.length),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Row 2: severity chips + packet count
+              Row(
+                children: [
+                  _SeverityChip(
+                    label: 'Err',
+                    color: hc.danger,
+                    active: severityFilter == AlertSeverity.critical,
+                    onTap: () => onSeverityChanged(
+                        severityFilter == AlertSeverity.critical
+                            ? null
+                            : AlertSeverity.critical),
+                  ),
+                  const SizedBox(width: 4),
+                  _SeverityChip(
+                    label: 'Warn',
+                    color: hc.warning,
+                    active: severityFilter == AlertSeverity.warning,
+                    onTap: () => onSeverityChanged(
+                        severityFilter == AlertSeverity.warning
+                            ? null
+                            : AlertSeverity.warning),
+                  ),
+                  const SizedBox(width: 4),
+                  _SeverityChip(
+                    label: 'Info',
+                    color: hc.accent,
+                    active: severityFilter == AlertSeverity.info,
+                    onTap: () => onSeverityChanged(
+                        severityFilter == AlertSeverity.info
+                            ? null
+                            : AlertSeverity.info),
+                  ),
+                  if (selectedType != null) ...[
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => onTypeToggled(selectedType!),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: hc.accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: hc.accent),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              selectedType!,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: hc.accent,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.close, size: 12, color: hc.accent),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    '${filtered.length}/${packets.length}',
+                    style: HeliosTypography.caption
+                        .copyWith(color: hc.textTertiary, fontSize: 10),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: hc.border),
+        // ── Packet list (full width) ──────────────────────────────────────
+        Expanded(
+          child: packets.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cable_outlined,
+                          size: 48, color: hc.textTertiary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No MAVLink packets yet',
+                        style:
+                            TextStyle(color: hc.textTertiary, fontSize: 13),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Connect to a vehicle to see live traffic',
+                        style:
+                            TextStyle(color: hc.textTertiary, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                )
+              : _PacketTable(packets: filtered, compact: true),
+        ),
+      ],
+    );
+  }
+
+  void _showStatsSheet(
+    BuildContext context,
+    HeliosColors hc,
+    List<MapEntry<String, int>> sortedTypes,
+    int total,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+      ),
+      builder: (_) => _StatsPanel(
+        sortedTypes: sortedTypes,
+        total: total,
+        selectedType: selectedType,
+        onTap: (name) {
+          onTypeToggled(name);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    WidgetRef ref,
+    HeliosColors hc,
+    List<MavlinkPacketEntry> packets,
+    List<MavlinkPacketEntry> filtered,
+    MavlinkInspectorNotifier notifier,
+    bool isPaused,
+    List<MapEntry<String, int>> sortedTypes,
+  ) {
     return Column(
       children: [
         // ── Toolbar ───────────────────────────────────────────────────────────
@@ -465,9 +720,10 @@ class _CopyAllButtonState extends State<_CopyAllButton> {
 // ---------------------------------------------------------------------------
 
 class _PacketTable extends ConsumerStatefulWidget {
-  const _PacketTable({required this.packets});
+  const _PacketTable({required this.packets, this.compact = false});
 
   final List<MavlinkPacketEntry> packets;
+  final bool compact;
 
   @override
   ConsumerState<_PacketTable> createState() => _PacketTableState();
@@ -565,61 +821,70 @@ class _PacketTableState extends ConsumerState<_PacketTable> {
 
             final rowColor = i.isEven ? hc.background : hc.surface;
 
+            final isCompact = widget.compact;
+
             return InkWell(
               onTap: () => _copyRow(context, pk),
               child: Container(
-                height: 24,
+                height: isCompact ? 28 : 24,
                 color: rowColor,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 6 : 8),
                 child: Row(
                   children: [
-                    // Timestamp
+                    // Timestamp — shorter on mobile
                     SizedBox(
-                      width: 88,
+                      width: isCompact ? 56 : 88,
                       child: Text(
-                        timeStr,
+                        isCompact
+                            ? timeStr.substring(0, 8) // HH:MM:SS
+                            : timeStr,
                         style: HeliosTypography.sqlEditor.copyWith(
-                            fontSize: 11, color: hc.textTertiary),
+                            fontSize: isCompact ? 10 : 11,
+                            color: hc.textTertiary),
                       ),
                     ),
-                    // Msg ID
-                    SizedBox(
-                      width: 48,
-                      child: Text(
-                        pk.msgId.toString(),
-                        style: HeliosTypography.sqlEditor.copyWith(
-                            fontSize: 11, color: hc.textSecondary),
+                    // Msg ID — hidden on mobile
+                    if (!isCompact)
+                      SizedBox(
+                        width: 48,
+                        child: Text(
+                          pk.msgId.toString(),
+                          style: HeliosTypography.sqlEditor.copyWith(
+                              fontSize: 11, color: hc.textSecondary),
+                        ),
                       ),
-                    ),
                     // Msg name
                     Expanded(
                       child: Text(
                         pk.msgName,
                         style: HeliosTypography.sqlEditor.copyWith(
-                          fontSize: 11,
+                          fontSize: isCompact ? 10 : 11,
                           color: _nameColor(context, pk.msgName),
                           fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Sys/Comp
-                    SizedBox(
-                      width: 52,
-                      child: Text(
-                        '${pk.systemId}/${pk.componentId}',
-                        style: HeliosTypography.sqlEditor.copyWith(
-                            fontSize: 11, color: hc.textTertiary),
-                        textAlign: TextAlign.right,
+                    // Sys/Comp — hidden on mobile
+                    if (!isCompact)
+                      SizedBox(
+                        width: 52,
+                        child: Text(
+                          '${pk.systemId}/${pk.componentId}',
+                          style: HeliosTypography.sqlEditor.copyWith(
+                              fontSize: 11, color: hc.textTertiary),
+                          textAlign: TextAlign.right,
+                        ),
                       ),
-                    ),
                     // Bytes
                     SizedBox(
-                      width: 36,
+                      width: isCompact ? 28 : 36,
                       child: Text(
                         '${pk.payloadLength}B',
                         style: HeliosTypography.sqlEditor.copyWith(
-                            fontSize: 11, color: hc.textTertiary),
+                            fontSize: isCompact ? 10 : 11,
+                            color: hc.textTertiary),
                         textAlign: TextAlign.right,
                       ),
                     ),
@@ -786,6 +1051,34 @@ class _StatsPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compact icon button for mobile toolbar
+// ---------------------------------------------------------------------------
+
+class _MobileIconButton extends StatelessWidget {
+  const _MobileIconButton({
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 18, color: color),
+      ),
     );
   }
 }

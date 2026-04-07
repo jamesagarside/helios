@@ -371,10 +371,12 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             ),
           ),
 
-        // Quicklook card — shown after map tap (below toolbar area)
+        // Quicklook card — shown after map tap.
+        // top: 140 clears the outer Stack's toolbar area (LayoutToolbar +
+        // ChartToolbar + search bar) which extends to ~y=130.
         if (_quicklookPoint != null)
           Positioned(
-            top: 80,
+            top: 140,
             left: 16,
             child: _QuicklookCard(
               point: _quicklookPoint!,
@@ -386,9 +388,10 @@ class _VehicleMapState extends ConsumerState<VehicleMap> {
             ),
           ),
 
-        // Location search — top-left, below toolbar area
+        // Location search — top-left, below the outer Stack's toolbar area
+        // (LayoutToolbar ~48px + gap + ChartToolbar ~36px ≈ 96px from top).
         Positioned(
-          top: 56,
+          top: 100,
           left: 16,
           child: MapSearchBar(
             mapController: _mapController,

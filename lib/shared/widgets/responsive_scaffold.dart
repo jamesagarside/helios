@@ -323,6 +323,7 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hc = context.hc;
     return Scaffold(
       body: Column(
         children: [
@@ -338,6 +339,12 @@ class _MobileLayout extends StatelessWidget {
             currentIndex: selectedIndex,
             onTap: onDestinationSelected,
             type: BottomNavigationBarType.fixed,
+            backgroundColor: hc.surface,
+            selectedFontSize: 10,
+            unselectedFontSize: 10,
+            iconSize: 22,
+            selectedItemColor: hc.accent,
+            unselectedItemColor: hc.textTertiary,
             items: _destinations
                 .map(
                   (d) => BottomNavigationBarItem(

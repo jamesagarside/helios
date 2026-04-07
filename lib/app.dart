@@ -181,7 +181,10 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
     final body = KeyboardListener(
       focusNode: _focusNode,
       onKeyEvent: _handleKeyPress,
-      child: Column(
+      child: SafeArea(
+        // Bottom is handled by Scaffold.bottomNavigationBar in mobile layout.
+        bottom: false,
+        child: Column(
         children: [
           // Web platform notice (dismissible)
           if (kIsWeb && !_webBannerDismissed)
@@ -315,6 +318,7 @@ class _HeliosShellState extends ConsumerState<_HeliosShell> {
             ),
           ),
         ],
+        ),
       ),
     );
 
