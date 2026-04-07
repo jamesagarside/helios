@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open-Source Ground Control Station for Drones | Helios GCS</title>
+  <meta name="description" content="Helios is a free, open-source ground control station for ArduPilot, PX4, iNav, and Betaflight drones. Real-time telemetry, mission planning, flight data analytics, and multi-platform support. Part of the open-source drone community.">
+  <link rel="canonical" href="https://heliosgcs.com/ground-control-station.html">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heliosgcs.com/ground-control-station.html">
+  <meta property="og:title" content="Open-Source Ground Control Station for Drones | Helios GCS">
+  <meta property="og:description" content="Helios is a free, open-source ground control station for ArduPilot, PX4, iNav, and Betaflight drones. Real-time telemetry, mission planning, and flight data analytics.">
+  <meta property="og:image" content="https://heliosgcs.com/img/og-image.png">
+  <meta property="og:site_name" content="Helios GCS">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Open-Source Ground Control Station for Drones | Helios GCS">
+  <meta name="twitter:description" content="Helios is a free, open-source ground control station for ArduPilot, PX4, iNav, and Betaflight drones. Real-time telemetry, mission planning, and flight data analytics.">
+  <meta name="twitter:image" content="https://heliosgcs.com/img/og-image.png">
+  <!-- Additional SEO -->
+  <meta name="keywords" content="ground control station, drone ground control station, GCS software, open source GCS, drone control software, UAV ground station, MAVLink GCS, ArduPilot GCS, PX4 ground station, flight controller software, drone telemetry software, mission planner alternative, QGroundControl alternative">
+  <meta name="robots" content="index, follow">
+  <link rel="help" href="/llms.txt" type="text/plain" title="LLM content">
+  <link rel="icon" href="img/favicon-48.png" sizes="48x48" type="image/png">
+  <link rel="icon" href="img/favicon-192.png" sizes="192x192" type="image/png">
+  <link rel="icon" href="img/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/features.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Helios GCS", "item": "https://heliosgcs.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Ground Control Station", "item": "https://heliosgcs.com/ground-control-station.html" }
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is a ground control station?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A ground control station (GCS) is software that allows a pilot to monitor, control, and plan flights for unmanned aerial vehicles (drones). It typically displays real-time telemetry data such as altitude, speed, battery level, and GPS position, provides tools for planning autonomous missions with waypoints, and includes safety features like geofencing and return-to-launch. Ground control stations communicate with the drone's flight controller using protocols like MAVLink or MSP."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What are the main open-source ground control stations?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The open-source drone community has produced several excellent ground control stations. QGroundControl is widely used across ArduPilot and PX4 with broad platform support. Mission Planner offers deep ArduPilot integration with advanced configuration tools. Helios GCS focuses on queryable flight data analytics and a modern Flutter-based UI with support for MAVLink and MSP protocols. APM Planner 2 provides another option for ArduPilot users. Each serves different needs, and many pilots use more than one."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which ground control station should I use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The best ground control station depends on your workflow. If you want deep ArduPilot parameter tuning, Mission Planner is hard to beat. If you need broad cross-platform support, QGroundControl runs everywhere. If you care about flight data analysis with SQL queries and a modern interface, Helios GCS is designed for that. They're all free and open source, so try them and see which fits your flying style."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <img src="img/logo.svg" alt="Helios Ground Control Station">
+      Helios
+    </a>
+    <ul class="nav-links">
+      <li><a href="features.html">Features</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="https://app.heliosgcs.com" target="_blank" rel="noopener">Web App</a></li>
+      <li>
+        <div class="nav-download">
+          <button class="nav-download-btn" onclick="this.parentElement.classList.toggle('open')">Download <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></button>
+          <div class="nav-download-menu">
+            <div class="nav-download-menu-inner">
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M7 7h6M7 10h6M7 13h3"/></svg>
+                macOS (.dmg)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1"/><path d="M7 8l3 3 3-3M10 5v6"/></svg>
+                Windows (.exe)
+              </a>
+              <a href="https://github.com/jamesagarside/helios/releases/latest" target="_blank" rel="noopener">
+                <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2 2"/></svg>
+                Linux (.AppImage)
+              </a>
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+    <div class="nav-right">
+      <a href="https://github.com/jamesagarside/helios" class="nav-github" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <button class="menu-toggle" aria-label="Toggle menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="features-hero">
+  <h1>Open-Source Ground Control Station</h1>
+  <p>Helios is a free ground control station for drones running ArduPilot, PX4, iNav, or Betaflight. Part of the open-source drone community.</p>
+</section>
+
+<!-- What Is a GCS -->
+<section class="section" style="border-top: 1px solid var(--border);">
+  <h2 class="section-title">What Is a Ground Control Station?</h2>
+  <div class="shared-foundation">
+    <p>A <strong>ground control station</strong> (GCS) is the software interface between a pilot and their drone. It receives real-time data from the aircraft  - attitude, altitude, speed, GPS position, battery state, and system health  - and displays it in an easy-to-read format. A ground control station also provides tools to plan autonomous missions with waypoints, set up geofences for safety, configure flight controller parameters, and review flight logs after landing.</p>
+    <p style="margin-top: 16px;">Ground control stations communicate with the drone's flight controller over radio links, Wi-Fi, or USB using protocols like <strong>MAVLink</strong> (used by ArduPilot and PX4) or <strong>MSP</strong> (used by Betaflight and iNav). The open-source community has produced several ground control stations, each with different strengths  - and Helios is the newest addition to that family.</p>
+  </div>
+</section>
+
+<!-- Open Source GCS Landscape -->
+<section class="section" style="border-top: 1px solid var(--border);">
+  <h2 class="section-title">Open-Source Ground Control Stations</h2>
+  <p class="comparison-intro">The open-source drone community has built several ground control stations over the years. Each has its strengths, and many pilots use more than one depending on the task. Here's how they compare.</p>
+
+  <div class="differentiators-grid">
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="16" height="16" rx="3"/><polyline points="5,14 8,8 11,11 15,5"/></svg>
+      </div>
+      <h3>Helios GCS</h3>
+      <p>Modern Flutter-based ground control station focused on queryable flight data analytics with DuckDB. Supports MAVLink and MSP protocols across macOS, Windows, Linux, iOS, Android, and the web.</p>
+      <div class="diff-tag" style="background: rgba(88, 166, 255, 0.1); color: var(--accent);">You are here</div>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="11" rx="2"/><path d="M6 17h8M10 14v3"/></svg>
+      </div>
+      <h3>QGroundControl</h3>
+      <p>Widely used cross-platform ground control station supporting both ArduPilot and PX4. Strong community, extensive documentation, and reliable vehicle support across many hardware configurations.</p>
+      <div class="diff-tag" style="background: rgba(63, 185, 80, 0.1); color: var(--success);">Community staple</div>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M4 10h12M4 14h8"/><circle cx="16" cy="14" r="2"/></svg>
+      </div>
+      <h3>Mission Planner</h3>
+      <p>The original ArduPilot ground control station with deep parameter tuning, advanced configuration, and powerful scripting. The go-to tool for serious ArduPilot users who need full control over every setting.</p>
+      <div class="diff-tag" style="background: rgba(63, 185, 80, 0.1); color: var(--success);">ArduPilot powerhouse</div>
+    </div>
+  </div>
+
+  <div class="shared-foundation" style="margin-top: 20px;">
+    <h3>Different tools for different needs</h3>
+    <p>These ground control stations aren't competing  - they're part of the same open-source ecosystem. Mission Planner excels at deep ArduPilot configuration. QGroundControl provides reliable, cross-platform vehicle control. Helios brings a fresh approach to flight data and a modern UI. The best choice depends on your workflow, and there's nothing stopping you from using all three.</p>
+  </div>
+</section>
+
+<!-- What Helios Focuses On -->
+<section class="section" style="border-top: 1px solid var(--border);">
+  <h2 class="section-title">What Helios Brings to the Community</h2>
+  <div class="feature-details-grid">
+    <div class="feature-detail-card">
+      <div class="feature-detail-label">Flight Data</div>
+      <h3>Every flight becomes a queryable database</h3>
+      <p>Helios automatically records every telemetry point into a DuckDB columnar database. Query your flights with SQL, compare data across sessions, and export to Parquet for use in Python, R, or Jupyter notebooks.</p>
+    </div>
+    <div class="feature-detail-card">
+      <div class="feature-detail-label">Modern UI</div>
+      <h3>Built with Flutter for native performance</h3>
+      <p>A clean, responsive interface designed for high-DPI displays. Smooth 60fps flight instruments, dark mode, and a layout that puts the information you need front and centre.</p>
+    </div>
+    <div class="feature-detail-card">
+      <div class="feature-detail-label">Multi-Protocol</div>
+      <h3>One ground control station for all your aircraft</h3>
+      <p>Helios speaks both MAVLink and MSP, so it works with ArduPilot, PX4, iNav, and Betaflight. Use one ground control station across your entire fleet, regardless of firmware.</p>
+    </div>
+    <div class="feature-detail-card">
+      <div class="feature-detail-label">Cross-Platform</div>
+      <h3>Runs everywhere you do</h3>
+      <p>Native apps for macOS, Windows, Linux, iOS, and Android  - plus a <a href="web-app.html">web app</a> that runs in any browser. Same experience on every platform.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="features-cta">
+  <h2>Try Helios</h2>
+  <p>Free, open source, and part of the community. Download for desktop or try it in your browser.</p>
+  <div class="hero-actions">
+    <a href="/#download" class="btn btn-primary">Download Free</a>
+    <a href="https://app.heliosgcs.com" class="btn btn-secondary" target="_blank" rel="noopener">Try in Browser</a>
+    <a href="features.html" class="btn btn-secondary">See All Features</a>
+  </div>
+</section>
+
+<footer class="footer">
+  Part of the <a href="https://github.com/jamesagarside">Argus Platform</a>
+  &middot; <a href="https://github.com/jamesagarside/helios/blob/main/LICENSE">GPL 3.0</a>
+</footer>
+
+</body>
+</html>

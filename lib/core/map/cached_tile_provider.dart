@@ -8,7 +8,7 @@ import 'cached_tile_provider_native.dart'
 /// Required by OSM tile usage policy:
 /// https://operations.osmfoundation.org/policies/tiles/
 const heliosUserAgent =
-    'HeliosGCS/0.5.0 (+https://github.com/jamesagarside/helios)';
+    'HeliosGCS/0.5.2 (+https://github.com/jamesagarside/helios)';
 
 /// Factory that returns the platform-appropriate [TileProvider].
 ///

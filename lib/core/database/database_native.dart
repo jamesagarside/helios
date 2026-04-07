@@ -6,7 +6,10 @@ import 'database_interface.dart';
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
-/// The global database factory for native platforms (DuckDB via FFI).
+/// The global database factory for native platforms.
+///
+/// On desktop (macOS, Linux, Windows): DuckDB via FFI.
+/// On mobile (iOS, Android): no-op stub — recording is disabled.
 final HeliosDatabaseFactory databaseFactory = _NativeDatabaseFactory();
 
 class _NativeDatabaseFactory implements HeliosDatabaseFactory {
@@ -15,22 +18,31 @@ class _NativeDatabaseFactory implements HeliosDatabaseFactory {
   @override
   HeliosDatabase open(String filePath) {
     ensureInitialised();
+    if (!duckdb.isSupported) {
+      return _UnsupportedDatabase(filePath);
+    }
     return NativeDuckDatabase._(duckdb.Connection(filePath), filePath);
   }
 
   @override
   HeliosDatabase openMemory() {
     ensureInitialised();
+    if (!duckdb.isSupported) {
+      return _UnsupportedDatabase(':memory:');
+    }
     return NativeDuckDatabase._(duckdb.Connection(':memory:'), ':memory:');
   }
 
   @override
-  HeliosDatabaseCapabilities get capabilities => const _NativeCapabilities();
+  HeliosDatabaseCapabilities get capabilities => duckdb.isSupported
+      ? const _NativeCapabilities()
+      : const _UnsupportedCapabilities();
 
   @override
   void ensureInitialised() {
     if (_initialised) return;
     _initialised = true;
+    if (!duckdb.isSupported) return;
     if (Platform.isMacOS) _loadMacOs();
     // Linux and Windows handled by duckdb_dart's default loader.
   }
@@ -83,6 +95,50 @@ class _NativeCapabilities implements HeliosDatabaseCapabilities {
 
   @override
   int get maxRecommendedSize => 0; // Unlimited
+}
+
+// ─── Unsupported Platform (iOS/Android) ─────────────────────────────────────
+
+/// No-op database for platforms where DuckDB isn't available.
+///
+/// All operations are safe to call but return empty results. This allows the
+/// rest of the app to run without crashing — flight recording is simply
+/// disabled on unsupported platforms.
+class _UnsupportedDatabase implements HeliosDatabase {
+  _UnsupportedDatabase(this._path);
+
+  final String _path;
+
+  @override
+  void execute(String sql) {} // no-op
+
+  @override
+  Map<String, List<dynamic>> fetch(String sql) => {};
+
+  @override
+  void close() {}
+
+  @override
+  bool get isOpen => false;
+
+  @override
+  String get path => _path;
+}
+
+class _UnsupportedCapabilities implements HeliosDatabaseCapabilities {
+  const _UnsupportedCapabilities();
+
+  @override
+  bool get supportsAttach => false;
+
+  @override
+  bool get supportsCopyExport => false;
+
+  @override
+  bool get supportsWindowFunctions => false;
+
+  @override
+  int get maxRecommendedSize => 0;
 }
 
 // ─── macOS DuckDB Loader ─────────────────────────────────────────────────────

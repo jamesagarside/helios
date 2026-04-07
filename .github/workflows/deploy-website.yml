@@ -37,3 +37,8 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Ping search engines to re-read sitemap
+        run: |
+          curl -s "https://www.google.com/ping?sitemap=https://heliosgcs.com/sitemap.xml"
+          curl -s "https://www.bing.com/ping?sitemap=https://heliosgcs.com/sitemap.xml"

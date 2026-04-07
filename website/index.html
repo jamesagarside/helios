@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Helios GCS - Open-Source Drone Ground Control Station</title>
-  <meta name="description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, flight recording with DuckDB analytics. Supports ArduPilot and PX4 on macOS, Windows, Linux, iOS, and Android.">
+  <title>Helios GCS - Open-Source Ground Control Station for Drones</title>
+  <meta name="description" content="Helios is a free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight recording with DuckDB analytics. Supports ArduPilot and PX4 on macOS, Windows, Linux, iOS, Android, and the web.">
   <link rel="canonical" href="https://heliosgcs.com/">
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://heliosgcs.com/">
-  <meta property="og:title" content="Helios GCS - Open-Source Drone Ground Control Station">
-  <meta property="og:description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
+  <meta property="og:title" content="Helios GCS - Open-Source Ground Control Station for Drones">
+  <meta property="og:description" content="Helios is a free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
   <meta property="og:image" content="https://heliosgcs.com/img/og-image.png">
   <meta property="og:site_name" content="Helios GCS">
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Helios GCS - Open-Source Drone Ground Control Station">
-  <meta name="twitter:description" content="Free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
+  <meta name="twitter:title" content="Helios GCS - Open-Source Ground Control Station for Drones">
+  <meta name="twitter:description" content="Helios is a free, open-source ground control station for MAVLink drones. Real-time telemetry, mission planning, and flight data analytics powered by DuckDB.">
   <meta name="twitter:image" content="https://heliosgcs.com/img/og-image.png">
   <!-- Additional SEO -->
-  <meta name="keywords" content="drone ground control station, GCS, MAVLink, open source, ArduPilot, PX4, flight data, telemetry, mission planning, DuckDB, QGroundControl alternative">
+  <meta name="keywords" content="Helios, ground control station, drone ground control station, GCS, drone software, MAVLink, open source, ArduPilot, PX4, flight data, telemetry, mission planning, DuckDB, drone app, UAV ground station, flight controller software">
   <meta name="author" content="James Garside">
   <meta name="robots" content="index, follow">
   <link rel="help" href="/llms.txt" type="text/plain" title="LLM content">
@@ -36,11 +36,12 @@
     "name": "Helios GCS",
     "description": "Open-source ground control station for MAVLink drones with real-time telemetry, mission planning, and flight data analytics powered by DuckDB.",
     "url": "https://heliosgcs.com",
-    "applicationCategory": "UtilitiesApplication",
+    "applicationCategory": "BusinessApplication",
+    "additionalType": "https://schema.org/MobileApplication",
     "operatingSystem": "macOS, Windows, Linux, iOS, Android",
     "license": "https://opensource.org/licenses/GPL-3.0",
     "downloadUrl": "https://github.com/jamesagarside/helios/releases/latest",
-    "softwareVersion": "0.5.0-alpha",
+    "softwareVersion": "0.5.2-alpha",
     "author": {
       "@type": "Person",
       "name": "James Garside",
@@ -81,10 +82,10 @@
       },
       {
         "@type": "Question",
-        "name": "How does Helios compare to QGroundControl?",
+        "name": "How does Helios compare to QGroundControl and Mission Planner?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Both are open-source MAVLink GCS applications. Helios differentiates with DuckDB-powered flight analytics (a queryable SQL database for every flight), a modern Flutter-based UI, and cross-platform mobile support. QGroundControl has a larger user base and broader hardware integration."
+          "text": "Helios, QGroundControl, and Mission Planner are all open-source ground control stations for MAVLink drones. They share the same goal of making autonomous flight accessible. Helios focuses on DuckDB-powered flight analytics and a modern Flutter-based UI, QGroundControl has broad cross-platform support and a large community, and Mission Planner offers deep ArduPilot integration with advanced configuration. Many pilots use more than one — they complement each other well."
         }
       },
       {
@@ -118,6 +119,22 @@
           "@type": "Answer",
           "text": "Yes. Map tiles can be cached for offline use, and flight recording works entirely locally. No internet connection is required for any core functionality."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use Helios in a web browser?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Helios has a web app at app.heliosgcs.com that runs directly in your browser with no installation required. It connects to your drone via a lightweight relay server. The web version supports telemetry display, mission planning, and flight monitoring — ideal for quick access from any device."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is a ground control station?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A ground control station (GCS) is software used to monitor, control, and plan flights for unmanned aerial vehicles (UAVs/drones). It displays real-time telemetry like altitude, speed, and GPS position, lets you plan autonomous missions with waypoints, and provides safety features like geofencing and return-to-launch. Helios is a free, open-source ground control station that works with ArduPilot and PX4 flight controllers."
+        }
       }
     ]
   }
@@ -139,12 +156,13 @@
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="nav-brand">
-      <img src="img/logo.svg" alt="Helios">
+      <img src="img/logo.svg" alt="Helios Ground Control Station">
       Helios
     </a>
     <ul class="nav-links">
       <li><a href="features.html">Features</a></li>
       <li><a href="docs.html">Docs</a></li>
+      <li><a href="https://app.heliosgcs.com" target="_blank" rel="noopener">Web App</a></li>
       <li>
         <div class="nav-download">
           <button class="nav-download-btn" onclick="this.parentElement.classList.toggle('open')">Download <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></button>
@@ -184,9 +202,9 @@
 
 <!-- Hero -->
 <section class="hero">
-  <img src="img/logo.svg" alt="Helios" class="hero-logo hero-logo-lg">
+  <img src="img/logo.svg" alt="Helios GCS - Open-Source Drone Ground Control Station" class="hero-logo hero-logo-lg">
   <h1>Helios <span>GCS</span></h1>
-  <p class="hero-subtitle">Open-Source Ground Control</p>
+  <p class="hero-subtitle">Open-Source Ground Control Station</p>
   <p class="hero-tagline">A modern ground control station built for pilots who want more from their flight data. Every flight automatically recorded. Every data point queryable.</p>
   <div class="hero-actions">
     <a href="#download" class="btn btn-primary">Download Free</a>
@@ -197,6 +215,7 @@
     <span>macOS</span><span class="dot"></span>
     <span>Windows</span><span class="dot"></span>
     <span>Linux</span><span class="dot"></span>
+    <span><a href="https://app.heliosgcs.com" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">Web App</a></span><span class="dot"></span>
     <span>Open Source</span><span class="dot"></span>
     <span>GPL 3.0</span>
   </div>
@@ -204,8 +223,8 @@
 
 <!-- Why Helios -->
 <section class="section why-section">
-  <h2 class="section-title">Why Helios?</h2>
-  <p class="why-intro">Ground control software hasn't changed much in a decade. Helios is a fresh take  - designed for the way pilots actually work today.</p>
+  <h2 class="section-title">Why Choose Helios as Your Ground Control Station?</h2>
+  <p class="why-intro">Ground control station software hasn't changed much in a decade. Helios is a fresh take  - a modern drone ground control station designed for the way pilots actually work today.</p>
   <div class="why-grid">
     <div class="why-card">
       <div class="why-icon">
@@ -240,7 +259,7 @@
 
 <!-- Features -->
 <section class="section" id="features">
-  <h2 class="section-title">Core Features</h2>
+  <h2 class="section-title">Ground Control Station Features</h2>
   <div class="features-grid">
     <a href="features.html#fly" class="feature-card">
       <div class="feature-header">
@@ -407,7 +426,11 @@ flutter run -d macos</pre>
 </section>
 
 <footer class="footer">
-  Part of the <a href="https://github.com/jamesagarside">Argus Platform</a>
+  <a href="ground-control-station.html">Ground Control Station</a>
+  &middot; <a href="features.html">Features</a>
+  &middot; <a href="web-app.html">Web App</a>
+  &middot; <a href="docs.html">Docs</a>
+  &middot; <a href="https://github.com/jamesagarside">Argus Platform</a>
   &middot; <a href="https://github.com/jamesagarside/helios/blob/main/LICENSE">GPL 3.0</a>
 </footer>
 

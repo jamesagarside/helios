@@ -8,13 +8,13 @@ Helios is part of the Argus Platform. Licensed under GPL 3.0.
 
 - **Type**: Desktop and mobile ground control station for drones
 - **Protocol**: MAVLink v2 (ArduPilot, PX4, iNav, Betaflight, Cleanflight)
-- **Platforms**: macOS, Windows, Linux, iOS (alpha), Android (alpha)
+- **Platforms**: macOS, Windows, Linux, iOS (alpha), Android (alpha), Web (app.heliosgcs.com)
 - **Tech Stack**: Flutter 3.38, Dart 3.10, DuckDB, Riverpod
 - **License**: GPL 3.0
 - **Author**: James Garside
 - **Website**: https://heliosgcs.com
 - **Repository**: https://github.com/jamesagarside/helios
-- **Current Version**: 0.5.0-alpha
+- **Current Version**: 0.5.2-alpha
 
 ## Core Features
 
@@ -34,12 +34,13 @@ Helios is part of the Argus Platform. Licensed under GPL 3.0.
 - **No cloud dependency**: No accounts, no telemetry collection, no API keys. Data stays on the user's machine.
 - **Open source with no lock-in**: GPL 3.0 licensed, all data in open formats (DuckDB, Parquet).
 
-## Comparison with Alternatives
+## Part of the Open-Source GCS Community
 
-Helios is an alternative to QGroundControl, Mission Planner, and APM Planner 2. Key differences:
-- QGroundControl (Qt/C++) is the most widely used open-source GCS but lacks queryable flight databases and has a dated UI.
-- Mission Planner (Windows-only, .NET) is feature-rich for ArduPilot but not cross-platform and has a steep learning curve.
-- Helios focuses on flight data analytics and modern UX while maintaining full MAVLink compatibility.
+Helios joins QGroundControl, Mission Planner, and APM Planner 2 in the open-source ground control station ecosystem. Each has different strengths:
+- QGroundControl (Qt/C++) is widely used across ArduPilot and PX4 with broad cross-platform support and a large community.
+- Mission Planner (.NET) offers deep ArduPilot integration with advanced configuration and scripting.
+- Helios focuses on queryable flight data analytics, a modern Flutter-based UI, and multi-protocol support (MAVLink + MSP).
+- Many pilots use more than one GCS depending on the task. They complement each other well.
 
 ## Documentation
 
@@ -62,6 +63,7 @@ Helios is an alternative to QGroundControl, Mission Planner, and APM Planner 2. 
 - macOS (.dmg): https://github.com/jamesagarside/helios/releases/latest
 - Windows (.exe): https://github.com/jamesagarside/helios/releases/latest
 - Linux (.AppImage): https://github.com/jamesagarside/helios/releases/latest
+- Web App: https://app.heliosgcs.com
 - Source: https://github.com/jamesagarside/helios
 
 ## Optional

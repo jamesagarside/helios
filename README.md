@@ -8,9 +8,10 @@
 </p>
 
 <p align="center">
-  <a href="https://jamesagarside.github.io/helios/">Website</a> &middot;
-  <a href="https://jamesagarside.github.io/helios/features.html">Features</a> &middot;
-  <a href="https://jamesagarside.github.io/helios/docs.html">Docs</a> &middot;
+  <a href="https://heliosgcs.com/">Website</a> &middot;
+  <a href="https://heliosgcs.com/features.html">Features</a> &middot;
+  <a href="https://heliosgcs.com/docs.html">Docs</a> &middot;
+  <a href="https://app.heliosgcs.com">Web App</a> &middot;
   <a href="https://github.com/jamesagarside/helios/releases/latest">Download</a>
 </p>
 
@@ -38,13 +39,15 @@ Helios works with the hardware you already own. ArduPilot, PX4, Betaflight, iNav
 - **Video** -- RTSP video streaming with picture-in-picture overlay on the Fly view. Hardware-accelerated playback.
 - **Simulate** -- One-click ArduPilot SITL with wind and failure injection. Practice missions, test failsafes, and train new pilots without risk.
 
-### Why Helios over other GCS software?
+### What Helios focuses on
 
-- **Your data, queryable.** Other software gives you a log file. Helios gives you a database. Every flight. Automatically.
-- **Modern interface.** Clean, responsive design. No cluttered toolbars or buried menus. 60fps rendering even at high telemetry rates.
-- **All platforms.** macOS, Windows, Linux, iOS, and Android. Same experience everywhere.
+- **Your data, queryable.** Flight data stored in a columnar database you can query with SQL. Every flight. Automatically.
+- **Modern interface.** Clean, responsive design built with Flutter. 60fps rendering even at high telemetry rates.
+- **All platforms.** macOS, Windows, Linux, iOS, Android, and [web](https://app.heliosgcs.com). Same experience everywhere.
 - **All flight controllers.** ArduPilot, PX4, Betaflight, iNav. MAVLink and MSP. Auto-detected.
 - **No lock-in.** Open source (GPL 3.0). No accounts, no subscriptions, no telemetry phoning home. Free forever.
+
+Helios is part of the open-source drone community alongside QGroundControl, Mission Planner, and other great GCS tools. Each has different strengths -- many pilots use more than one.
 
 ## Protocol & Feature Support
 
@@ -155,13 +158,13 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, C
 | **Airspace** | No-fly zone overlays | OpenAIP integration, custom NFZ drawing, waypoint conflict detection |
 | **Record** | Every flight, automatically | DuckDB columnar storage. 10-100x faster analytics than SQLite |
 
-See the full feature breakdown at [jamesagarside.github.io/helios/features](https://jamesagarside.github.io/helios/features.html).
+See the full feature breakdown at [jamesagarside.github.io/helios/features](https://heliosgcs.com/features.html).
 
 ## Quick Start
 
 ### Download
 
-Pre-built binaries for macOS, Windows, and Linux are available on the [Releases](https://github.com/jamesagarside/helios/releases/latest) page. iOS alpha builds are on TestFlight.
+Pre-built binaries for macOS, Windows, and Linux are available on the [Releases](https://github.com/jamesagarside/helios/releases/latest) page. Android APK is also on Releases. iOS alpha builds are on TestFlight. Or try the [web app](https://app.heliosgcs.com) with no download required.
 
 ### Build from Source
 
@@ -209,13 +212,13 @@ packages/
 ## Tests
 
 ```bash
-flutter test           # 558 tests
+flutter test           # 561 tests
 dart analyze lib/      # zero warnings
 ```
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss what you'd like to change. See the [docs](https://jamesagarside.github.io/helios/docs.html) for architecture details.
+Contributions are welcome. Please open an issue first to discuss what you'd like to change. See the [docs](https://heliosgcs.com/docs.html) for architecture details.
 
 ## Licence
 

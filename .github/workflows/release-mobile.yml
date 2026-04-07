@@ -42,12 +42,10 @@ jobs:
         run: |
           if [ -n "$ANDROID_KEYSTORE" ]; then
             echo "$ANDROID_KEYSTORE" | base64 --decode > android/upload-keystore.jks
-            cat > android/key.properties <<PROPS
-          storePassword=$ANDROID_STORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=../upload-keystore.jks
-          PROPS
+            printf 'storePassword=%s\n' "$ANDROID_STORE_PASSWORD" > android/key.properties
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD" >> android/key.properties
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS" >> android/key.properties
+            printf 'storeFile=../upload-keystore.jks\n' >> android/key.properties
             echo "Android release signing configured"
           else
             echo "::warning::No ANDROID_KEYSTORE secret — building with debug signing"

@@ -43,12 +43,13 @@
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="nav-brand">
-      <img src="img/logo.svg" alt="Helios">
+      <img src="img/logo.svg" alt="Helios Ground Control Station">
       Helios
     </a>
     <ul class="nav-links">
       <li><a href="features.html" class="active">Features</a></li>
       <li><a href="docs.html">Docs</a></li>
+      <li><a href="https://app.heliosgcs.com" target="_blank" rel="noopener">Web App</a></li>
       <li>
         <div class="nav-download">
           <button class="nav-download-btn">Download <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></button>
@@ -84,8 +85,8 @@
 
 <!-- Features Hero -->
 <section class="features-hero">
-  <h1>Features</h1>
-  <p>Everything you need to fly, plan, and understand your flights  - in one place.</p>
+  <h1>Ground Control Station Features</h1>
+  <p>Everything you need to fly, plan, and understand your flights  - in one open-source ground control station.</p>
 </section>
 
 <!-- Feature Detail Grid -->
@@ -172,8 +173,8 @@
 
 <!-- What's Different -->
 <section class="section comparison-section" id="compare">
-  <h2 class="section-title">What Helios Does Differently</h2>
-  <p class="comparison-intro">Existing ground control software does a great job of getting you in the air. Helios builds on that foundation with a focus on modern design, flight data, and broader hardware support.</p>
+  <h2 class="section-title">What Helios Brings to the Table</h2>
+  <p class="comparison-intro">The open-source drone community has built incredible ground control station software over the years. Helios joins that tradition with a particular focus on flight data, modern design, and broad hardware support.</p>
 
   <div class="differentiators-grid">
     <div class="diff-card">
@@ -181,16 +182,16 @@
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="16" height="16" rx="3"/><polyline points="5,14 8,8 11,11 15,5"/></svg>
       </div>
       <h3>Queryable Flight Database</h3>
-      <p>Every flight is automatically recorded into a columnar database you can query with SQL. Most GCS software requires manual log downloads and external tools for analysis.</p>
-      <div class="diff-tag">Unique to Helios</div>
+      <p>Every flight is automatically recorded into a columnar database you can query with SQL. A fresh approach to flight data that complements the traditional log file workflow.</p>
+      <div class="diff-tag">Helios Focus</div>
     </div>
     <div class="diff-card">
       <div class="diff-icon">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M4 10h12M4 14h8"/><circle cx="16" cy="14" r="2"/></svg>
       </div>
       <h3>Cross-Flight Comparison</h3>
-      <p>Compare telemetry across flights and vehicles side by side. Spot trends, regressions, and anomalies that single-flight viewers can't show you.</p>
-      <div class="diff-tag">Unique to Helios</div>
+      <p>Compare telemetry across flights and vehicles side by side. Spot trends, regressions, and anomalies across your entire flight history.</p>
+      <div class="diff-tag">Helios Focus</div>
     </div>
     <div class="diff-card">
       <div class="diff-icon">
@@ -210,8 +211,8 @@
       <div class="diff-icon">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="14" cy="6" r="3"/><circle cx="6" cy="14" r="3"/><circle cx="14" cy="14" r="3"/></svg>
       </div>
-      <h3>Broadest FC Support</h3>
-      <p>Works with ArduPilot, PX4, iNav, and Betaflight. Most GCS software only supports one or two protocols  - Helios speaks MAVLink and MSP.</p>
+      <h3>Multi-Protocol Support</h3>
+      <p>Works with ArduPilot, PX4, iNav, and Betaflight. Helios speaks both MAVLink and MSP, so you can use one ground control station across all your aircraft.</p>
     </div>
     <div class="diff-card">
       <div class="diff-icon">
@@ -219,38 +220,44 @@
       </div>
       <h3>Fleet Analytics</h3>
       <p>Aggregate data across your entire fleet. Track maintenance intervals, compare performance across airframes, and export to Parquet for use in your own data pipeline.</p>
-      <div class="diff-tag">Unique to Helios</div>
+      <div class="diff-tag">Helios Focus</div>
     </div>
   </div>
 
   <!-- Shared Foundation -->
   <div class="shared-foundation">
-    <h3>Everything you'd expect, too</h3>
-    <p>Helios covers all the essentials: waypoint and survey mission planning, geofencing, rally points, KML/GPX import, USB/UDP/TCP connections, parameter editing, sensor calibration, video streaming, and simulation. If you've used other GCS software before, you'll feel right at home.</p>
+    <h3>Everything you'd expect from a ground control station, too</h3>
+    <p>Helios covers all the essentials: waypoint and survey mission planning, geofencing, rally points, KML/GPX import, USB/UDP/TCP connections, parameter editing, sensor calibration, video streaming, and simulation. If you've used other ground control station software before, you'll feel right at home.</p>
   </div>
 </section>
 
 <!-- Community -->
 <section class="section community-section">
   <div class="community-inner">
-    <h2 class="section-title">Built on the Shoulders of Giants</h2>
-    <p>The open-source drone community has built incredible software over the past decade. Projects like ArduPilot, PX4, and the ground stations that support them have made autonomous flight accessible to everyone. Helios wouldn't exist without that work.</p>
-    <p>We're not here to replace what came before  - we're building on it. Helios focuses on the areas we think deserve a fresh approach: flight data, modern UI, and broad hardware support. If another tool works better for your workflow, use it. They're all open source, and that's the point.</p>
+    <h2 class="section-title">Part of the Open-Source Drone Community</h2>
+    <p>The open-source drone community has built incredible software over the past decade. Projects like <strong>QGroundControl</strong>, <strong>Mission Planner</strong>, <strong>ArduPilot</strong>, and <strong>PX4</strong> have made autonomous flight accessible to everyone. Helios wouldn't exist without that foundation.</p>
+    <p>We're not here to replace what came before  - we're part of the same community. Helios focuses on the areas we think deserve a fresh approach: queryable flight data, a modern UI, and multi-protocol hardware support. If another ground control station works better for your workflow, use it. They're all open source, and that's what makes this ecosystem great.</p>
+    <p>The best tool is the one that fits your needs. Many pilots use multiple GCS applications for different tasks  - and that's exactly how open source should work.</p>
   </div>
 </section>
 
 <!-- CTA -->
 <section class="features-cta">
-  <h2>Ready to try a better GCS?</h2>
-  <p>Helios is free, open source, and ready to fly.</p>
+  <h2>Ready to try Helios?</h2>
+  <p>Free, open source, and ready to fly. Download for desktop or try it in your browser.</p>
   <div class="hero-actions">
     <a href="/#download" class="btn btn-primary">Download Free</a>
+    <a href="https://app.heliosgcs.com" class="btn btn-secondary" target="_blank" rel="noopener">Try in Browser</a>
     <a href="docs.html?page=getting-started" class="btn btn-secondary">Getting Started Guide</a>
   </div>
 </section>
 
 <footer class="footer">
-  Part of the <a href="https://github.com/jamesagarside">Argus Platform</a>
+  <a href="ground-control-station.html">Ground Control Station</a>
+  &middot; <a href="features.html">Features</a>
+  &middot; <a href="web-app.html">Web App</a>
+  &middot; <a href="docs.html">Docs</a>
+  &middot; <a href="https://github.com/jamesagarside">Argus Platform</a>
   &middot; <a href="https://github.com/jamesagarside/helios/blob/main/LICENSE">GPL 3.0</a>
 </footer>
 

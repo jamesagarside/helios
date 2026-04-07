@@ -10,6 +10,12 @@ Bindings get bindings {
   return _duckdb ??= Bindings(open());
 }
 
+/// Whether DuckDB is available on this platform.
+///
+/// Returns false on iOS and Android where the native library is not bundled.
+bool get isSupported =>
+    Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+
 DynamicLibrary open() {
   if (_duckdb == null) {
     if (Platform.isLinux) {
@@ -19,7 +25,10 @@ DynamicLibrary open() {
     } else if (Platform.isWindows) {
       _dynLib = DynamicLibrary.open('duckdb.dll');
     } else {
-      throw StateError('DuckDB: unsupported platform ${Platform.operatingSystem}');
+      throw StateError(
+        'DuckDB is not available on ${Platform.operatingSystem}. '
+        'Check isSupported before calling open().',
+      );
     }
   }
   return _dynLib!;

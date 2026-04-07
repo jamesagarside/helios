@@ -6,7 +6,7 @@ Helios is part of the Argus Platform. Licensed under GPL 3.0.
 Website: https://heliosgcs.com
 Repository: https://github.com/jamesagarside/helios
 Author: James Garside
-Current Version: 0.5.0-alpha
+Current Version: 0.5.2-alpha
 
 ---
 
