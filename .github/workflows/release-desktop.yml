@@ -61,7 +61,7 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain \
             | grep "Developer ID Application" | awk '{print $2}')
-          APP=build/macos/Build/Products/Release/helios_gcs.app
+          APP="build/macos/Build/Products/Release/Helios GCS.app"
           # Sign each nested framework individually (--deep is unreliable for Versions/A/ structure)
           find "$APP/Contents/Frameworks" \( -name "*.framework" -o -name "*.dylib" \) \
             | sort -r \
@@ -84,7 +84,7 @@ jobs:
             | grep "Developer ID Application" | awk '{print $2}')
           cd build/macos/Build/Products/Release
           mkdir -p dmg_contents
-          cp -R helios_gcs.app dmg_contents/
+          cp -R "Helios GCS.app" dmg_contents/
           ln -s /Applications dmg_contents/Applications
           hdiutil create -volname "Helios GCS" \
             -srcfolder dmg_contents -ov -format UDZO ../helios-gcs-macos.dmg
