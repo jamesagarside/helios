@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dart_mavlink/dart_mavlink.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -46,6 +48,10 @@ bool _needsReboot(String paramId) {
   return _rebootPrefixes.any((p) => upper.startsWith(p.toUpperCase()));
 }
 
+/// Compact numeric formatting for default-value hints.
+String _fmtDefault(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(4);
+
 class _ParameterEditorState extends ConsumerState<ParameterEditor> {
   Map<String, Parameter> _params = {};
   final _searchController = TextEditingController();
@@ -57,6 +63,8 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
   final _modified = <String, double>{}; // param_id -> new value
   bool _rebootRequired = false; // set when a reboot-required param is written
   bool _standardOnly = false; // show only Standard user-level params
+  bool _modifiedOnly = false; // show only params that differ from default
+  bool _hasDefaults = false; // a defaults baseline has been loaded
 
   @override
   void initState() {
@@ -227,6 +235,93 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
     }
   }
 
+  // ── Defaults / non-default ("modified") view ─────────────────────────────
+
+  /// Load a `.param` baseline and treat its values as the firmware defaults,
+  /// so the editor can flag — and filter to — only the parameters the user has
+  /// actually changed. (A future MAVFTP `@PARAM/param.pck?withdefaults` source
+  /// will populate the same `defaultValue` field automatically.)
+  Future<void> _loadDefaults() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['param', 'parm', 'txt'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    String? content;
+    if (file.bytes != null) {
+      content = utf8.decode(file.bytes!, allowMalformed: true);
+    } else if (file.path != null) {
+      content = await File(file.path!).readAsString();
+    }
+    if (content == null) return;
+
+    final entries = ParameterService.parseParamFile(content);
+    if (entries.isEmpty) return;
+
+    var matched = 0;
+    setState(() {
+      for (final (name, value) in entries) {
+        final param = _params[name];
+        if (param != null) {
+          param.defaultValue = value;
+          matched++;
+        }
+      }
+      _hasDefaults = true;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Loaded defaults for $matched parameters'),
+          backgroundColor: context.hc.success,
+        ),
+      );
+    }
+  }
+
+  /// Export only the parameters that differ from the loaded defaults — the
+  /// GCS equivalent of Betaflight's `diff`.
+  Future<void> _exportDiff() async {
+    final nonDefault = _params.values.where((p) => p.isNonDefault).toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    if (nonDefault.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No changed parameters to export')),
+        );
+      }
+      return;
+    }
+
+    final dir = await getApplicationDocumentsDirectory();
+    final now = DateTime.now();
+    final fileName =
+        'helios_params_diff_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.param';
+    final filePath = p.join(dir.path, fileName);
+    final content = nonDefault.map((pm) => '${pm.id},${pm.value}').join('\n');
+    await File(filePath).writeAsString(content);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved ${nonDefault.length} changed params to $fileName'),
+          backgroundColor: context.hc.success,
+        ),
+      );
+    }
+  }
+
+  /// Reset a single parameter to its known default value.
+  Future<void> _resetToDefault(Parameter param) async {
+    final def = param.defaultValue;
+    if (def == null) return;
+    await _writeParam(param.id, def);
+  }
+
   // ── Profiles ─────────────────────────────────────────────────────────────
 
   Future<Directory> _profilesDir() async {
@@ -286,6 +381,11 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
     // Standard-only filter using metadata when available.
     if (_standardOnly && meta.isNotEmpty) {
       list = list.where((p) => meta[p.id]?.isStandard == true).toList();
+    }
+
+    // Modified-only filter: just the params that differ from their default.
+    if (_modifiedOnly) {
+      list = list.where((p) => p.isNonDefault).toList();
     }
 
     // Group filter (uses meta group when available, else param prefix).
@@ -388,6 +488,25 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
               icon: const Icon(Icons.folder_open, size: 16),
               label: const Text('Profiles'),
             ),
+            const SizedBox(width: 8),
+            if (_params.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: _loadDefaults,
+                icon: const Icon(Icons.rule, size: 16),
+                label: const Text('Load Defaults'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor:
+                      _hasDefaults ? hc.accent : null,
+                ),
+              ),
+            if (_hasDefaults) ...[
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _exportDiff,
+                icon: const Icon(Icons.difference, size: 16),
+                label: const Text('Export Diff'),
+              ),
+            ],
             const Spacer(),
             // Metadata status indicator
             if (metaLoading)
@@ -497,6 +616,17 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                   label: 'Standard',
                   selected: _standardOnly,
                   onTap: () => setState(() => _standardOnly = true),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (_hasDefaults) ...[
+                _FilterChip(
+                  label: _modifiedOnly
+                      ? 'Modified (${_params.values.where((p) => p.isNonDefault).length})'
+                      : 'Modified',
+                  selected: _modifiedOnly,
+                  onTap: () =>
+                      setState(() => _modifiedOnly = !_modifiedOnly),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -661,6 +791,21 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                    // Known default (shown once a baseline is loaded)
+                    if (param.hasDefault) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        param.isNonDefault
+                            ? 'default ${_fmtDefault(param.defaultValue!)} · changed'
+                            : 'default ${_fmtDefault(param.defaultValue!)}',
+                        style: TextStyle(
+                          color: param.isNonDefault
+                              ? hc.accent
+                              : hc.textTertiary,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -738,6 +883,22 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
                     onPressed: () =>
                         _writeParam(param.id, _modified[param.id]!),
                     tooltip: 'Write',
+                  ),
+                )
+              else
+                const SizedBox(width: 28),
+              // Reset-to-default button (when value differs from default)
+              if (param.isNonDefault)
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(Icons.settings_backup_restore,
+                        size: 14, color: hc.textTertiary),
+                    tooltip:
+                        'Reset to default (${_fmtDefault(param.defaultValue!)})',
+                    onPressed: () => _resetToDefault(param),
                   ),
                 )
               else
