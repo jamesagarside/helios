@@ -42,6 +42,7 @@ class MissionItem extends Equatable {
   /// Human-readable command label.
   String get commandLabel => switch (command) {
     MavCmd.navWaypoint => 'Waypoint',
+    MavCmd.navSplineWaypoint => 'Spline WP',
     MavCmd.navLoiterUnlim => 'Loiter',
     MavCmd.navLoiterTurns => 'Loiter Turns',
     MavCmd.navLoiterTime => 'Loiter Time',
@@ -57,6 +58,14 @@ class MissionItem extends Equatable {
     MavCmd.doLandStart => 'Land Start',
     MavCmd.doGripper => 'Gripper',
     MavCmd.doPauseContinue => 'Pause/Continue',
+    MavCmd.doSetServo => 'Set Servo',
+    MavCmd.doSetRelay => 'Set Relay',
+    MavCmd.doRepeatServo => 'Repeat Servo',
+    MavCmd.doRepeatRelay => 'Repeat Relay',
+    MavCmd.doFenceEnable => 'Fence Enable',
+    MavCmd.conditionDelay => 'Condition: Delay',
+    MavCmd.conditionDistance => 'Condition: Distance',
+    MavCmd.conditionYaw => 'Condition: Yaw',
     _ => 'CMD $command',
   };
 
