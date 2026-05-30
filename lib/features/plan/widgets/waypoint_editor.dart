@@ -92,6 +92,55 @@ const _kParamDefs = <int, List<_ParamDef?>>{
     _ParamDef('Pause (1) or Continue (0)', min: 0, max: 1),
     null, null, null, null, null, null,
   ],
+  MavCmd.navSplineWaypoint: [
+    _ParamDef('Hold (s)', min: 0, max: 600),
+    null,
+    null,
+    _ParamDef('Yaw (deg)', min: 0, max: 360),
+    null, null, null,
+  ],
+  MavCmd.doSetServo: [
+    _ParamDef('Servo #', min: 1, max: 16),
+    _ParamDef('PWM (us)', min: 800, max: 2200),
+    null, null, null, null, null,
+  ],
+  MavCmd.doSetRelay: [
+    _ParamDef('Relay #', min: 0, max: 5),
+    _ParamDef('State (0=off,1=on)', min: 0, max: 1),
+    null, null, null, null, null,
+  ],
+  MavCmd.doRepeatServo: [
+    _ParamDef('Servo #', min: 1, max: 16),
+    _ParamDef('PWM (us)', min: 800, max: 2200),
+    _ParamDef('Count', min: 1, max: 100),
+    _ParamDef('Cycle (s)', min: 0, max: 60),
+    null, null, null,
+  ],
+  MavCmd.doRepeatRelay: [
+    _ParamDef('Relay #', min: 0, max: 5),
+    _ParamDef('Count', min: 1, max: 100),
+    _ParamDef('Cycle (s)', min: 0, max: 60),
+    null, null, null, null,
+  ],
+  MavCmd.doFenceEnable: [
+    _ParamDef('Enable (0=off,1=on,2=floor)', min: 0, max: 2),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionDelay: [
+    _ParamDef('Delay (s)', min: 0, max: 600),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionDistance: [
+    _ParamDef('Distance (m)', min: 0, max: 10000),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionYaw: [
+    _ParamDef('Angle (deg)', min: 0, max: 360),
+    _ParamDef('Rate (deg/s)', min: 0, max: 90),
+    _ParamDef('Dir (-1=ccw,1=cw)', min: -1, max: 1),
+    _ParamDef('Relative (0/1)', min: 0, max: 1),
+    null, null, null,
+  ],
 };
 
 /// Fallback when a command has no specific param defs.
@@ -116,6 +165,7 @@ class _CmdEntry {
 
 const _kNavCommands = <_CmdEntry>[
   _CmdEntry(MavCmd.navWaypoint, 'Waypoint'),
+  _CmdEntry(MavCmd.navSplineWaypoint, 'Spline WP'),
   _CmdEntry(MavCmd.navTakeoff, 'Takeoff'),
   _CmdEntry(MavCmd.navLand, 'Land'),
   _CmdEntry(MavCmd.navReturnToLaunch, 'RTL'),
@@ -132,6 +182,14 @@ const _kActionCommands = <_CmdEntry>[
   _CmdEntry(MavCmd.doLandStart, 'Land Start'),
   _CmdEntry(MavCmd.doGripper, 'Gripper'),
   _CmdEntry(MavCmd.doPauseContinue, 'Pause/Continue'),
+  _CmdEntry(MavCmd.doSetServo, 'Set Servo'),
+  _CmdEntry(MavCmd.doSetRelay, 'Set Relay'),
+  _CmdEntry(MavCmd.doRepeatServo, 'Repeat Servo'),
+  _CmdEntry(MavCmd.doRepeatRelay, 'Repeat Relay'),
+  _CmdEntry(MavCmd.doFenceEnable, 'Fence Enable'),
+  _CmdEntry(MavCmd.conditionDelay, 'Condition: Delay'),
+  _CmdEntry(MavCmd.conditionDistance, 'Condition: Distance'),
+  _CmdEntry(MavCmd.conditionYaw, 'Condition: Yaw'),
 ];
 
 /// All known commands (nav + action) in a flat list for value lookup.

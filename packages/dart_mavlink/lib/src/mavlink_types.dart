@@ -139,6 +139,10 @@ abstract final class MavCmd {
   static const int navLand = 21;
   static const int navTakeoff = 22;
   static const int navLoiterToAlt = 31;
+  static const int navSplineWaypoint = 82;
+  static const int conditionDelay = 112;
+  static const int conditionDistance = 114;
+  static const int conditionYaw = 115;
   static const int doSetMode = 176;
   static const int doChangeSpeed = 178;
   static const int doSetHome = 179;
