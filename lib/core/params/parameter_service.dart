@@ -30,6 +30,14 @@ class Parameter {
   bool get isInteger =>
       type != 9 && type != 10; // not REAL32 or REAL64
 
+  /// Whether a firmware/baseline default value is known for this parameter.
+  bool get hasDefault => defaultValue != null;
+
+  /// Whether the current value differs from the known default. Always false
+  /// when no default is known (we don't guess).
+  bool get isNonDefault =>
+      defaultValue != null && (value - defaultValue!).abs() > 1e-9;
+
   Parameter copyWith({double? value}) =>
       Parameter(id: id, value: value ?? this.value, type: type, index: index, defaultValue: defaultValue);
 }
@@ -190,12 +198,37 @@ class ParameterService {
     throw ParameterException('Failed to set $paramId');
   }
 
+  /// Apply a map of `paramName → defaultValue` onto the currently-loaded
+  /// parameters. Source-agnostic: callers can supply a captured baseline
+  /// `.param` snapshot or, in future, the values decoded from ArduPilot's
+  /// MAVFTP `@PARAM/param.pck?withdefaults=1`.
+  void applyDefaults(Map<String, double> defaults) {
+    for (final entry in defaults.entries) {
+      _params[entry.key]?.defaultValue = entry.value;
+    }
+  }
+
+  /// Parameters whose current value differs from their known default, sorted
+  /// by name. Empty when no defaults have been applied.
+  List<Parameter> get nonDefaultParams =>
+      (_params.values.where((p) => p.isNonDefault).toList())
+        ..sort((a, b) => a.id.compareTo(b.id));
+
+  /// Count of parameters that differ from their known default.
+  int get nonDefaultCount =>
+      _params.values.where((p) => p.isNonDefault).length;
+
   /// Export parameters to Mission Planner .param format.
   /// Format: PARAM_NAME,VALUE
   String exportToParamFile() {
     final sorted = _params.values.toList()..sort((a, b) => a.id.compareTo(b.id));
     return sorted.map((p) => '${p.id},${p.value}').join('\n');
   }
+
+  /// Export only the parameters that differ from their default — a
+  /// changed-only parameter export. Empty when no defaults are known.
+  String exportNonDefaultToParamFile() =>
+      nonDefaultParams.map((p) => '${p.id},${p.value}').join('\n');
 
   /// Import parameters from a .param file.
   /// Returns list of (name, value) pairs.
