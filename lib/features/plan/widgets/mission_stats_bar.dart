@@ -4,6 +4,7 @@ import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/mission/mission_validator.dart';
 import '../../../shared/models/mission_item.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
@@ -94,6 +95,54 @@ class MissionStatsBar extends ConsumerWidget {
                       ? hc.warning
                       : null,
             ),
+            _buildValidationChip(hc, items),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Summarises pre-upload validation findings (errors/warnings) for the
+  /// current mission, or a green "checks passed" badge when clean. The full
+  /// list of findings is available in the tooltip.
+  Widget _buildValidationChip(HeliosColors hc, List<MissionItem> items) {
+    final issues = const MissionValidator().validate(items);
+    final errors =
+        issues.where((i) => i.severity == MissionIssueSeverity.error).length;
+    final warnings =
+        issues.where((i) => i.severity == MissionIssueSeverity.warning).length;
+
+    final IconData icon;
+    final Color color;
+    final String label;
+    if (errors > 0) {
+      icon = Icons.error_outline;
+      color = hc.danger;
+      label = '$errors error${errors == 1 ? '' : 's'}'
+          '${warnings > 0 ? ' / $warnings warn' : ''}';
+    } else if (warnings > 0) {
+      icon = Icons.warning_amber_rounded;
+      color = hc.warning;
+      label = '$warnings warning${warnings == 1 ? '' : 's'}';
+    } else {
+      icon = Icons.check_circle_outline;
+      color = hc.success;
+      label = 'Checks passed';
+    }
+
+    return Tooltip(
+      message: issues.isEmpty
+          ? 'No issues found'
+          : issues.map((i) => i.toString()).join('\n'),
+      child: Padding(
+        padding: const EdgeInsets.only(right: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(label,
+                style: HeliosTypography.small.copyWith(color: color)),
           ],
         ),
       ),
