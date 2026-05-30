@@ -293,4 +293,42 @@ void main() {
       expect(hb.armed, false);
     });
   });
+
+  group('FILE_TRANSFER_PROTOCOL (MAVFTP)', () {
+    test('builds and round-trips a FILE_TRANSFER_PROTOCOL frame', () {
+      // A small FTP payload (just the 12-byte header is enough here).
+      final ftpPayload = Uint8List.fromList([
+        0x07, 0x00, // seq = 7
+        0x00, // session
+        0x04, // opcode = OpenFileRO
+        0x05, // size
+        0x00, // req_opcode
+        0x00, // burst_complete
+        0x00, // padding
+        0x00, 0x00, 0x00, 0x00, // offset
+        0x41, 0x42, 0x43, 0x44, 0x45, // "ABCDE"
+      ]);
+
+      final frame = builder.buildFileTransferProtocol(
+        targetSystem: 1,
+        targetComponent: 1,
+        ftpPayload: ftpPayload,
+      );
+
+      expect(frame[0], mavlinkV2Magic);
+      expect(frame[7], 110); // message ID
+
+      parser.parse(frame);
+      final msg = parser.takeMessages()[0] as FileTransferProtocolMessage;
+      expect(msg.targetSystem, 1);
+      expect(msg.targetComponent, 1);
+      // The FTP payload field is zero-padded to 248 bytes; the meaningful
+      // prefix must survive the round-trip.
+      expect(msg.payloadBytes.length, greaterThanOrEqualTo(ftpPayload.length));
+      expect(
+        msg.payloadBytes.sublist(0, ftpPayload.length),
+        ftpPayload,
+      );
+    });
+  });
 }

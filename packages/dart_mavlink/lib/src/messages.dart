@@ -1548,6 +1548,63 @@ class AdsbVehicleMessage extends MavlinkMessage {
   }
 }
 
+/// FILE_TRANSFER_PROTOCOL (msg_id=110) — MAVLink FTP transport.
+///
+/// Carries a 251-byte payload: target_network, target_system,
+/// target_component, then a 248-byte FTP payload (FTP header + data). The FTP
+/// header is decoded by the higher-level MAVFTP service; this message just
+/// exposes the raw payload bytes.
+class FileTransferProtocolMessage extends MavlinkMessage {
+  FileTransferProtocolMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.targetNetwork,
+    required this.targetSystem,
+    required this.targetComponent,
+    required this.payloadBytes,
+  });
+
+  @override
+  final int messageId = 110;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int targetNetwork;
+  final int targetSystem;
+  final int targetComponent;
+
+  /// The FTP payload (FTP header + data), unparsed.
+  final Uint8List payloadBytes;
+
+  factory FileTransferProtocolMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    // Layout: target_network(1), target_system(1), target_component(1),
+    // then the FTP payload. Links may truncate trailing zero bytes, so the
+    // slice is taken defensively.
+    final network = payload.isNotEmpty ? payload[0] : 0;
+    final tSys = payload.length > 1 ? payload[1] : 0;
+    final tComp = payload.length > 2 ? payload[2] : 0;
+    final bytes = payload.length > 3
+        ? Uint8List.fromList(payload.sublist(3))
+        : Uint8List(0);
+    return FileTransferProtocolMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      targetNetwork: network,
+      targetSystem: tSys,
+      targetComponent: tComp,
+      payloadBytes: bytes,
+    );
+  }
+}
+
 class UnknownMessage extends MavlinkMessage {
   UnknownMessage({
     required this.messageId,

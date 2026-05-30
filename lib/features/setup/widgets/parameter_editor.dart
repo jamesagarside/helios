@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import '../../../core/mavlink/mavftp_service.dart';
+import '../../../core/params/param_pck_decoder.dart';
 import '../../../core/params/parameter_service.dart';
 import '../../../core/params/param_meta.dart';
 import '../../../shared/models/vehicle_state.dart';
@@ -65,6 +67,7 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
   bool _standardOnly = false; // show only Standard user-level params
   bool _modifiedOnly = false; // show only params that differ from default
   bool _hasDefaults = false; // a defaults baseline has been loaded
+  bool _fetchingDefaults = false; // MAVFTP defaults fetch in progress
 
   @override
   void initState() {
@@ -283,6 +286,68 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
     }
   }
 
+  /// Fetch firmware defaults directly from the flight controller over MAVLink
+  /// FTP (`@PARAM/param.pck?withdefaults=1`). This is the same mechanism
+  /// Mission Planner uses and gives vehicle-exact, board-specific defaults.
+  Future<void> _fetchDefaultsFromFc() async {
+    final controller = ref.read(connectionControllerProvider.notifier);
+    final mavlink = controller.mavlinkService;
+    if (mavlink == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not connected')),
+        );
+      }
+      return;
+    }
+    final vehicle = ref.read(vehicleStateProvider);
+
+    setState(() => _fetchingDefaults = true);
+    try {
+      final ftp = MavFtpService(mavlink);
+      final bytes = await ftp.readFile(
+        '@PARAM/param.pck?withdefaults=1',
+        targetSystem: vehicle.systemId,
+        targetComponent: vehicle.componentId,
+        timeout: const Duration(seconds: 4),
+      );
+      final result = ParamPckDecoder.decode(bytes);
+      final defaults = ParamPckDecoder.defaultsMap(result);
+
+      var matched = 0;
+      setState(() {
+        for (final entry in defaults.entries) {
+          final param = _params[entry.key];
+          if (param != null) {
+            param.defaultValue = entry.value;
+            matched++;
+          }
+        }
+        _hasDefaults = true;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fetched defaults for $matched parameters from FC'),
+            backgroundColor: context.hc.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fetch defaults failed: $e'),
+            backgroundColor: context.hc.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fetchingDefaults = false);
+    }
+  }
+
   /// Export only the parameters that differ from the loaded defaults — the
   /// GCS equivalent of Betaflight's `diff`.
   Future<void> _exportDiff() async {
@@ -491,12 +556,30 @@ class _ParameterEditorState extends ConsumerState<ParameterEditor> {
             const SizedBox(width: 8),
             if (_params.isNotEmpty)
               OutlinedButton.icon(
+                onPressed: (isConnected && !_fetchingDefaults)
+                    ? _fetchDefaultsFromFc
+                    : null,
+                icon: _fetchingDefaults
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: hc.textPrimary),
+                      )
+                    : const Icon(Icons.cloud_download, size: 16),
+                label: const Text('Fetch Defaults'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _hasDefaults ? hc.accent : null,
+                ),
+              ),
+            const SizedBox(width: 8),
+            if (_params.isNotEmpty)
+              OutlinedButton.icon(
                 onPressed: _loadDefaults,
                 icon: const Icon(Icons.rule, size: 16),
                 label: const Text('Load Defaults'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor:
-                      _hasDefaults ? hc.accent : null,
+                  foregroundColor: _hasDefaults ? hc.accent : null,
                 ),
               ),
             if (_hasDefaults) ...[
