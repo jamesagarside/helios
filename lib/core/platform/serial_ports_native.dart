@@ -29,6 +29,12 @@ class _NativeSerialPortService implements SerialPortService {
   @override
   bool get isSupported => true;
 
+  @override
+  bool get requiresUserGesture => false;
+
+  @override
+  Future<SerialPortInfo?> requestPort() async => null;
+
   String _buildDisplayName(SerialPort port) {
     final desc = port.description ?? port.name ?? '';
     final manufacturer = port.manufacturer;

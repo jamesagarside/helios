@@ -352,6 +352,16 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
     if (mounted) setState(() {});
   }
 
+  /// Prompt the user (web) to grant access to a serial port, then select it.
+  /// On native this is a no-op (ports are enumerated automatically).
+  Future<void> _requestSerialPort() async {
+    final granted = await serialPortService.requestPort();
+    if (granted != null) {
+      _selectedSerialPort = granted.name;
+    }
+    _refreshSerialPorts();
+  }
+
   @override
   void dispose() {
     _addressController.dispose();
@@ -470,7 +480,10 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
                   segments: [
                     if (!kIsWeb) const ButtonSegment(value: 'UDP', label: Text('UDP')),
                     if (!kIsWeb) const ButtonSegment(value: 'TCP', label: Text('TCP')),
-                    if (!kIsWeb) const ButtonSegment(value: 'Serial', label: Text('Serial')),
+                    // Serial is available on native (libserialport) and on web
+                    // via the Web Serial API (Chromium browsers over HTTPS).
+                    if (!kIsWeb || serialPortService.isSupported)
+                      const ButtonSegment(value: 'Serial', label: Text('Serial')),
                     const ButtonSegment(value: 'WebSocket', label: Text('WS')),
                   ],
                   selected: {_transportType},
@@ -572,6 +585,13 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // Web Serial requires a user gesture to grant a port.
+                      if (serialPortService.requiresUserGesture)
+                        IconButton(
+                          icon: const Icon(Icons.add_link, size: 20),
+                          tooltip: 'Grant access to a port',
+                          onPressed: isConnected ? null : _requestSerialPort,
+                        ),
                       IconButton(
                         icon: const Icon(Icons.refresh, size: 20),
                         tooltip: 'Refresh ports',
@@ -584,7 +604,11 @@ class _ConnectionTabState extends ConsumerState<_ConnectionTab> {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'No serial ports detected. Connect your flight controller via USB.',
+                        serialPortService.requiresUserGesture
+                            ? 'No ports granted yet. Click the link icon to '
+                                'choose your flight controller, then Connect.'
+                            : 'No serial ports detected. Connect your flight '
+                                'controller via USB.',
                         style:
                             TextStyle(color: hc.warning, fontSize: 12),
                       ),
