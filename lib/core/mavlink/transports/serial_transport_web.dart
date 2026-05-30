@@ -31,7 +31,6 @@ class SerialTransport implements MavlinkTransport {
   ReadableStreamDefaultReader? _reader;
   WritableStreamDefaultWriter? _writer;
   bool _disposed = false;
-  bool _reading = false;
 
   final _dataController = StreamController<Uint8List>.broadcast();
   final _stateController = StreamController<TransportState>.broadcast();
@@ -91,7 +90,6 @@ class SerialTransport implements MavlinkTransport {
   }
 
   Future<void> _readLoop() async {
-    _reading = true;
     final reader = _reader;
     if (reader == null) return;
     try {
@@ -108,8 +106,6 @@ class SerialTransport implements MavlinkTransport {
       }
     } catch (_) {
       if (!_disposed) _setState(TransportState.error);
-    } finally {
-      _reading = false;
     }
   }
 
