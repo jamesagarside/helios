@@ -79,6 +79,35 @@ void main() {
       // First data line: seq 0, takeoff command 22
       expect(lines[1], contains('22'));
     });
+
+    test('save and load round-trips per-waypoint altitude frame', () {
+      final framedItems = [
+        const MissionItem(
+          seq: 0,
+          command: MavCmd.navWaypoint,
+          frame: MavFrame.global, // absolute / AMSL
+          latitude: -35.36,
+          longitude: 149.16,
+          altitude: 120,
+        ),
+        const MissionItem(
+          seq: 1,
+          command: MavCmd.navWaypoint,
+          frame: MavFrame.globalTerrainAlt, // terrain-relative
+          latitude: -35.361,
+          longitude: 149.161,
+          altitude: 30,
+        ),
+      ];
+      final output = service.save(
+        items: framedItems,
+        format: MissionFileFormat.waypoints,
+      );
+      final result = service.load(output, fileName: 'test.waypoints');
+      expect(result.hasError, isFalse);
+      expect(result.items[0].frame, equals(MavFrame.global));
+      expect(result.items[1].frame, equals(MavFrame.globalTerrainAlt));
+    });
   });
 
   group('Plan format (.plan)', () {
@@ -101,6 +130,26 @@ void main() {
       expect(result.items.length, equals(3));
       expect(result.items[0].command, equals(MavCmd.navTakeoff));
       expect(result.items[1].latitude, closeTo(-35.362741, 1e-6));
+    });
+
+    test('save and load round-trips per-waypoint altitude frame', () {
+      final framedItems = [
+        const MissionItem(
+          seq: 0,
+          command: MavCmd.navWaypoint,
+          frame: MavFrame.globalTerrainAlt,
+          latitude: -35.36,
+          longitude: 149.16,
+          altitude: 40,
+        ),
+      ];
+      final output = service.save(
+        items: framedItems,
+        format: MissionFileFormat.plan,
+      );
+      final result = service.load(output, fileName: 'test.plan');
+      expect(result.hasError, isFalse);
+      expect(result.items[0].frame, equals(MavFrame.globalTerrainAlt));
     });
 
     test('save and load preserves cruise speed', () {

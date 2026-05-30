@@ -257,6 +257,20 @@ class WaypointEditor extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
+          // Altitude frame (only meaningful for positional/nav commands)
+          if (item.isNavCommand) ...[
+            _EditorRow(
+              label: 'Alt Frame',
+              child: _FramePicker(
+                value: item.frame,
+                inputDecoration: inputDecoration,
+                hc: hc,
+                onChanged: (v) => onChanged(item.copyWith(frame: v)),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+
           // Per-command param fields
           ...paramRows,
 
@@ -380,6 +394,75 @@ class _GroupedCommandPicker extends StatelessWidget {
         ],
         onChanged: (v) {
           if (v != null && v >= 0) onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
+// ─── Altitude frame picker ─────────────────────────────────────────────────────
+
+/// One selectable altitude-frame option.
+class _FrameEntry {
+  const _FrameEntry(this.value, this.label);
+
+  final int value;
+  final String label;
+}
+
+/// The three altitude frames a pilot actually selects between. Internal
+/// `*Int` variants (5/6/11) are normalised onto these for display.
+const _kFrameOptions = <_FrameEntry>[
+  _FrameEntry(MavFrame.globalRelativeAlt, 'Relative (home)'),
+  _FrameEntry(MavFrame.global, 'Absolute (AMSL)'),
+  _FrameEntry(MavFrame.globalTerrainAlt, 'Terrain'),
+];
+
+/// Collapse the `*Int` MAVLink frame variants onto the user-facing option so
+/// the dropdown always has a matching value.
+int _normaliseFrame(int frame) => switch (frame) {
+      MavFrame.globalInt => MavFrame.global,
+      MavFrame.globalRelativeAltInt => MavFrame.globalRelativeAlt,
+      MavFrame.globalTerrainAltInt => MavFrame.globalTerrainAlt,
+      MavFrame.global ||
+      MavFrame.globalRelativeAlt ||
+      MavFrame.globalTerrainAlt =>
+        frame,
+      _ => MavFrame.globalRelativeAlt,
+    };
+
+/// Dropdown for choosing how a waypoint's altitude is interpreted.
+class _FramePicker extends StatelessWidget {
+  const _FramePicker({
+    required this.value,
+    required this.inputDecoration,
+    required this.hc,
+    required this.onChanged,
+  });
+
+  final int value;
+  final InputDecoration inputDecoration;
+  final HeliosColors hc;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: DropdownButtonFormField<int>(
+        initialValue: _normaliseFrame(value),
+        decoration: inputDecoration,
+        dropdownColor: hc.surfaceLight,
+        isExpanded: true,
+        style: TextStyle(color: hc.textPrimary, fontSize: 12),
+        items: _kFrameOptions
+            .map((f) => DropdownMenuItem<int>(
+                  value: f.value,
+                  child: Text(f.label),
+                ))
+            .toList(),
+        onChanged: (v) {
+          if (v != null) onChanged(v);
         },
       ),
     );
