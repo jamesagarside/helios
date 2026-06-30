@@ -18,14 +18,36 @@ The web app supports most of the features you would use on a desktop, with a few
 | Offline map tiles | Yes | Cached by your browser |
 | Install as app (PWA) | Yes | Add to Home Screen for a native-like experience |
 | Video streaming | No | Not available in browsers |
-| USB serial connections | No | Use the relay instead |
+| USB serial connections | Partial | Direct via Web Serial on Chromium browsers over HTTPS; otherwise use the relay |
 | SITL simulator | No | Desktop only |
 | Log download from FC | No | Desktop only |
 | File export (CSV/Parquet/JSON) | No | Browser security prevents direct file writes |
 
 ## Connecting to Your Flight Controller
 
-Browsers cannot open direct TCP or serial connections to a flight controller. Instead, you run a small relay program on a computer that is on the same network as your drone. The relay bridges the gap between the browser and the flight controller.
+There are two ways to connect from the web app: directly over USB using Web
+Serial (on supported browsers), or through the relay for network connections and
+on browsers without Web Serial.
+
+### USB over Web Serial
+
+On Chromium-based browsers (Chrome / Edge 89 and later) served over HTTPS, the
+web app can talk to a USB flight controller directly, with no relay process.
+
+1. Plug the flight controller into the computer over USB.
+2. Open [app.heliosgcs.com](https://app.heliosgcs.com), go to **Setup > Connection**, and choose the Serial transport.
+3. Grant access to the port when the browser's serial chooser appears. This requires a click or tap (the browser only exposes ports after a user gesture).
+4. Once granted, the port is remembered for future sessions and listed in the serial port dropdown.
+
+Browsers without Web Serial support (for example Firefox and Safari) cannot use
+this path; use the relay instead.
+
+### Relay (network connections and unsupported browsers)
+
+Browsers cannot open direct TCP connections to a flight controller. For network
+connections, or for serial on browsers without Web Serial, you run a small relay
+program on a computer that is on the same network as your drone. The relay
+bridges the gap between the browser and the flight controller.
 
 ```
   Browser (any device)          Your computer            Flight controller

@@ -53,8 +53,11 @@ Mission planning, geofence editing, and survey pattern generation.
 | Feature | Description |
 |---|---|
 | Waypoint Editor | Add, move, delete, reorder waypoints with drag-and-drop on the map |
-| DO_ Commands | Insert MAVLink DO_ commands (delay, set servo, change speed, set ROI, jump, etc.) between navigation waypoints |
+| Per-Waypoint Altitude Frame | Choose Relative (home), Absolute (AMSL), or Terrain altitude per waypoint |
+| Navigation Commands | Waypoint, spline waypoint, takeoff, land, RTL, and loiter (unlimited / time / turns) |
+| Action Commands (DO_) | Change speed, jump, camera trigger, gimbal control, land start, gripper, pause/continue, set/repeat servo and relay, fence enable, and condition delay/distance/yaw, with labelled parameter fields per command |
 | Multi-Select | Select multiple waypoints for bulk altitude change, deletion, or reorder |
+| Pre-Upload Validation | Flags out-of-range DO_JUMP, non-positive altitude, duplicate waypoints, low terrain clearance, and large altitude jumps, surfaced as a stats-bar chip |
 | Polygon Survey | Auto-generate lawnmower survey pattern inside a drawn polygon |
 | Corridor Scan | Generate parallel scan lines along a polyline centerline for linear features |
 | KML/GPX Import | Import waypoints and polygons from KML and GPX files |
@@ -105,20 +108,39 @@ Connection management, vehicle configuration, and application settings.
 | Auto-Connect | Monitor for new serial ports and connect automatically (toggle in Setup) |
 | Quick Connection Bar | Top-of-screen bar showing current connection, one-click reconnect |
 | Connection Persistence | Last-used connection configuration saved and restored on launch |
-| Parameter Editor | Full parameter list with search, descriptions, enums, group filtering, and metadata |
-| Calibration | Accelerometer, magnetometer, gyro, and level calibration wizards |
+| Parameter Editor | Full parameter list with search, descriptions, enums, group filtering, metadata, Modified-only view, and board-exact defaults fetched over MAVLink FTP |
 | Stream Rates | Configure per-message telemetry rates (ATTITUDE, GPS, SYS_STATUS, etc.) |
 | Video Settings | RTSP URL configuration for live video feed |
 | Display Settings | Theme mode, unit preferences, layout profile selection |
 | Offline Maps | Download and manage map tile regions for offline/air-gapped use |
 | Log Download | Browse and download Dataflash logs stored on the flight controller |
-| Failsafe Panel | Configure failsafe actions (RC loss, battery, GCS loss) |
-| Frame Type Panel | View and set vehicle frame class and type |
-| Motor Test | Spin individual motors at specified throttle for verification |
-| Pre-Arm Panel | Review pre-arm check status and sensor health |
-| Simulate (SITL) | Launch ArduPilot SITL in Docker with wind and failure injection |
+| Simulate (SITL) | Launch ArduPilot SITL from an on-demand native binary, with wind and failure injection |
 
 For details, see [Connection Guide](connection-guide.md) and [Setup Guide](setup-guide.md).
+
+---
+
+## Vehicle Configuration (FC Config)
+
+Tabbed vehicle setup and calibration for ArduPilot / PX4 (MAVLink only).
+
+| Feature | Description |
+|---|---|
+| Airframe Model | Real-time, frame-aware 3D model of the vehicle, rendered from live attitude; turns green when held in a requested target pose |
+| Orientation | Board-orientation editor (`AHRS_ORIENTATION` / `COMPASS_ORIENT`) beside the live Airframe Model |
+| Accelerometer Calibration | 6-point calibration wizard with the Airframe Model as a live target-pose validator |
+| Airspeed Calibration | Preflight zero-offset calibration, ratio, sensor config, and live airspeed readout |
+| RC Calibration | Live per-channel bars, min/max/trim capture, reversal, and `RCMAP_*` mapping |
+| Flight Modes | Assign flight modes to RC PWM bands (`FLTMODE_CH`, `FLTMODE1`..`6`) with a live active-slot indicator |
+| ESC Calibration | Semi-automatic and manual endpoints (`MOT_PWM_*`, `MOT_SPIN_*`), props-off gating, DShot/brushed detection |
+| Battery / Power | Voltage and current calibration, monitor type, capacity, and live readouts |
+| Pre-Arm | `ARMING_CHECK` bitmask editor with live pre-arm health |
+| Failsafe | Configure failsafe actions (RC loss, battery, GCS loss) |
+| Frame Type | View and set vehicle frame class and type |
+| Motor Test | Spin individual motors at a specified throttle for verification |
+| VTOL / Quadplane | Frame class/type, transition and assist, conditional tilt, `Q_OPTIONS` bitmask, advanced PID tuning, and QAUTOTUNE entry; shown only when `Q_ENABLE` = 1 |
+
+For details, see [Vehicle Config](vehicle-config.md).
 
 ---
 
