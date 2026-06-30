@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/airframe/airframe_config.dart';
+import '../../core/airframe/attitude_source.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import 'airframe_model_widget.dart';
 import 'airframe_providers.dart';
+import 'board_orientation_panel.dart';
 
 /// The Orientation home: a live Airframe Model the pilot can use to verify the
 /// flight controller's mounting/orientation by moving the vehicle and watching
@@ -80,31 +82,85 @@ class _OrientationTabState extends ConsumerState<OrientationTab> {
                   'Connect to a vehicle in the Setup tab to see live attitude.',
             ),
           const SizedBox(height: 16),
-          Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: AspectRatio(
-                aspectRatio: 1.2,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: hc.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: hc.border),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: source == null
-                      ? _NoSource(hc: hc)
-                      : AirframeModelWidget(
-                          source: source,
-                          config: config,
-                        ),
-                ),
-              ),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final model = _ModelPanel(hc: hc, source: source, config: config);
+              const editor = BoardOrientationPanel();
+              final summary = _ConfigSummary(config: config, source: source != null);
+              // Side-by-side when there's room; the model is the verification
+              // tool the pilot watches while changing the orientation editor.
+              if (constraints.maxWidth >= 720) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          model,
+                          const SizedBox(height: 16),
+                          summary,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    const Expanded(child: editor),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  model,
+                  const SizedBox(height: 16),
+                  editor,
+                  const SizedBox(height: 16),
+                  summary,
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 16),
-          _ConfigSummary(config: config, source: source != null),
         ],
+      ),
+    );
+  }
+}
+
+/// The 3D Airframe Model panel — the live verification view.
+class _ModelPanel extends StatelessWidget {
+  const _ModelPanel({
+    required this.hc,
+    required this.source,
+    required this.config,
+  });
+
+  final HeliosColors hc;
+  final AttitudeSource? source;
+  final AirframeConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    final src = source;
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: AspectRatio(
+          aspectRatio: 1.2,
+          child: Container(
+            decoration: BoxDecoration(
+              color: hc.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: hc.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: src == null
+                ? _NoSource(hc: hc)
+                : AirframeModelWidget(
+                    source: src,
+                    config: config,
+                  ),
+          ),
+        ),
       ),
     );
   }
