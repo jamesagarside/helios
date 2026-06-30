@@ -11,6 +11,16 @@ void main() {
       expect(serialPortService.isSupported, isTrue);
     });
 
+    test('requiresUserGesture is false on native', () {
+      // Web Serial needs a user gesture to grant a port; native enumerates
+      // OS devices directly and never does.
+      expect(serialPortService.requiresUserGesture, isFalse);
+    });
+
+    test('requestPort returns null on native (no-op grant flow)', () async {
+      expect(await serialPortService.requestPort(), isNull);
+    });
+
     // Note: availablePorts() requires the native libserialport.dylib which
     // is only bundled inside the app binary, not in the test runner.
     // These tests verify the interface contract; integration testing with
