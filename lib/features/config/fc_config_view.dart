@@ -4,6 +4,7 @@ import '../../core/params/parameter_service.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
+import '../setup/widgets/battery_power_panel.dart';
 import '../setup/widgets/calibration_wizard.dart';
 import '../setup/widgets/failsafe_panel.dart';
 import '../setup/widgets/frame_type_panel.dart';
@@ -33,6 +34,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     (icon: Icons.propane_outlined, label: 'Motors'),
     (icon: Icons.settings_remote_outlined, label: 'RC'),
     (icon: Icons.checklist_outlined, label: 'Pre-Arm'),
+    (icon: Icons.battery_charging_full_outlined, label: 'Battery'),
     (icon: Icons.list_alt_outlined, label: 'Parameters'),
   ];
 
@@ -117,6 +119,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const MotorTestPanel(),
                       _RcTab(),
                       const PreArmPanel(),
+                      const BatteryPowerPanel(),
                       _ParametersTab(),
                     ],
                   ),
@@ -148,6 +151,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const MotorTestPanel(),
                       _RcTab(),
                       const PreArmPanel(),
+                      const BatteryPowerPanel(),
                       _ParametersTab(),
                     ],
                   ),
