@@ -7,7 +7,9 @@ import '../../shared/models/flight_metadata.dart';
 import '../../shared/models/mission_item.dart';
 import '../database/database.dart';
 import '../platform/file_system.dart';
+import 'columns.dart';
 import 'schema.dart';
+import 'telemetry_row_mapper.dart';
 
 /// Query result from the database.
 class QueryResult {
@@ -108,17 +110,18 @@ class TelemetryStore {
 
     // Insert flight metadata
     final flightId = const Uuid().v4();
-    _conn!.execute("INSERT INTO flight_meta VALUES ('schema_version', '${HeliosSchema.version}')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('flight_id', '$flightId')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('vehicle_sysid', '$vehicleSysId')");
-    final safeVehicleType = vehicleType.replaceAll("'", "''");
-    final safeAutopilot = autopilot.replaceAll("'", "''");
-    final safeProtocol = protocol.replaceAll("'", "''");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('vehicle_type', '$safeVehicleType')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('autopilot', '$safeAutopilot')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('start_time_utc', '${now.toUtc().toIso8601String()}')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('helios_version', '0.1.0')");
-    _conn!.execute("INSERT INTO flight_meta VALUES ('protocol', '$safeProtocol')");
+    void meta(String key, String value) => _conn!.execute(
+          'INSERT INTO ${FlightMetaColumns.table} '
+          "VALUES ('$key', '${value.replaceAll("'", "''")}')",
+        );
+    meta('schema_version', '${HeliosSchema.version}');
+    meta('flight_id', flightId);
+    meta('vehicle_sysid', '$vehicleSysId');
+    meta('vehicle_type', vehicleType);
+    meta('autopilot', autopilot);
+    meta('start_time_utc', now.toUtc().toIso8601String());
+    meta('helios_version', '0.1.0');
+    meta('protocol', protocol);
 
     _isRecording = true;
     _rowsWritten = 0;
@@ -228,61 +231,74 @@ class TelemetryStore {
 
     try {
       if (_attitudeBuf.isNotEmpty) {
-        final values = _attitudeBuf.map((a) =>
-          "('${_ts(a.ts)}', ${a.msg.roll}, ${a.msg.pitch}, ${a.msg.yaw}, "
-          '${a.msg.rollSpeed}, ${a.msg.pitchSpeed}, ${a.msg.yawSpeed})'
-        ).join(', ');
-        _conn!.execute('INSERT INTO attitude VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          AttitudeColumns.table,
+          AttitudeColumns.columns,
+          _attitudeBuf
+              .map((a) => TelemetryRowMapper.attitude(_ts(a.ts), a.msg))
+              .toList(),
+        ));
         count += _attitudeBuf.length;
         _attitudeBuf.clear();
       }
 
       if (_gpsBuf.isNotEmpty) {
-        final values = _gpsBuf
-            .map((g) => buildGpsRowValues(_ts(g.ts), g.msg, g.rawGps))
-            .join(', ');
-        _conn!.execute('INSERT INTO gps VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          GpsColumns.table,
+          GpsColumns.columns,
+          _gpsBuf
+              .map((g) => TelemetryRowMapper.gps(_ts(g.ts), g.msg, g.rawGps))
+              .toList(),
+        ));
         count += _gpsBuf.length;
         _gpsBuf.clear();
       }
 
       if (_batteryBuf.isNotEmpty) {
-        final values = _batteryBuf.map((b) =>
-          "('${_ts(b.ts)}', ${b.msg.voltageVolts}, ${b.msg.currentAmps}, "
-          '${b.msg.batteryRemaining}, 0)'
-        ).join(', ');
-        _conn!.execute('INSERT INTO battery VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          BatteryColumns.table,
+          BatteryColumns.columns,
+          _batteryBuf
+              .map((b) => TelemetryRowMapper.battery(_ts(b.ts), b.msg))
+              .toList(),
+        ));
         count += _batteryBuf.length;
         _batteryBuf.clear();
       }
 
       if (_vfrHudBuf.isNotEmpty) {
-        final values = _vfrHudBuf.map((v) =>
-          "('${_ts(v.ts)}', ${v.msg.airspeed}, ${v.msg.groundspeed}, "
-          '${v.msg.heading}, ${v.msg.throttle}, ${v.msg.climb})'
-        ).join(', ');
-        _conn!.execute('INSERT INTO vfr_hud VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          VfrHudColumns.table,
+          VfrHudColumns.columns,
+          _vfrHudBuf
+              .map((v) => TelemetryRowMapper.vfrHud(_ts(v.ts), v.msg))
+              .toList(),
+        ));
         count += _vfrHudBuf.length;
         _vfrHudBuf.clear();
       }
 
       if (_vibrationBuf.isNotEmpty) {
-        final values = _vibrationBuf.map((v) =>
-          "('${_ts(v.ts)}', ${v.msg.vibrationX}, ${v.msg.vibrationY}, "
-          '${v.msg.vibrationZ}, ${v.msg.clipping0}, ${v.msg.clipping1}, ${v.msg.clipping2})'
-        ).join(', ');
-        _conn!.execute('INSERT INTO vibration VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          VibrationColumns.table,
+          VibrationColumns.columns,
+          _vibrationBuf
+              .map((v) => TelemetryRowMapper.vibration(_ts(v.ts), v.msg))
+              .toList(),
+        ));
         count += _vibrationBuf.length;
         _vibrationBuf.clear();
       }
 
       if (_eventBuf.isNotEmpty) {
-        final values = _eventBuf.map((e) {
-          final type = e.type.replaceAll("'", "''");
-          final detail = e.detail.replaceAll("'", "''");
-          return "('${_ts(e.ts)}', '$type', '$detail', ${e.severity})";
-        }).join(', ');
-        _conn!.execute('INSERT INTO events VALUES $values');
+        _conn!.execute(TelemetryRowMapper.insertStatement(
+          EventsColumns.table,
+          EventsColumns.columns,
+          _eventBuf
+              .map((e) => TelemetryRowMapper.event(
+                  _ts(e.ts), e.type, e.detail, e.severity))
+              .toList(),
+        ));
         count += _eventBuf.length;
         _eventBuf.clear();
       }
@@ -355,7 +371,7 @@ class TelemetryStore {
     if (_isRecording) {
       try {
         _conn!.execute(
-          "INSERT INTO flight_meta VALUES ('end_time_utc', "
+          'INSERT INTO ${FlightMetaColumns.table} VALUES (\'end_time_utc\', '
           "'${DateTime.now().toUtc().toIso8601String()}')"
         );
       } catch (_) {}
@@ -375,12 +391,17 @@ class TelemetryStore {
     try {
       final now = DateTime.now().toUtc();
       final ts = _ts(now);
-      final values = items.map((item) =>
-        "('$ts', '$direction', ${item.seq}, ${item.frame}, ${item.command}, "
+      final safeDir = direction.replaceAll("'", "''");
+      final tuples = items.map((item) =>
+        "('$ts', '$safeDir', ${item.seq}, ${item.frame}, ${item.command}, "
         '${item.param1}, ${item.param2}, ${item.param3}, ${item.param4}, '
         '${item.latitude}, ${item.longitude}, ${item.altitude}, ${item.autocontinue})'
-      ).join(', ');
-      _conn!.execute('INSERT INTO missions VALUES $values');
+      ).toList();
+      _conn!.execute(TelemetryRowMapper.insertStatement(
+        MissionsColumns.table,
+        MissionsColumns.columns,
+        tuples,
+      ));
     } catch (_) {
       // Don't let persistence errors affect operations
     }
@@ -513,10 +534,12 @@ class TelemetryStore {
     try {
       conn = databaseFactory.open(filePath);
       final result = conn.fetch(
-        "SELECT key, value FROM flight_meta WHERE key LIKE 'user_%'",
+        'SELECT ${FlightMetaColumns.key}, ${FlightMetaColumns.value} '
+        "FROM ${FlightMetaColumns.table} "
+        "WHERE ${FlightMetaColumns.key} LIKE 'user_%'",
       );
-      final keys = result['key'];
-      final values = result['value'];
+      final keys = result[FlightMetaColumns.key];
+      final values = result[FlightMetaColumns.value];
       if (keys == null || values == null || keys.isEmpty) {
         return const FlightMetadata();
       }
@@ -552,12 +575,14 @@ class TelemetryStore {
       void upsert(String key, String? value) {
         if (value == null || value.isEmpty) {
           conn!.execute(
-            "DELETE FROM flight_meta WHERE key = '$key'",
+            "DELETE FROM ${FlightMetaColumns.table} "
+            "WHERE ${FlightMetaColumns.key} = '$key'",
           );
         } else {
           final escaped = value.replaceAll("'", "''");
           conn!.execute(
-            "INSERT OR REPLACE INTO flight_meta VALUES ('$key', '$escaped')",
+            'INSERT OR REPLACE INTO ${FlightMetaColumns.table} '
+            "VALUES ('$key', '$escaped')",
           );
         }
       }
@@ -624,33 +649,14 @@ class TelemetryStore {
 
   /// Build the SQL VALUES tuple for one `gps` row.
   ///
-  /// Position (lat/lon/altitude) comes from GLOBAL_POSITION_INT, but the
-  /// GPS-quality columns (fix type, satellites, HDOP/VDOP, ground velocity,
-  /// course) are only carried by GPS_RAW_INT. [rawGps] is the most recent
-  /// GPS_RAW_INT received before this position sample, or null if none has
-  /// arrived yet — in which case the quality columns are written as NULL
-  /// rather than fabricated constants. UINT16_MAX (0xFFFF) sentinels in the
-  /// raw message also map to NULL (the value is reported but unknown).
+  /// Delegates to [TelemetryRowMapper.gps], which owns the row shape; this
+  /// thin wrapper preserves the public test entry point.
   static String buildGpsRowValues(
     String ts,
     GlobalPositionIntMessage pos,
     GpsRawIntMessage? rawGps,
-  ) {
-    final fixType = rawGps != null ? '${rawGps.fixType}' : 'NULL';
-    final sats = rawGps != null ? '${rawGps.satellitesVisible}' : 'NULL';
-    final hdop =
-        rawGps != null && rawGps.eph != 0xFFFF ? '${rawGps.hdop}' : 'NULL';
-    final vdop =
-        rawGps != null && rawGps.epv != 0xFFFF ? '${rawGps.vdop}' : 'NULL';
-    final vel = rawGps != null && rawGps.vel != 0xFFFF
-        ? '${rawGps.vel / 100.0}'
-        : 'NULL';
-    final cog = rawGps != null && rawGps.cog != 0xFFFF
-        ? '${rawGps.cog / 100.0}'
-        : 'NULL';
-    return "('$ts', ${pos.latDeg}, ${pos.lonDeg}, ${pos.altMetres}, "
-        '${pos.relAltMetres}, $fixType, $sats, $hdop, $vdop, $vel, $cog)';
-  }
+  ) =>
+      TelemetryRowMapper.gps(ts, pos, rawGps);
 }
 
 // Buffered message wrappers

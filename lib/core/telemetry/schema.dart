@@ -1,25 +1,30 @@
+import 'columns.dart';
+
 /// DuckDB schema definitions for flight telemetry recording.
 ///
-/// Each flight creates a fresh .duckdb file with these tables.
+/// Each flight creates a fresh .duckdb file with these tables. Table and column
+/// names are interpolated from the single-source-of-truth constants in
+/// `columns.dart` so the recorder, forensics, replay and analytics modules and
+/// the `CREATE TABLE` definitions can never drift apart.
 abstract final class HeliosSchema {
   static const int version = 2;
 
   static const createFlightMeta = '''
-    CREATE TABLE IF NOT EXISTS flight_meta (
-      key   VARCHAR PRIMARY KEY,
-      value VARCHAR NOT NULL
+    CREATE TABLE IF NOT EXISTS ${FlightMetaColumns.table} (
+      ${FlightMetaColumns.key}   VARCHAR PRIMARY KEY,
+      ${FlightMetaColumns.value} VARCHAR NOT NULL
     );
   ''';
 
   static const createAttitude = '''
-    CREATE TABLE IF NOT EXISTS attitude (
-      ts         TIMESTAMP NOT NULL,
-      roll       DOUBLE NOT NULL,
-      pitch      DOUBLE NOT NULL,
-      yaw        DOUBLE NOT NULL,
-      roll_spd   DOUBLE,
-      pitch_spd  DOUBLE,
-      yaw_spd    DOUBLE
+    CREATE TABLE IF NOT EXISTS ${AttitudeColumns.table} (
+      ${AttitudeColumns.ts}         TIMESTAMP NOT NULL,
+      ${AttitudeColumns.roll}       DOUBLE NOT NULL,
+      ${AttitudeColumns.pitch}      DOUBLE NOT NULL,
+      ${AttitudeColumns.yaw}        DOUBLE NOT NULL,
+      ${AttitudeColumns.rollSpd}    DOUBLE,
+      ${AttitudeColumns.pitchSpd}   DOUBLE,
+      ${AttitudeColumns.yawSpd}     DOUBLE
     );
   ''';
 
@@ -29,66 +34,66 @@ abstract final class HeliosSchema {
   // received — in that case the quality is genuinely unknown and left NULL
   // rather than fabricated. Readers must degrade gracefully on NULL.
   static const createGps = '''
-    CREATE TABLE IF NOT EXISTS gps (
-      ts         TIMESTAMP NOT NULL,
-      lat        DOUBLE NOT NULL,
-      lon        DOUBLE NOT NULL,
-      alt_msl    DOUBLE NOT NULL,
-      alt_rel    DOUBLE NOT NULL,
-      fix_type   TINYINT,
-      satellites TINYINT,
-      hdop       DOUBLE,
-      vdop       DOUBLE,
-      vel        DOUBLE,
-      cog        DOUBLE
+    CREATE TABLE IF NOT EXISTS ${GpsColumns.table} (
+      ${GpsColumns.ts}         TIMESTAMP NOT NULL,
+      ${GpsColumns.lat}        DOUBLE NOT NULL,
+      ${GpsColumns.lon}        DOUBLE NOT NULL,
+      ${GpsColumns.altMsl}     DOUBLE NOT NULL,
+      ${GpsColumns.altRel}     DOUBLE NOT NULL,
+      ${GpsColumns.fixType}    TINYINT,
+      ${GpsColumns.satellites} TINYINT,
+      ${GpsColumns.hdop}       DOUBLE,
+      ${GpsColumns.vdop}       DOUBLE,
+      ${GpsColumns.vel}        DOUBLE,
+      ${GpsColumns.cog}        DOUBLE
     );
   ''';
 
   static const createBattery = '''
-    CREATE TABLE IF NOT EXISTS battery (
-      ts              TIMESTAMP NOT NULL,
-      voltage         DOUBLE NOT NULL,
-      current_a       DOUBLE,
-      remaining_pct   TINYINT,
-      consumed_mah    DOUBLE
+    CREATE TABLE IF NOT EXISTS ${BatteryColumns.table} (
+      ${BatteryColumns.ts}              TIMESTAMP NOT NULL,
+      ${BatteryColumns.voltage}         DOUBLE NOT NULL,
+      ${BatteryColumns.currentA}        DOUBLE,
+      ${BatteryColumns.remainingPct}    TINYINT,
+      ${BatteryColumns.consumedMah}     DOUBLE
     );
   ''';
 
   static const createVfrHud = '''
-    CREATE TABLE IF NOT EXISTS vfr_hud (
-      ts           TIMESTAMP NOT NULL,
-      airspeed     DOUBLE NOT NULL,
-      groundspeed  DOUBLE NOT NULL,
-      heading      SMALLINT NOT NULL,
-      throttle     SMALLINT NOT NULL,
-      climb        DOUBLE NOT NULL
+    CREATE TABLE IF NOT EXISTS ${VfrHudColumns.table} (
+      ${VfrHudColumns.ts}           TIMESTAMP NOT NULL,
+      ${VfrHudColumns.airspeed}     DOUBLE NOT NULL,
+      ${VfrHudColumns.groundspeed}  DOUBLE NOT NULL,
+      ${VfrHudColumns.heading}      SMALLINT NOT NULL,
+      ${VfrHudColumns.throttle}     SMALLINT NOT NULL,
+      ${VfrHudColumns.climb}        DOUBLE NOT NULL
     );
   ''';
 
   static const createVibration = '''
-    CREATE TABLE IF NOT EXISTS vibration (
-      ts      TIMESTAMP NOT NULL,
-      vibe_x  DOUBLE NOT NULL,
-      vibe_y  DOUBLE NOT NULL,
-      vibe_z  DOUBLE NOT NULL,
-      clip_0  INTEGER NOT NULL,
-      clip_1  INTEGER NOT NULL,
-      clip_2  INTEGER NOT NULL
+    CREATE TABLE IF NOT EXISTS ${VibrationColumns.table} (
+      ${VibrationColumns.ts}      TIMESTAMP NOT NULL,
+      ${VibrationColumns.vibeX}   DOUBLE NOT NULL,
+      ${VibrationColumns.vibeY}   DOUBLE NOT NULL,
+      ${VibrationColumns.vibeZ}   DOUBLE NOT NULL,
+      ${VibrationColumns.clip0}   INTEGER NOT NULL,
+      ${VibrationColumns.clip1}   INTEGER NOT NULL,
+      ${VibrationColumns.clip2}   INTEGER NOT NULL
     );
   ''';
 
   static const createEvents = '''
-    CREATE TABLE IF NOT EXISTS events (
-      ts       TIMESTAMP NOT NULL,
-      type     VARCHAR NOT NULL,
-      detail   VARCHAR NOT NULL,
-      severity TINYINT DEFAULT 6
+    CREATE TABLE IF NOT EXISTS ${EventsColumns.table} (
+      ${EventsColumns.ts}       TIMESTAMP NOT NULL,
+      ${EventsColumns.type}     VARCHAR NOT NULL,
+      ${EventsColumns.detail}   VARCHAR NOT NULL,
+      ${EventsColumns.severity} TINYINT DEFAULT 6
     );
   ''';
 
   static const createRcChannels = '''
-    CREATE TABLE IF NOT EXISTS rc_channels (
-      ts    TIMESTAMP NOT NULL,
+    CREATE TABLE IF NOT EXISTS ${RcChannelsColumns.table} (
+      ${RcChannelsColumns.ts}    TIMESTAMP NOT NULL,
       ch1   SMALLINT, ch2   SMALLINT, ch3   SMALLINT, ch4   SMALLINT,
       ch5   SMALLINT, ch6   SMALLINT, ch7   SMALLINT, ch8   SMALLINT,
       ch9   SMALLINT, ch10  SMALLINT, ch11  SMALLINT, ch12  SMALLINT,
@@ -98,28 +103,28 @@ abstract final class HeliosSchema {
   ''';
 
   static const createServoOutput = '''
-    CREATE TABLE IF NOT EXISTS servo_output (
-      ts    TIMESTAMP NOT NULL,
+    CREATE TABLE IF NOT EXISTS ${ServoOutputColumns.table} (
+      ${ServoOutputColumns.ts}    TIMESTAMP NOT NULL,
       srv1  SMALLINT, srv2  SMALLINT, srv3  SMALLINT, srv4  SMALLINT,
       srv5  SMALLINT, srv6  SMALLINT, srv7  SMALLINT, srv8  SMALLINT
     );
   ''';
 
   static const createMissions = '''
-    CREATE TABLE IF NOT EXISTS missions (
-      ts          TIMESTAMP NOT NULL,
-      direction   VARCHAR NOT NULL,
-      seq         SMALLINT NOT NULL,
-      frame       TINYINT NOT NULL,
-      command     SMALLINT NOT NULL,
-      param1      DOUBLE,
-      param2      DOUBLE,
-      param3      DOUBLE,
-      param4      DOUBLE,
-      lat         DOUBLE NOT NULL,
-      lon         DOUBLE NOT NULL,
-      alt         DOUBLE NOT NULL,
-      autocont    TINYINT NOT NULL
+    CREATE TABLE IF NOT EXISTS ${MissionsColumns.table} (
+      ${MissionsColumns.ts}          TIMESTAMP NOT NULL,
+      ${MissionsColumns.direction}   VARCHAR NOT NULL,
+      ${MissionsColumns.seq}         SMALLINT NOT NULL,
+      ${MissionsColumns.frame}       TINYINT NOT NULL,
+      ${MissionsColumns.command}     SMALLINT NOT NULL,
+      ${MissionsColumns.param1}      DOUBLE,
+      ${MissionsColumns.param2}      DOUBLE,
+      ${MissionsColumns.param3}      DOUBLE,
+      ${MissionsColumns.param4}      DOUBLE,
+      ${MissionsColumns.lat}         DOUBLE NOT NULL,
+      ${MissionsColumns.lon}         DOUBLE NOT NULL,
+      ${MissionsColumns.alt}         DOUBLE NOT NULL,
+      ${MissionsColumns.autocont}    TINYINT NOT NULL
     );
   ''';
 

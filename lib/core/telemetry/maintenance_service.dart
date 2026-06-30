@@ -1,3 +1,4 @@
+import '../database/database.dart';
 import 'forensics_service.dart';
 import 'telemetry_store.dart';
 
@@ -44,7 +45,14 @@ class MaintenanceAlert {
 /// - **Clip events**: any clip events in the last flight suggest motor or
 ///   prop imbalance.
 class MaintenanceService {
-  final _forensics = ForensicsService();
+  /// Creates a maintenance service.
+  ///
+  /// [factory] is forwarded to the underlying [ForensicsService] so tests can
+  /// inject an in-memory fake and run the analysis without a live DuckDB.
+  MaintenanceService({HeliosDatabaseFactory? factory})
+      : _forensics = ForensicsService(factory: factory);
+
+  final ForensicsService _forensics;
 
   /// Run predictive maintenance analysis across [flights].
   ///

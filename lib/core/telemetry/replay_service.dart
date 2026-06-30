@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 
 import '../../shared/models/vehicle_state.dart';
 import '../database/database.dart';
+import 'columns.dart';
 
 /// A single telemetry snapshot at a point in time, used for flight replay.
 class ReplaySnapshot {
@@ -100,11 +101,13 @@ class ReplayService {
       // Read flight metadata
       try {
         final meta = conn.fetch(
-          'SELECT key, value FROM flight_meta WHERE key IN '
+          'SELECT ${FlightMetaColumns.key}, ${FlightMetaColumns.value} '
+          'FROM ${FlightMetaColumns.table} '
+          'WHERE ${FlightMetaColumns.key} IN '
           "('start_time_utc', 'user_name', 'vehicle_type', 'autopilot')",
         );
-        final keys = meta['key'] ?? [];
-        final vals = meta['value'] ?? [];
+        final keys = meta[FlightMetaColumns.key] ?? [];
+        final vals = meta[FlightMetaColumns.value] ?? [];
         final metaMap = <String, String>{};
         for (var i = 0; i < keys.length; i++) {
           metaMap[keys[i].toString()] = vals[i].toString();
@@ -119,65 +122,76 @@ class ReplayService {
 
       // Load GPS track (primary timeline)
       final gps = conn.fetch(
-        'SELECT ts, lat, lon, alt_msl, alt_rel, fix_type, satellites, hdop '
-        'FROM gps ORDER BY ts',
+        'SELECT ${GpsColumns.ts}, ${GpsColumns.lat}, ${GpsColumns.lon}, '
+        '${GpsColumns.altMsl}, ${GpsColumns.altRel}, ${GpsColumns.fixType}, '
+        '${GpsColumns.satellites}, ${GpsColumns.hdop} '
+        'FROM ${GpsColumns.table} ORDER BY ${GpsColumns.ts}',
       );
-      final gpsTs = gps['ts'] ?? [];
+      final gpsTs = gps[GpsColumns.ts] ?? [];
       if (gpsTs.isEmpty) {
         conn.close();
         _setState(ReplayState.idle);
         return;
       }
 
-      final gpsLat = gps['lat'] ?? [];
-      final gpsLon = gps['lon'] ?? [];
-      final gpsAltMsl = gps['alt_msl'] ?? [];
-      final gpsAltRel = gps['alt_rel'] ?? [];
-      final gpsFixType = gps['fix_type'] ?? [];
-      final gpsSats = gps['satellites'] ?? [];
-      final gpsHdop = gps['hdop'] ?? [];
+      final gpsLat = gps[GpsColumns.lat] ?? [];
+      final gpsLon = gps[GpsColumns.lon] ?? [];
+      final gpsAltMsl = gps[GpsColumns.altMsl] ?? [];
+      final gpsAltRel = gps[GpsColumns.altRel] ?? [];
+      final gpsFixType = gps[GpsColumns.fixType] ?? [];
+      final gpsSats = gps[GpsColumns.satellites] ?? [];
+      final gpsHdop = gps[GpsColumns.hdop] ?? [];
 
       final startTime = _parseTs(gpsTs.first);
 
       // Load attitude data
       final att = conn.fetch(
-        'SELECT ts, roll, pitch, yaw, roll_spd, pitch_spd, yaw_spd '
-        'FROM attitude ORDER BY ts',
+        'SELECT ${AttitudeColumns.ts}, ${AttitudeColumns.roll}, '
+        '${AttitudeColumns.pitch}, ${AttitudeColumns.yaw}, '
+        '${AttitudeColumns.rollSpd}, ${AttitudeColumns.pitchSpd}, '
+        '${AttitudeColumns.yawSpd} '
+        'FROM ${AttitudeColumns.table} ORDER BY ${AttitudeColumns.ts}',
       );
-      final attTs = (att['ts'] ?? []).map(_parseTs).toList();
-      final attRoll = att['roll'] ?? [];
-      final attPitch = att['pitch'] ?? [];
-      final attYaw = att['yaw'] ?? [];
-      final attRollSpd = att['roll_spd'] ?? [];
-      final attPitchSpd = att['pitch_spd'] ?? [];
-      final attYawSpd = att['yaw_spd'] ?? [];
+      final attTs = (att[AttitudeColumns.ts] ?? []).map(_parseTs).toList();
+      final attRoll = att[AttitudeColumns.roll] ?? [];
+      final attPitch = att[AttitudeColumns.pitch] ?? [];
+      final attYaw = att[AttitudeColumns.yaw] ?? [];
+      final attRollSpd = att[AttitudeColumns.rollSpd] ?? [];
+      final attPitchSpd = att[AttitudeColumns.pitchSpd] ?? [];
+      final attYawSpd = att[AttitudeColumns.yawSpd] ?? [];
 
       // Load VFR HUD
       final vfr = conn.fetch(
-        'SELECT ts, airspeed, groundspeed, heading, throttle, climb '
-        'FROM vfr_hud ORDER BY ts',
+        'SELECT ${VfrHudColumns.ts}, ${VfrHudColumns.airspeed}, '
+        '${VfrHudColumns.groundspeed}, ${VfrHudColumns.heading}, '
+        '${VfrHudColumns.throttle}, ${VfrHudColumns.climb} '
+        'FROM ${VfrHudColumns.table} ORDER BY ${VfrHudColumns.ts}',
       );
-      final vfrTs = (vfr['ts'] ?? []).map(_parseTs).toList();
-      final vfrAirspeed = vfr['airspeed'] ?? [];
-      final vfrGs = vfr['groundspeed'] ?? [];
-      final vfrHeading = vfr['heading'] ?? [];
-      final vfrThrottle = vfr['throttle'] ?? [];
-      final vfrClimb = vfr['climb'] ?? [];
+      final vfrTs = (vfr[VfrHudColumns.ts] ?? []).map(_parseTs).toList();
+      final vfrAirspeed = vfr[VfrHudColumns.airspeed] ?? [];
+      final vfrGs = vfr[VfrHudColumns.groundspeed] ?? [];
+      final vfrHeading = vfr[VfrHudColumns.heading] ?? [];
+      final vfrThrottle = vfr[VfrHudColumns.throttle] ?? [];
+      final vfrClimb = vfr[VfrHudColumns.climb] ?? [];
 
       // Load battery
       final bat = conn.fetch(
-        'SELECT ts, voltage, current_a, remaining_pct FROM battery ORDER BY ts',
+        'SELECT ${BatteryColumns.ts}, ${BatteryColumns.voltage}, '
+        '${BatteryColumns.currentA}, ${BatteryColumns.remainingPct} '
+        'FROM ${BatteryColumns.table} ORDER BY ${BatteryColumns.ts}',
       );
-      final batTs = (bat['ts'] ?? []).map(_parseTs).toList();
-      final batVoltage = bat['voltage'] ?? [];
-      final batCurrent = bat['current_a'] ?? [];
-      final batRemaining = bat['remaining_pct'] ?? [];
+      final batTs = (bat[BatteryColumns.ts] ?? []).map(_parseTs).toList();
+      final batVoltage = bat[BatteryColumns.voltage] ?? [];
+      final batCurrent = bat[BatteryColumns.currentA] ?? [];
+      final batRemaining = bat[BatteryColumns.remainingPct] ?? [];
 
       // Load vibration
       final vib = conn.fetch(
-        'SELECT ts, vibe_x, vibe_y, vibe_z FROM vibration ORDER BY ts',
+        'SELECT ${VibrationColumns.ts}, ${VibrationColumns.vibeX}, '
+        '${VibrationColumns.vibeY}, ${VibrationColumns.vibeZ} '
+        'FROM ${VibrationColumns.table} ORDER BY ${VibrationColumns.ts}',
       );
-      final vibTs = (vib['ts'] ?? []).map(_parseTs).toList();
+      final vibTs = (vib[VibrationColumns.ts] ?? []).map(_parseTs).toList();
 
       conn.close();
       conn = null;
