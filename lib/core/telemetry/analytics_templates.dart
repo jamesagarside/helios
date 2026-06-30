@@ -34,9 +34,11 @@ ORDER BY ts
 SELECT
   ts, fix_type, satellites, hdop,
   CASE
+    WHEN fix_type IS NULL AND hdop IS NULL THEN 'UNKNOWN'
     WHEN fix_type < 3 THEN 'NO_FIX'
     WHEN hdop > 2.0 THEN 'POOR'
     WHEN hdop > 1.5 THEN 'FAIR'
+    WHEN hdop IS NULL THEN 'UNKNOWN'
     ELSE 'GOOD'
   END AS quality
 FROM gps
