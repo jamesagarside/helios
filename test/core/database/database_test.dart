@@ -12,6 +12,24 @@ bool get _duckdbAvailable {
   }
 }
 
+/// Creates a unique temporary directory for a single test and registers
+/// recursive cleanup. Each test gets its own directory so that parallel test
+/// isolates can never collide on a shared on-disk DuckDB path — and so that
+/// the DuckDB `.wal` sidecar (and any other residual files) are always
+/// removed, not just the primary `.duckdb` file.
+///
+/// Returns the absolute path to a `.duckdb` file inside that directory. The
+/// file itself does not yet exist; DuckDB creates it on first open.
+String _uniqueDbPath(String name) {
+  final dir = Directory.systemTemp.createTempSync('helios_db_test_');
+  addTearDown(() {
+    if (dir.existsSync()) {
+      dir.deleteSync(recursive: true);
+    }
+  });
+  return '${dir.path}/$name.duckdb';
+}
+
 void main() {
   group('HeliosDatabaseFactory', () {
     test('databaseFactory is available', () {
@@ -69,26 +87,19 @@ void main() {
 
     test('opens file-based database with persistence', () {
       databaseFactory.ensureInitialised();
-      final path =
-          '/tmp/helios_db_test_${DateTime.now().millisecondsSinceEpoch}.duckdb';
+      final path = _uniqueDbPath('persistence');
 
-      try {
-        // Create and write
-        final db = databaseFactory.open(path);
-        db.execute('CREATE TABLE t (x INTEGER)');
-        db.execute('INSERT INTO t VALUES (42)');
-        db.close();
+      // Create and write
+      final db = databaseFactory.open(path);
+      db.execute('CREATE TABLE t (x INTEGER)');
+      db.execute('INSERT INTO t VALUES (42)');
+      db.close();
 
-        // Reopen and verify
-        final db2 = databaseFactory.open(path);
-        final result = db2.fetch('SELECT x FROM t');
-        expect(result['x']![0], 42);
-        db2.close();
-      } finally {
-        try {
-          File(path).deleteSync();
-        } catch (_) {}
-      }
+      // Reopen and verify the data survived being written to disk.
+      final db2 = databaseFactory.open(path);
+      final result = db2.fetch('SELECT x FROM t');
+      expect(result['x']![0], 42);
+      db2.close();
     });
 
     test('close is idempotent', () {
@@ -120,31 +131,24 @@ void main() {
       databaseFactory.ensureInitialised();
       expect(databaseFactory.capabilities.supportsAttach, isTrue);
 
-      final path =
-          '/tmp/helios_attach_test_${DateTime.now().millisecondsSinceEpoch}.duckdb';
+      final path = _uniqueDbPath('attach');
 
-      try {
-        // Create a file DB to attach
-        final fileDb = databaseFactory.open(path);
-        fileDb.execute('CREATE TABLE data (val INTEGER)');
-        fileDb.execute('INSERT INTO data VALUES (99)');
-        fileDb.close();
+      // Create a file DB to attach
+      final fileDb = databaseFactory.open(path);
+      fileDb.execute('CREATE TABLE data (val INTEGER)');
+      fileDb.execute('INSERT INTO data VALUES (99)');
+      fileDb.close();
 
-        // Attach from memory DB
-        final memDb = databaseFactory.openMemory();
-        final escaped = path.replaceAll("'", "''");
-        memDb.execute("ATTACH '$escaped' AS ext (READ_ONLY)");
+      // Attach from memory DB
+      final memDb = databaseFactory.openMemory();
+      final escaped = path.replaceAll("'", "''");
+      memDb.execute("ATTACH '$escaped' AS ext (READ_ONLY)");
 
-        final result = memDb.fetch('SELECT val FROM ext.data');
-        expect(result['val']![0], 99);
+      final result = memDb.fetch('SELECT val FROM ext.data');
+      expect(result['val']![0], 99);
 
-        memDb.execute('DETACH ext');
-        memDb.close();
-      } finally {
-        try {
-          File(path).deleteSync();
-        } catch (_) {}
-      }
+      memDb.execute('DETACH ext');
+      memDb.close();
     });
   });
 }
