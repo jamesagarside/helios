@@ -3,7 +3,7 @@ import 'package:dart_mavlink/dart_mavlink.dart';
 import '../mavlink/mavlink_service.dart';
 
 /// Calibration type.
-enum CalibrationType { compass, accel, gyro, level }
+enum CalibrationType { compass, accel, gyro, level, airspeed }
 
 /// State of a calibration procedure.
 enum CalibrationState { idle, running, waitingOrientation, success, failed }
@@ -159,6 +159,7 @@ class CalibrationService {
     required int command,
     double param1 = 0,
     double param2 = 0,
+    double param3 = 0,
     double param5 = 0,
     required String startMessage,
   }) async {
@@ -199,7 +200,7 @@ class CalibrationService {
         _progressController.add(_current);
         _sub?.cancel();
         _sub = null;
-      } else if (text.contains('Cal') || text.contains('Place') || text.contains('accel') || text.contains('gyro')) {
+      } else if (text.contains('Cal') || text.contains('Place') || text.contains('accel') || text.contains('gyro') || text.contains('Airspeed') || text.contains('airspeed') || text.contains('zero')) {
         _current = CalibrationProgress(
           state: CalibrationState.running,
           type: type,
@@ -215,6 +216,7 @@ class CalibrationService {
       command: command,
       param1: param1,
       param2: param2,
+      param3: param3,
       param5: param5,
     );
   }
@@ -235,6 +237,28 @@ class CalibrationService {
       targetComponent: targetComponent,
       command: 241, // MAV_CMD_PREFLIGHT_CALIBRATION
       param5: 1, // accelerometer (full 6-point)
+    );
+  }
+
+  /// Start the airspeed pre-flight zero-offset calibration.
+  ///
+  /// Cover the pitot tube first. Sends `MAV_CMD_PREFLIGHT_CALIBRATION` with the
+  /// ground-pressure slot (param3=1), which on ArduPilot captures the static
+  /// differential-pressure reading into `ARSPD_OFFSET`. The autopilot reports
+  /// progress/outcome via `STATUSTEXT`.
+  Future<void> startAirspeedZeroCal({
+    required int targetSystem,
+    required int targetComponent,
+  }) async {
+    await _startSimpleCal(
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      type: CalibrationType.airspeed,
+      command: 241,
+      param3: 1, // ground pressure / airspeed zero
+      startMessage:
+          'Capturing airspeed zero offset.\nKeep the pitot tube covered and '
+          'still.',
     );
   }
 

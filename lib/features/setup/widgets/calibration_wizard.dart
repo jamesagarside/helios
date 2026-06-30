@@ -55,6 +55,9 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
         _calService!.startGyroCal(targetSystem: sys, targetComponent: comp);
       case CalibrationType.level:
         _calService!.startLevelCal(targetSystem: sys, targetComponent: comp);
+      case CalibrationType.airspeed:
+        // Airspeed calibration has its own dedicated panel.
+        break;
     }
   }
 
