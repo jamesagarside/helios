@@ -1,201 +1,10 @@
-import 'package:dart_mavlink/dart_mavlink.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/models/mission_item.dart';
 import '../../../shared/theme/helios_colors.dart';
-
-// ─── Param metadata ──────────────────────────────────────────────────────────
-
-/// A single parameter field descriptor.
-class _ParamDef {
-  const _ParamDef(this.label, {this.min = 0, this.max = double.infinity});
-
-  final String label;
-  final double min;
-  final double max;
-}
-
-/// Maps a MAVLink command int to its 7 param labels.
-/// Null means "not used — hide this param".
-const _kParamDefs = <int, List<_ParamDef?>>{
-  MavCmd.navWaypoint: [
-    _ParamDef('Hold (s)', min: 0, max: 600),
-    _ParamDef('Radius (m)', min: 0, max: 1000),
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.navTakeoff: [
-    null,
-    null,
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.navLand: [
-    _ParamDef('Abort Alt (m)', min: 0, max: 200),
-    null,
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.navReturnToLaunch: [null, null, null, null, null, null, null],
-  MavCmd.navLoiterUnlim: [
-    null,
-    _ParamDef('Radius (m)', min: 0, max: 2000),
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.navLoiterTime: [
-    _ParamDef('Time (s)', min: 0, max: 3600),
-    _ParamDef('Radius (m)', min: 0, max: 2000),
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.navLoiterTurns: [
-    _ParamDef('Turns', min: 1, max: 100),
-    _ParamDef('Radius (m)', min: 0, max: 2000),
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  // DO_ commands
-  MavCmd.doChangeSpeed: [
-    _ParamDef('Speed Type (0=air,1=gnd)', min: 0, max: 1),
-    _ParamDef('Speed (m/s, -1=nc)', min: -1, max: 50),
-    _ParamDef('Throttle % (-1=nc)', min: -1, max: 100),
-    null, null, null, null,
-  ],
-  MavCmd.doJump: [
-    _ParamDef('Target Seq', min: 0, max: 9999),
-    _ParamDef('Repeat Count', min: 0, max: 100),
-    null, null, null, null, null,
-  ],
-  MavCmd.doSetCamTriggDist: [
-    _ParamDef('Distance (m)', min: 0, max: 10000),
-    null, null, null, null, null, null,
-  ],
-  MavCmd.doMountControl: [
-    _ParamDef('Pitch (deg)', min: -180, max: 180),
-    _ParamDef('Roll (deg)', min: -180, max: 180),
-    _ParamDef('Yaw (deg)', min: -180, max: 180),
-    null, null, null, null,
-  ],
-  MavCmd.doLandStart: [null, null, null, null, null, null, null],
-  MavCmd.doGripper: [
-    _ParamDef('Gripper ID', min: 0, max: 10),
-    _ParamDef('Action (0=rel,1=grab)', min: 0, max: 1),
-    null, null, null, null, null,
-  ],
-  MavCmd.doPauseContinue: [
-    _ParamDef('Pause (1) or Continue (0)', min: 0, max: 1),
-    null, null, null, null, null, null,
-  ],
-  MavCmd.navSplineWaypoint: [
-    _ParamDef('Hold (s)', min: 0, max: 600),
-    null,
-    null,
-    _ParamDef('Yaw (deg)', min: 0, max: 360),
-    null, null, null,
-  ],
-  MavCmd.doSetServo: [
-    _ParamDef('Servo #', min: 1, max: 16),
-    _ParamDef('PWM (us)', min: 800, max: 2200),
-    null, null, null, null, null,
-  ],
-  MavCmd.doSetRelay: [
-    _ParamDef('Relay #', min: 0, max: 5),
-    _ParamDef('State (0=off,1=on)', min: 0, max: 1),
-    null, null, null, null, null,
-  ],
-  MavCmd.doRepeatServo: [
-    _ParamDef('Servo #', min: 1, max: 16),
-    _ParamDef('PWM (us)', min: 800, max: 2200),
-    _ParamDef('Count', min: 1, max: 100),
-    _ParamDef('Cycle (s)', min: 0, max: 60),
-    null, null, null,
-  ],
-  MavCmd.doRepeatRelay: [
-    _ParamDef('Relay #', min: 0, max: 5),
-    _ParamDef('Count', min: 1, max: 100),
-    _ParamDef('Cycle (s)', min: 0, max: 60),
-    null, null, null, null,
-  ],
-  MavCmd.doFenceEnable: [
-    _ParamDef('Enable (0=off,1=on,2=floor)', min: 0, max: 2),
-    null, null, null, null, null, null,
-  ],
-  MavCmd.conditionDelay: [
-    _ParamDef('Delay (s)', min: 0, max: 600),
-    null, null, null, null, null, null,
-  ],
-  MavCmd.conditionDistance: [
-    _ParamDef('Distance (m)', min: 0, max: 10000),
-    null, null, null, null, null, null,
-  ],
-  MavCmd.conditionYaw: [
-    _ParamDef('Angle (deg)', min: 0, max: 360),
-    _ParamDef('Rate (deg/s)', min: 0, max: 90),
-    _ParamDef('Dir (-1=ccw,1=cw)', min: -1, max: 1),
-    _ParamDef('Relative (0/1)', min: 0, max: 1),
-    null, null, null,
-  ],
-};
-
-/// Fallback when a command has no specific param defs.
-const _kFallbackDefs = [
-  _ParamDef('Param 1'),
-  _ParamDef('Param 2'),
-  _ParamDef('Param 3'),
-  _ParamDef('Param 4'),
-  null, // param5 = latitude, not shown in generic fallback
-  null, // param6 = longitude
-  null, // param7 = altitude shown separately
-];
-
-// ─── Command groups ───────────────────────────────────────────────────────────
-
-class _CmdEntry {
-  const _CmdEntry(this.value, this.label);
-
-  final int value;
-  final String label;
-}
-
-const _kNavCommands = <_CmdEntry>[
-  _CmdEntry(MavCmd.navWaypoint, 'Waypoint'),
-  _CmdEntry(MavCmd.navSplineWaypoint, 'Spline WP'),
-  _CmdEntry(MavCmd.navTakeoff, 'Takeoff'),
-  _CmdEntry(MavCmd.navLand, 'Land'),
-  _CmdEntry(MavCmd.navReturnToLaunch, 'RTL'),
-  _CmdEntry(MavCmd.navLoiterUnlim, 'Loiter'),
-  _CmdEntry(MavCmd.navLoiterTime, 'Loiter Time'),
-  _CmdEntry(MavCmd.navLoiterTurns, 'Loiter Turns'),
-];
-
-const _kActionCommands = <_CmdEntry>[
-  _CmdEntry(MavCmd.doChangeSpeed, 'Change Speed'),
-  _CmdEntry(MavCmd.doJump, 'Jump'),
-  _CmdEntry(MavCmd.doSetCamTriggDist, 'Camera Trigger'),
-  _CmdEntry(MavCmd.doMountControl, 'Gimbal Control'),
-  _CmdEntry(MavCmd.doLandStart, 'Land Start'),
-  _CmdEntry(MavCmd.doGripper, 'Gripper'),
-  _CmdEntry(MavCmd.doPauseContinue, 'Pause/Continue'),
-  _CmdEntry(MavCmd.doSetServo, 'Set Servo'),
-  _CmdEntry(MavCmd.doSetRelay, 'Set Relay'),
-  _CmdEntry(MavCmd.doRepeatServo, 'Repeat Servo'),
-  _CmdEntry(MavCmd.doRepeatRelay, 'Repeat Relay'),
-  _CmdEntry(MavCmd.doFenceEnable, 'Fence Enable'),
-  _CmdEntry(MavCmd.conditionDelay, 'Condition: Delay'),
-  _CmdEntry(MavCmd.conditionDistance, 'Condition: Distance'),
-  _CmdEntry(MavCmd.conditionYaw, 'Condition: Yaw'),
-];
-
-/// All known commands (nav + action) in a flat list for value lookup.
-const _kAllCommands = [..._kNavCommands, ..._kActionCommands];
-
-// ─── Widget ───────────────────────────────────────────────────────────────────
+import 'waypoint_command_defs.dart';
+import 'waypoint_command_picker.dart';
+import 'waypoint_editor_fields.dart';
+import 'waypoint_frame_picker.dart';
 
 /// Inline editor for the selected waypoint's properties.
 /// Shows a grouped command picker (Navigation / Actions) and per-command
@@ -214,7 +23,7 @@ class WaypointEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final hc = context.hc;
     final inputDecoration = _buildInputDecoration(hc);
-    final paramDefs = _kParamDefs[item.command] ?? _kFallbackDefs;
+    final paramDefs = kParamDefs[item.command] ?? kFallbackDefs;
 
     // Collect visible param field entries.
     final paramFields = <Widget>[];
@@ -230,9 +39,9 @@ class WaypointEditor extends StatelessWidget {
       if (def == null) continue;
       final (value, setter) = params[i];
       paramFields.add(
-        _EditorRow(
+        EditorRow(
           label: def.label,
-          child: _NumberField(
+          child: NumberField(
             value: value,
             min: def.min,
             max: def.max,
@@ -290,9 +99,9 @@ class WaypointEditor extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Command dropdown — grouped via custom widget
-          _EditorRow(
+          EditorRow(
             label: 'Command',
-            child: _GroupedCommandPicker(
+            child: GroupedCommandPicker(
               value: item.command,
               inputDecoration: inputDecoration,
               hc: hc,
@@ -302,9 +111,9 @@ class WaypointEditor extends StatelessWidget {
           const SizedBox(height: 6),
 
           // Altitude row (always shown)
-          _EditorRow(
+          EditorRow(
             label: 'Alt (m)',
-            child: _NumberField(
+            child: NumberField(
               value: item.altitude,
               min: 0,
               max: 5000,
@@ -317,9 +126,9 @@ class WaypointEditor extends StatelessWidget {
 
           // Altitude frame (only meaningful for positional/nav commands)
           if (item.isNavCommand) ...[
-            _EditorRow(
+            EditorRow(
               label: 'Alt Frame',
-              child: _FramePicker(
+              child: FramePicker(
                 value: item.frame,
                 inputDecoration: inputDecoration,
                 hc: hc,
@@ -365,271 +174,6 @@ class WaypointEditor extends StatelessWidget {
       ),
       filled: true,
       fillColor: hc.surfaceLight,
-    );
-  }
-}
-
-// ─── Grouped command picker ────────────────────────────────────────────────────
-
-/// A dropdown that shows Navigation and Actions groups with dividers.
-class _GroupedCommandPicker extends StatelessWidget {
-  const _GroupedCommandPicker({
-    required this.value,
-    required this.inputDecoration,
-    required this.hc,
-    required this.onChanged,
-  });
-
-  final int value;
-  final InputDecoration inputDecoration;
-  final HeliosColors hc;
-  final ValueChanged<int> onChanged;
-
-  bool _isKnown(int cmd) => _kAllCommands.any((c) => c.value == cmd);
-
-  @override
-  Widget build(BuildContext context) {
-    // Normalise unknown commands to navWaypoint for display purposes only
-    final displayValue = _isKnown(value) ? value : MavCmd.navWaypoint;
-
-    return SizedBox(
-      height: 30,
-      child: DropdownButtonFormField<int>(
-        initialValue: displayValue,
-        decoration: inputDecoration,
-        dropdownColor: hc.surfaceLight,
-        isExpanded: true,
-        style: TextStyle(
-          color: hc.textPrimary,
-          fontSize: 12,
-        ),
-        items: [
-          // Navigation group header
-          DropdownMenuItem<int>(
-            enabled: false,
-            value: -1,
-            child: Text(
-              'NAVIGATION',
-              style: TextStyle(
-                color: hc.textTertiary,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ),
-          ..._kNavCommands.map((c) => DropdownMenuItem<int>(
-                value: c.value,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(c.label),
-                ),
-              )),
-          // Actions group header
-          DropdownMenuItem<int>(
-            enabled: false,
-            value: -2,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'ACTIONS',
-                style: TextStyle(
-                  color: hc.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-          ),
-          ..._kActionCommands.map((c) => DropdownMenuItem<int>(
-                value: c.value,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(c.label),
-                ),
-              )),
-        ],
-        onChanged: (v) {
-          if (v != null && v >= 0) onChanged(v);
-        },
-      ),
-    );
-  }
-}
-
-// ─── Altitude frame picker ─────────────────────────────────────────────────────
-
-/// One selectable altitude-frame option.
-class _FrameEntry {
-  const _FrameEntry(this.value, this.label);
-
-  final int value;
-  final String label;
-}
-
-/// The three altitude frames a pilot actually selects between. Internal
-/// `*Int` variants (5/6/11) are normalised onto these for display.
-const _kFrameOptions = <_FrameEntry>[
-  _FrameEntry(MavFrame.globalRelativeAlt, 'Relative (home)'),
-  _FrameEntry(MavFrame.global, 'Absolute (AMSL)'),
-  _FrameEntry(MavFrame.globalTerrainAlt, 'Terrain'),
-];
-
-/// Collapse the `*Int` MAVLink frame variants onto the user-facing option so
-/// the dropdown always has a matching value.
-int _normaliseFrame(int frame) => switch (frame) {
-      MavFrame.globalInt => MavFrame.global,
-      MavFrame.globalRelativeAltInt => MavFrame.globalRelativeAlt,
-      MavFrame.globalTerrainAltInt => MavFrame.globalTerrainAlt,
-      MavFrame.global ||
-      MavFrame.globalRelativeAlt ||
-      MavFrame.globalTerrainAlt =>
-        frame,
-      _ => MavFrame.globalRelativeAlt,
-    };
-
-/// Dropdown for choosing how a waypoint's altitude is interpreted.
-class _FramePicker extends StatelessWidget {
-  const _FramePicker({
-    required this.value,
-    required this.inputDecoration,
-    required this.hc,
-    required this.onChanged,
-  });
-
-  final int value;
-  final InputDecoration inputDecoration;
-  final HeliosColors hc;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: DropdownButtonFormField<int>(
-        initialValue: _normaliseFrame(value),
-        decoration: inputDecoration,
-        dropdownColor: hc.surfaceLight,
-        isExpanded: true,
-        style: TextStyle(color: hc.textPrimary, fontSize: 12),
-        items: _kFrameOptions
-            .map((f) => DropdownMenuItem<int>(
-                  value: f.value,
-                  child: Text(f.label),
-                ))
-            .toList(),
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-      ),
-    );
-  }
-}
-
-// ─── Shared sub-widgets ────────────────────────────────────────────────────────
-
-class _EditorRow extends StatelessWidget {
-  const _EditorRow({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final hc = context.hc;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: hc.textTertiary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        child,
-      ],
-    );
-  }
-}
-
-class _NumberField extends StatefulWidget {
-  const _NumberField({
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-    required this.inputDecoration,
-    required this.textColor,
-  });
-
-  final double value;
-  final double min;
-  final double max;
-  final void Function(double value) onChanged;
-  final InputDecoration inputDecoration;
-  final Color textColor;
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _fmt(widget.value));
-  }
-
-  @override
-  void didUpdateWidget(_NumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value) {
-      final text = _fmt(widget.value);
-      if (_controller.text != text) {
-        _controller.text = text;
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _fmt(double v) => v == v.roundToDouble()
-      ? v.toStringAsFixed(0)
-      : v.toStringAsFixed(1);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: TextField(
-        controller: _controller,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
-        style: TextStyle(
-          color: widget.textColor,
-          fontSize: 12,
-          fontFamily: 'monospace',
-        ),
-        decoration: widget.inputDecoration,
-        onSubmitted: (text) {
-          final v = double.tryParse(text);
-          if (v != null) {
-            widget.onChanged(v.clamp(widget.min, widget.max));
-          }
-        },
-      ),
     );
   }
 }
