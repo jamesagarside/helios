@@ -12,6 +12,7 @@ import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../../shared/theme/helios_typography.dart';
 import '../../shared/widgets/confirm_dialog.dart';
+import 'providers/analyse_state_notifier.dart';
 import 'widgets/fleet_dashboard_panel.dart';
 import 'widgets/flight_charts.dart';
 import 'widgets/flight_score_panel.dart';
@@ -31,26 +32,27 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   final _sqlController = TextEditingController(
     text: 'SELECT * FROM attitude LIMIT 100',
   );
-  List<FlightSummary> _flights = [];
-  FlightSummary? _selectedFlight;
-  QueryResult? _queryResult;
-  String? _errorMessage;
-  bool _isQuerying = false;
   _AnalyseMode _mode = _AnalyseMode.charts;
-  Map<String, FlightMetadata> _metadata = {};
+
+  AnalyseStateNotifier get _notifier =>
+      ref.read(analyseStateProvider.notifier);
 
   /// Whether the selected flight is the currently recording one.
-  bool get _isLive {
+  bool _isLiveFor(FlightSummary? flight) {
     final store = ref.read(telemetryStoreProvider);
     return store.isRecording &&
-        _selectedFlight != null &&
-        store.currentFilePath == _selectedFlight!.filePath;
+        flight != null &&
+        store.currentFilePath == flight.filePath;
   }
 
   @override
   void initState() {
     super.initState();
-    _autoSelectAndRefresh();
+    // Only auto-select on first creation; if the notifier already holds a
+    // selection (returning to the tab) it is a no-op.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifier.autoSelectAndRefresh();
+    });
   }
 
   @override
@@ -59,62 +61,9 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     super.dispose();
   }
 
-  /// On first load, refresh flights and auto-select the latest/live one.
-  Future<void> _autoSelectAndRefresh() async {
-    final store = ref.read(telemetryStoreProvider);
-    final flights = await store.listFlights();
-
-    if (!mounted) return;
-
-    setState(() => _flights = flights);
-    _loadAllMetadata(store, flights);
-
-    if (_selectedFlight != null) return; // already selected
-
-    // Priority 1: select the live recording (already open, no need to reopen)
-    if (store.isRecording && store.currentFilePath != null) {
-      final live = flights.where((f) => f.filePath == store.currentFilePath).firstOrNull;
-      if (live != null) {
-        setState(() {
-          _selectedFlight = live;
-          _errorMessage = null;
-          _queryResult = null;
-        });
-        return;
-      }
-    }
-
-    // Priority 2: select the most recent flight
-    if (flights.isNotEmpty) {
-      await _openFlight(flights.first);
-    }
-  }
-
-  Future<void> _refreshFlights() async {
-    final store = ref.read(telemetryStoreProvider);
-    final flights = await store.listFlights();
-    if (!mounted) return;
-    setState(() => _flights = flights);
-    await _loadAllMetadata(store, flights);
-  }
-
-  Future<void> _loadAllMetadata(
-      TelemetryStore store, List<FlightSummary> flights) async {
-    final map = <String, FlightMetadata>{};
-    for (final flight in flights) {
-      try {
-        map[flight.filePath] = await store.getFlightMetadata(flight.filePath);
-      } catch (_) {
-        map[flight.filePath] = const FlightMetadata();
-      }
-    }
-    if (mounted) setState(() => _metadata = map);
-  }
-
   Future<void> _renameFlight(FlightSummary flight) async {
-    final store = ref.read(telemetryStoreProvider);
-    final meta =
-        _metadata[flight.filePath] ?? const FlightMetadata();
+    final metadata = ref.read(analyseStateProvider).metadata;
+    final meta = metadata[flight.filePath] ?? const FlightMetadata();
     final controller = TextEditingController(text: meta.name ?? '');
 
     final name = await showDialog<String>(
@@ -160,14 +109,12 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 
     if (name == null || !mounted) return;
     final updated = meta.copyWith(name: name);
-    await store.setFlightMetadata(flight.filePath, updated);
-    setState(() => _metadata[flight.filePath] = updated);
+    await _notifier.updateMetadata(flight.filePath, updated);
   }
 
   Future<void> _editNotes(FlightSummary flight) async {
-    final store = ref.read(telemetryStoreProvider);
-    final meta =
-        _metadata[flight.filePath] ?? const FlightMetadata();
+    final meta = ref.read(analyseStateProvider).metadata[flight.filePath] ??
+        const FlightMetadata();
     final controller = TextEditingController(text: meta.notes ?? '');
 
     final notes = await showDialog<String>(
@@ -218,8 +165,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
 
     if (notes == null || !mounted) return;
     final updated = meta.copyWith(notes: notes);
-    await store.setFlightMetadata(flight.filePath, updated);
-    setState(() => _metadata[flight.filePath] = updated);
+    await _notifier.updateMetadata(flight.filePath, updated);
   }
 
   /// Load a flight into the ReplayService and switch to the Fly View.
@@ -274,18 +220,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     );
     if (!confirmed || !mounted) return;
 
-    final store = ref.read(telemetryStoreProvider);
-    await store.deleteFlight(flight.filePath);
-    _metadata.remove(flight.filePath);
-    if (_selectedFlight?.filePath == flight.filePath) {
-      _selectedFlight = null;
-      _queryResult = null;
-    }
-    await _refreshFlights();
+    await _notifier.deleteFlight(flight);
   }
 
   String _displayName(FlightSummary flight) {
-    final meta = _metadata[flight.filePath];
+    final meta = ref.read(analyseStateProvider).metadata[flight.filePath];
     if (meta != null && meta.hasName) return meta.name!;
     return _formatFlightDate(flight);
   }
@@ -302,55 +241,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   }
 
   Future<void> _openFlight(FlightSummary flight) async {
-    final store = ref.read(telemetryStoreProvider);
-
-    // If this IS the live recording, don't reopen (would kill the recording).
-    // The store already has the connection open.
-    if (store.isRecording && store.currentFilePath == flight.filePath) {
-      setState(() {
-        _selectedFlight = flight;
-        _errorMessage = null;
-        _queryResult = null;
-      });
-      return;
-    }
-
-    // Otherwise open the flight file for read-only analysis.
-    try {
-      await store.openFlight(flight.filePath);
-      setState(() {
-        _selectedFlight = flight;
-        _errorMessage = null;
-        _queryResult = null;
-      });
-    } catch (e) {
-      setState(() => _errorMessage = 'Failed to open: $e');
-    }
+    await _notifier.openFlight(flight);
   }
 
   Future<void> _executeQuery() async {
-    final store = ref.read(telemetryStoreProvider);
-    final sql = _sqlController.text.trim();
-    if (sql.isEmpty) return;
-
-    setState(() {
-      _isQuerying = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final result = await store.query(sql);
-      setState(() {
-        _queryResult = result;
-        _isQuerying = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _queryResult = null;
-        _isQuerying = false;
-      });
-    }
+    await _notifier.runQuery(_sqlController.text);
   }
 
   void _loadTemplate(AnalyticsTemplate template) {
@@ -359,10 +254,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
   }
 
   Future<void> _exportData(_ExportFormat format) async {
-    if (_selectedFlight == null) return;
+    final selectedFlight = ref.read(analyseStateProvider).selectedFlight;
+    if (selectedFlight == null) return;
     final store = ref.read(telemetryStoreProvider);
     try {
-      final base = _selectedFlight!.filePath.replaceAll('.duckdb', '_export');
+      final base = selectedFlight.filePath.replaceAll('.duckdb', '_export');
       final query = _sqlController.text.trim().isNotEmpty
           ? _sqlController.text.trim()
           : 'attitude';
@@ -385,7 +281,7 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
         );
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Export failed: $e');
+      _notifier.setError('Export failed: $e');
     }
   }
 
@@ -395,6 +291,15 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
     final width = MediaQuery.sizeOf(context).width;
     final showBrowser = width >= 768;
 
+    final analyse = ref.watch(analyseStateProvider);
+    final flights = analyse.flights;
+    final metadata = analyse.metadata;
+    final selectedFlight = analyse.selectedFlight;
+    final queryResult = analyse.queryResult;
+    final errorMessage = analyse.errorMessage;
+    final isQuerying = analyse.isQuerying;
+    final isLive = _isLiveFor(selectedFlight);
+
     return Row(
       children: [
         // Flight browser panel
@@ -402,13 +307,13 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
           SizedBox(
             width: 260,
             child: _FlightBrowser(
-              flights: _flights,
-              metadata: _metadata,
-              selectedFlight: _selectedFlight,
+              flights: flights,
+              metadata: metadata,
+              selectedFlight: selectedFlight,
               liveFilePath: ref.read(telemetryStoreProvider).isRecording
                   ? ref.read(telemetryStoreProvider).currentFilePath
                   : null,
-              onRefresh: _refreshFlights,
+              onRefresh: _notifier.refreshFlights,
               onSelect: _openFlight,
               onRename: _renameFlight,
               onEditNotes: _editNotes,
@@ -471,11 +376,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                       selected: _mode == _AnalyseMode.geotag,
                       onTap: () => setState(() => _mode = _AnalyseMode.geotag),
                     ),
-                    if (_selectedFlight != null &&
+                    if (selectedFlight != null &&
                         _mode != _AnalyseMode.compare) ...[
                       const Spacer(),
                       Text(
-                        _selectedFlight!.fileName.replaceAll('.duckdb', ''),
+                        selectedFlight.fileName.replaceAll('.duckdb', ''),
                         style: HeliosTypography.caption,
                       ),
                     ],
@@ -488,12 +393,12 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
               if (_mode == _AnalyseMode.charts) ...[
                 // Charts mode (default)
                 Expanded(
-                  child: _selectedFlight != null
+                  child: selectedFlight != null
                       ? FlightCharts(
                           key: ValueKey(
-                              '${_selectedFlight!.filePath}_$_isLive'),
+                              '${selectedFlight.filePath}_$isLive'),
                           store: ref.read(telemetryStoreProvider),
-                          liveMode: _isLive,
+                          liveMode: isLive,
                         )
                       : Center(
                           child: Text(
@@ -506,31 +411,31 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
               ] else if (_mode == _AnalyseMode.sql) ...[
                 // SQL mode
                 _TemplateBar(
-                  onSelect: _selectedFlight != null ? _loadTemplate : null,
+                  onSelect: selectedFlight != null ? _loadTemplate : null,
                 ),
                 Divider(height: 1, color: hc.border),
                 _NlQueryBar(
-                  enabled: _selectedFlight != null,
+                  enabled: selectedFlight != null,
                   onQuery: (String sql) {
                     setState(() => _sqlController.text = sql);
-                    if (_selectedFlight != null) _executeQuery();
+                    if (selectedFlight != null) _executeQuery();
                   },
                 ),
                 Divider(height: 1, color: hc.border),
                 _SqlEditor(
                   controller: _sqlController,
-                  onExecute: _selectedFlight != null ? _executeQuery : null,
-                  onExport: _selectedFlight != null ? _exportData : null,
-                  isQuerying: _isQuerying,
+                  onExecute: selectedFlight != null ? _executeQuery : null,
+                  onExport: selectedFlight != null ? _exportData : null,
+                  isQuerying: isQuerying,
                 ),
                 Divider(height: 1, color: hc.border),
-                if (_errorMessage != null)
+                if (errorMessage != null)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     color: hc.danger.withValues(alpha: 0.1),
                     child: Text(
-                      _errorMessage!,
+                      errorMessage,
                       style: TextStyle(
                           color: hc.danger,
                           fontSize: 12,
@@ -538,11 +443,11 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                     ),
                   ),
                 Expanded(
-                  child: _queryResult != null
-                      ? _ResultsTable(result: _queryResult!)
+                  child: queryResult != null
+                      ? _ResultsTable(result: queryResult)
                       : Center(
                           child: Text(
-                            _selectedFlight == null
+                            selectedFlight == null
                                 ? 'Select a flight to begin analysis'
                                 : 'Run a query to see results',
                             style: TextStyle(
@@ -550,18 +455,18 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                           ),
                         ),
                 ),
-                if (_queryResult != null)
+                if (queryResult != null)
                   Container(
                     height: 24,
                     color: hc.surface,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
-                        Text('${_queryResult!.rowCount} rows',
+                        Text('${queryResult.rowCount} rows',
                             style: HeliosTypography.caption),
                         const SizedBox(width: 16),
                         Text(
-                            '${_queryResult!.executionTime.inMilliseconds}ms',
+                            '${queryResult.executionTime.inMilliseconds}ms',
                             style: HeliosTypography.caption),
                       ],
                     ),
@@ -570,18 +475,18 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                 // Compare mode — cross-flight forensics
                 Expanded(
                   child: ForensicsPanel(
-                    flights: _flights,
-                    metadata: _metadata,
+                    flights: flights,
+                    metadata: metadata,
                   ),
                 ),
               ] else if (_mode == _AnalyseMode.score) ...[
                 // Score mode — auto-generated flight scorecard
                 Expanded(
-                  child: _selectedFlight != null
+                  child: selectedFlight != null
                       ? FlightScorePanel(
-                          key: ValueKey(_selectedFlight!.filePath),
+                          key: ValueKey(selectedFlight.filePath),
                           store: ref.read(telemetryStoreProvider),
-                          filePath: _selectedFlight!.filePath,
+                          filePath: selectedFlight.filePath,
                         )
                       : Center(
                           child: Text(
@@ -595,16 +500,16 @@ class _AnalyseViewState extends ConsumerState<AnalyseView> {
                 // Geotag mode — match photos to flight GPS track
                 Expanded(
                   child: _GeotagPanel(
-                    selectedFlight: _selectedFlight,
+                    selectedFlight: selectedFlight,
                   ),
                 ),
               ] else ...[
                 // Fleet mode — aggregate stats across all flights
                 Expanded(
                   child: FleetDashboardPanel(
-                    key: ValueKey(_flights.length),
+                    key: ValueKey(flights.length),
                     store: ref.read(telemetryStoreProvider),
-                    flights: _flights,
+                    flights: flights,
                   ),
                 ),
               ],
