@@ -4,6 +4,7 @@ import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../shared/theme/helios_colors.dart';
 import '../../../shared/theme/helios_typography.dart';
+import 'arming_check_editor.dart';
 
 /// Pre-arm status panel — shows sensor health from SYS_STATUS bitmasks
 /// and pre-arm failure messages from STATUSTEXT.
@@ -124,6 +125,11 @@ class PreArmPanel extends ConsumerWidget {
                 ],
               ),
             ),
+
+          const SizedBox(height: 24),
+
+          // ARMING_CHECK bitmask editor
+          const ArmingCheckEditor(),
 
           const SizedBox(height: 20),
 
