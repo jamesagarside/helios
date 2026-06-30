@@ -47,7 +47,7 @@ Helios works with the hardware you already own. ArduPilot, PX4, Betaflight, iNav
 - **All flight controllers.** ArduPilot, PX4, Betaflight, iNav. MAVLink and MSP. Auto-detected.
 - **No lock-in.** Open source (GPL 3.0). No accounts, no subscriptions, no telemetry phoning home. Free forever.
 
-Helios is part of the open-source drone community alongside QGroundControl, Mission Planner, and other great GCS tools. Each has different strengths -- many pilots use more than one.
+Helios is part of the open-source drone community alongside other great ground control stations. Each has different strengths -- many pilots use more than one.
 
 ## Protocol & Feature Support
 

@@ -37,9 +37,9 @@ Helios is part of the Argus Platform. Licensed under GPL 3.0.
 
 ## Part of the Open-Source GCS Community
 
-Helios joins QGroundControl, Mission Planner, and APM Planner 2 in the open-source ground control station ecosystem. Each has different strengths:
-- QGroundControl (Qt/C++) is widely used across ArduPilot and PX4 with broad cross-platform support and a large community.
-- Mission Planner (.NET) offers deep ArduPilot integration with advanced configuration and scripting.
+Helios joins a mature open-source ground control station ecosystem. Each option has different strengths:
+- Some established stations offer broad cross-platform support across ArduPilot and PX4 with large communities.
+- Others provide deep ArduPilot integration with advanced configuration and scripting.
 - Helios focuses on queryable flight data analytics, a modern Flutter-based UI, and multi-protocol support (MAVLink + MSP).
 - Many pilots use more than one GCS depending on the task. They complement each other well.
 

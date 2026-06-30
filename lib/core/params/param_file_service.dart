@@ -25,9 +25,8 @@ class ParamDiff {
 /// Service for saving, loading, and comparing parameter files.
 ///
 /// Supports:
-/// - ArduPilot `.param` format: `PARAM_NAME,VALUE`
-/// - Mission Planner `.param` format (same as above)
-/// - QGC `.params` format: `COMPONENT_ID SYSTEM_ID PARAM_NAME VALUE TYPE`
+/// - The `.param` file format: `PARAM_NAME,VALUE`
+/// - The `.params` file format: `COMPONENT_ID SYSTEM_ID PARAM_NAME VALUE TYPE`
 class ParamFileService {
   // ─── Save ────────────────────────────────────────────────────────────────
 
@@ -99,7 +98,7 @@ class ParamFileService {
     return _loadArduPilot(content);
   }
 
-  /// Parse ArduPilot/Mission Planner .param format.
+  /// Parse the `.param` file format.
   Map<String, double> _loadArduPilot(String content) {
     final result = <String, double>{};
     for (final line in content.split('\n')) {
