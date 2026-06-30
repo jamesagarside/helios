@@ -5,6 +5,7 @@ import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../setup/widgets/calibration_wizard.dart';
+import '../setup/widgets/esc_calibration_panel.dart';
 import '../setup/widgets/failsafe_panel.dart';
 import '../setup/widgets/frame_type_panel.dart';
 import '../setup/widgets/motor_test_panel.dart';
@@ -31,6 +32,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     (icon: Icons.shield_outlined, label: 'Safety'),
     (icon: Icons.grid_view_outlined, label: 'Frame'),
     (icon: Icons.propane_outlined, label: 'Motors'),
+    (icon: Icons.electrical_services_outlined, label: 'ESC'),
     (icon: Icons.settings_remote_outlined, label: 'RC'),
     (icon: Icons.checklist_outlined, label: 'Pre-Arm'),
     (icon: Icons.list_alt_outlined, label: 'Parameters'),
@@ -115,6 +117,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const FailsafePanel(),
                       const FrameTypePanel(),
                       const MotorTestPanel(),
+                      const EscCalibrationPanel(),
                       _RcTab(),
                       const PreArmPanel(),
                       _ParametersTab(),
@@ -146,6 +149,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const FailsafePanel(),
                       const FrameTypePanel(),
                       const MotorTestPanel(),
+                      const EscCalibrationPanel(),
                       _RcTab(),
                       const PreArmPanel(),
                       _ParametersTab(),
