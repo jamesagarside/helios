@@ -92,6 +92,55 @@ const _kParamDefs = <int, List<_ParamDef?>>{
     _ParamDef('Pause (1) or Continue (0)', min: 0, max: 1),
     null, null, null, null, null, null,
   ],
+  MavCmd.navSplineWaypoint: [
+    _ParamDef('Hold (s)', min: 0, max: 600),
+    null,
+    null,
+    _ParamDef('Yaw (deg)', min: 0, max: 360),
+    null, null, null,
+  ],
+  MavCmd.doSetServo: [
+    _ParamDef('Servo #', min: 1, max: 16),
+    _ParamDef('PWM (us)', min: 800, max: 2200),
+    null, null, null, null, null,
+  ],
+  MavCmd.doSetRelay: [
+    _ParamDef('Relay #', min: 0, max: 5),
+    _ParamDef('State (0=off,1=on)', min: 0, max: 1),
+    null, null, null, null, null,
+  ],
+  MavCmd.doRepeatServo: [
+    _ParamDef('Servo #', min: 1, max: 16),
+    _ParamDef('PWM (us)', min: 800, max: 2200),
+    _ParamDef('Count', min: 1, max: 100),
+    _ParamDef('Cycle (s)', min: 0, max: 60),
+    null, null, null,
+  ],
+  MavCmd.doRepeatRelay: [
+    _ParamDef('Relay #', min: 0, max: 5),
+    _ParamDef('Count', min: 1, max: 100),
+    _ParamDef('Cycle (s)', min: 0, max: 60),
+    null, null, null, null,
+  ],
+  MavCmd.doFenceEnable: [
+    _ParamDef('Enable (0=off,1=on,2=floor)', min: 0, max: 2),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionDelay: [
+    _ParamDef('Delay (s)', min: 0, max: 600),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionDistance: [
+    _ParamDef('Distance (m)', min: 0, max: 10000),
+    null, null, null, null, null, null,
+  ],
+  MavCmd.conditionYaw: [
+    _ParamDef('Angle (deg)', min: 0, max: 360),
+    _ParamDef('Rate (deg/s)', min: 0, max: 90),
+    _ParamDef('Dir (-1=ccw,1=cw)', min: -1, max: 1),
+    _ParamDef('Relative (0/1)', min: 0, max: 1),
+    null, null, null,
+  ],
 };
 
 /// Fallback when a command has no specific param defs.
@@ -116,6 +165,7 @@ class _CmdEntry {
 
 const _kNavCommands = <_CmdEntry>[
   _CmdEntry(MavCmd.navWaypoint, 'Waypoint'),
+  _CmdEntry(MavCmd.navSplineWaypoint, 'Spline WP'),
   _CmdEntry(MavCmd.navTakeoff, 'Takeoff'),
   _CmdEntry(MavCmd.navLand, 'Land'),
   _CmdEntry(MavCmd.navReturnToLaunch, 'RTL'),
@@ -132,6 +182,14 @@ const _kActionCommands = <_CmdEntry>[
   _CmdEntry(MavCmd.doLandStart, 'Land Start'),
   _CmdEntry(MavCmd.doGripper, 'Gripper'),
   _CmdEntry(MavCmd.doPauseContinue, 'Pause/Continue'),
+  _CmdEntry(MavCmd.doSetServo, 'Set Servo'),
+  _CmdEntry(MavCmd.doSetRelay, 'Set Relay'),
+  _CmdEntry(MavCmd.doRepeatServo, 'Repeat Servo'),
+  _CmdEntry(MavCmd.doRepeatRelay, 'Repeat Relay'),
+  _CmdEntry(MavCmd.doFenceEnable, 'Fence Enable'),
+  _CmdEntry(MavCmd.conditionDelay, 'Condition: Delay'),
+  _CmdEntry(MavCmd.conditionDistance, 'Condition: Distance'),
+  _CmdEntry(MavCmd.conditionYaw, 'Condition: Yaw'),
 ];
 
 /// All known commands (nav + action) in a flat list for value lookup.
@@ -257,6 +315,20 @@ class WaypointEditor extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
+          // Altitude frame (only meaningful for positional/nav commands)
+          if (item.isNavCommand) ...[
+            _EditorRow(
+              label: 'Alt Frame',
+              child: _FramePicker(
+                value: item.frame,
+                inputDecoration: inputDecoration,
+                hc: hc,
+                onChanged: (v) => onChanged(item.copyWith(frame: v)),
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+
           // Per-command param fields
           ...paramRows,
 
@@ -380,6 +452,75 @@ class _GroupedCommandPicker extends StatelessWidget {
         ],
         onChanged: (v) {
           if (v != null && v >= 0) onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
+// ─── Altitude frame picker ─────────────────────────────────────────────────────
+
+/// One selectable altitude-frame option.
+class _FrameEntry {
+  const _FrameEntry(this.value, this.label);
+
+  final int value;
+  final String label;
+}
+
+/// The three altitude frames a pilot actually selects between. Internal
+/// `*Int` variants (5/6/11) are normalised onto these for display.
+const _kFrameOptions = <_FrameEntry>[
+  _FrameEntry(MavFrame.globalRelativeAlt, 'Relative (home)'),
+  _FrameEntry(MavFrame.global, 'Absolute (AMSL)'),
+  _FrameEntry(MavFrame.globalTerrainAlt, 'Terrain'),
+];
+
+/// Collapse the `*Int` MAVLink frame variants onto the user-facing option so
+/// the dropdown always has a matching value.
+int _normaliseFrame(int frame) => switch (frame) {
+      MavFrame.globalInt => MavFrame.global,
+      MavFrame.globalRelativeAltInt => MavFrame.globalRelativeAlt,
+      MavFrame.globalTerrainAltInt => MavFrame.globalTerrainAlt,
+      MavFrame.global ||
+      MavFrame.globalRelativeAlt ||
+      MavFrame.globalTerrainAlt =>
+        frame,
+      _ => MavFrame.globalRelativeAlt,
+    };
+
+/// Dropdown for choosing how a waypoint's altitude is interpreted.
+class _FramePicker extends StatelessWidget {
+  const _FramePicker({
+    required this.value,
+    required this.inputDecoration,
+    required this.hc,
+    required this.onChanged,
+  });
+
+  final int value;
+  final InputDecoration inputDecoration;
+  final HeliosColors hc;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: DropdownButtonFormField<int>(
+        initialValue: _normaliseFrame(value),
+        decoration: inputDecoration,
+        dropdownColor: hc.surfaceLight,
+        isExpanded: true,
+        style: TextStyle(color: hc.textPrimary, fontSize: 12),
+        items: _kFrameOptions
+            .map((f) => DropdownMenuItem<int>(
+                  value: f.value,
+                  child: Text(f.label),
+                ))
+            .toList(),
+        onChanged: (v) {
+          if (v != null) onChanged(v);
         },
       ),
     );

@@ -52,10 +52,27 @@ void main() {
       );
     });
 
+    test('commandLabel covers newly added commands', () {
+      expect(
+        const MissionItem(seq: 0, command: MavCmd.navSplineWaypoint).commandLabel,
+        'Spline WP',
+      );
+      expect(
+        const MissionItem(seq: 0, command: MavCmd.doSetServo).commandLabel,
+        'Set Servo',
+      );
+      expect(
+        const MissionItem(seq: 0, command: MavCmd.conditionYaw).commandLabel,
+        'Condition: Yaw',
+      );
+    });
+
     test('isNavCommand identifies navigation commands', () {
       expect(const MissionItem(seq: 0, command: MavCmd.navWaypoint).isNavCommand, true);
       expect(const MissionItem(seq: 0, command: MavCmd.navTakeoff).isNavCommand, true);
+      expect(const MissionItem(seq: 0, command: MavCmd.navSplineWaypoint).isNavCommand, true);
       expect(const MissionItem(seq: 0, command: MavCmd.doChangeSpeed).isNavCommand, false);
+      expect(const MissionItem(seq: 0, command: MavCmd.conditionYaw).isNavCommand, false);
       expect(const MissionItem(seq: 0, command: MavCmd.doSetHome).isNavCommand, false);
     });
 
