@@ -102,6 +102,72 @@ class AttitudeMessage extends MavlinkMessage {
   }
 }
 
+/// ATTITUDE_QUATERNION (msg_id=31) — attitude as a quaternion plus rates.
+///
+/// Quaternion convention: w, x, y, z = [q1, q2, q3, q4], rotating the
+/// vehicle body frame (X-forward, Y-right, Z-down) to the NED world frame.
+class AttitudeQuaternionMessage extends MavlinkMessage {
+  AttitudeQuaternionMessage({
+    required this.systemId,
+    required this.componentId,
+    required this.sequence,
+    required this.timeBootMs,
+    required this.q1,
+    required this.q2,
+    required this.q3,
+    required this.q4,
+    required this.rollSpeed,
+    required this.pitchSpeed,
+    required this.yawSpeed,
+  });
+
+  @override
+  final int messageId = 31;
+  @override
+  final int systemId;
+  @override
+  final int componentId;
+  @override
+  final int sequence;
+
+  final int timeBootMs;
+
+  /// Quaternion w component.
+  final double q1;
+
+  /// Quaternion x component.
+  final double q2;
+
+  /// Quaternion y component.
+  final double q3;
+
+  /// Quaternion z component.
+  final double q4;
+
+  final double rollSpeed;
+  final double pitchSpeed;
+  final double yawSpeed;
+
+  factory AttitudeQuaternionMessage.fromPayload(
+    Uint8List payload, int sysId, int compId, int seq,
+  ) {
+    final data = ByteData.sublistView(payload);
+    return AttitudeQuaternionMessage(
+      systemId: sysId,
+      componentId: compId,
+      sequence: seq,
+      timeBootMs: data.getUint32(0, Endian.little),
+      q1: data.getFloat32(4, Endian.little),
+      q2: data.getFloat32(8, Endian.little),
+      q3: data.getFloat32(12, Endian.little),
+      q4: data.getFloat32(16, Endian.little),
+      rollSpeed: data.getFloat32(20, Endian.little),
+      pitchSpeed: data.getFloat32(24, Endian.little),
+      yawSpeed: data.getFloat32(28, Endian.little),
+    );
+  }
+}
+
 /// GLOBAL_POSITION_INT (msg_id=33) — lat/lon/alt.
 class GlobalPositionIntMessage extends MavlinkMessage {
   GlobalPositionIntMessage({

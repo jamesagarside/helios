@@ -133,6 +133,33 @@ class MavlinkService {
     }
   }
 
+  /// Request ATTITUDE_QUATERNION (msg id 31) at [rateHz] Hz.
+  ///
+  /// Used by the Airframe Model to drive a dedicated high-rate attitude
+  /// stream without touching the recorded ATTITUDE (msg 30) rate. The
+  /// telemetry recorder ignores msg 31, so this traffic never reaches DuckDB.
+  ///
+  /// Falls back to raising the legacy EXTRA1 stream (which carries ATTITUDE)
+  /// only if the FC does not support per-message intervals — in that case the
+  /// quaternion may be unavailable and the widget uses its euler fallback.
+  Future<void> setAttitudeQuaternionRate({
+    required int targetSystem,
+    required int targetComponent,
+    required int rateHz,
+  }) async {
+    await _trySetMessageInterval(
+      targetSystem, targetComponent, 31, rateHz, // ATTITUDE_QUATERNION
+    );
+  }
+
+  /// Stop ATTITUDE_QUATERNION (msg id 31) by setting its interval to disabled.
+  Future<void> stopAttitudeQuaternion({
+    required int targetSystem,
+    required int targetComponent,
+  }) async {
+    await _trySetMessageInterval(targetSystem, targetComponent, 31, 0);
+  }
+
   /// Try MAV_CMD_SET_MESSAGE_INTERVAL (511).
   /// Returns true if the FC accepted it, false if NACKed or timed out.
   Future<bool> _trySetMessageInterval(

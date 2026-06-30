@@ -211,6 +211,7 @@ class MavlinkParser {
         1 => SysStatusMessage.fromPayload(payload, sysId, compId, seq),
         24 => GpsRawIntMessage.fromPayload(payload, sysId, compId, seq),
         30 => AttitudeMessage.fromPayload(payload, sysId, compId, seq),
+        31 => AttitudeQuaternionMessage.fromPayload(payload, sysId, compId, seq),
         21 => ParamRequestListMessage.fromPayload(payload, sysId, compId, seq),
         22 => ParamValueMessage.fromPayload(payload, sysId, compId, seq),
         23 => ParamSetMessage.fromPayload(payload, sysId, compId, seq),

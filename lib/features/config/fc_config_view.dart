@@ -10,6 +10,7 @@ import '../setup/widgets/frame_type_panel.dart';
 import '../setup/widgets/motor_test_panel.dart';
 import '../setup/widgets/parameter_editor.dart';
 import '../setup/widgets/prearm_panel.dart';
+import '../airframe/orientation_tab.dart';
 
 class FcConfigView extends ConsumerStatefulWidget {
   const FcConfigView({super.key});
@@ -24,6 +25,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
 
   static const _tabs = [
     (icon: Icons.info_outline, label: 'Firmware'),
+    (icon: Icons.threed_rotation_outlined, label: 'Orientation'),
     (icon: Icons.sensors_outlined, label: 'Calibration'),
     (icon: Icons.shield_outlined, label: 'Safety'),
     (icon: Icons.grid_view_outlined, label: 'Frame'),
@@ -107,6 +109,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _FirmwareTab(),
+                      const OrientationTab(),
                       const CalibrationWizard(),
                       const FailsafePanel(),
                       const FrameTypePanel(),
@@ -137,6 +140,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                     controller: _tabController,
                     children: [
                       _FirmwareTab(),
+                      const OrientationTab(),
                       const CalibrationWizard(),
                       const FailsafePanel(),
                       const FrameTypePanel(),
