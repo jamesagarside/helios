@@ -2,7 +2,7 @@
 ///
 /// Each flight creates a fresh .duckdb file with these tables.
 abstract final class HeliosSchema {
-  static const int version = 1;
+  static const int version = 2;
 
   static const createFlightMeta = '''
     CREATE TABLE IF NOT EXISTS flight_meta (
@@ -23,6 +23,11 @@ abstract final class HeliosSchema {
     );
   ''';
 
+  // GPS-quality columns (fix_type/satellites/hdop/vdop/vel/cog) are sourced
+  // from GPS_RAW_INT, not GLOBAL_POSITION_INT. They are nullable because a
+  // GLOBAL_POSITION_INT row may be buffered before any GPS_RAW_INT has been
+  // received — in that case the quality is genuinely unknown and left NULL
+  // rather than fabricated. Readers must degrade gracefully on NULL.
   static const createGps = '''
     CREATE TABLE IF NOT EXISTS gps (
       ts         TIMESTAMP NOT NULL,
@@ -30,9 +35,9 @@ abstract final class HeliosSchema {
       lon        DOUBLE NOT NULL,
       alt_msl    DOUBLE NOT NULL,
       alt_rel    DOUBLE NOT NULL,
-      fix_type   TINYINT NOT NULL,
-      satellites TINYINT NOT NULL,
-      hdop       DOUBLE NOT NULL,
+      fix_type   TINYINT,
+      satellites TINYINT,
+      hdop       DOUBLE,
       vdop       DOUBLE,
       vel        DOUBLE,
       cog        DOUBLE

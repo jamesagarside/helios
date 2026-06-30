@@ -61,6 +61,12 @@ class TelemetryStore {
   final List<_BufferedVibration> _vibrationBuf = [];
   final List<_BufferedEvent> _eventBuf = [];
 
+  // Latest GPS_RAW_INT — source of real GPS-quality fields (fix type,
+  // satellites, HDOP/VDOP, ground velocity, course). GLOBAL_POSITION_INT does
+  // not carry these, so each gps row is stamped with the most recent
+  // GPS_RAW_INT seen at flush time. Null until the first GPS_RAW_INT arrives.
+  GpsRawIntMessage? _latestGpsRaw;
+
   // MSP buffered messages for batch insert
   final List<_MspBufferedAttitude> _mspAttitudeBuf = [];
   final List<_MspBufferedGps> _mspGpsBuf = [];
@@ -133,7 +139,12 @@ class TelemetryStore {
       case AttitudeMessage():
         _attitudeBuf.add(_BufferedAttitude(now, msg));
       case GlobalPositionIntMessage():
-        _gpsBuf.add(_BufferedGps(now, msg));
+        _gpsBuf.add(_BufferedGps(now, msg, _latestGpsRaw));
+      case GpsRawIntMessage():
+        // GPS_RAW_INT carries the real GPS-quality fields. Cache the latest
+        // so each GLOBAL_POSITION_INT row can be stamped with real telemetry
+        // instead of fabricated constants.
+        _latestGpsRaw = msg;
       case SysStatusMessage():
         _batteryBuf.add(_BufferedBattery(now, msg));
       case VfrHudMessage():
@@ -227,10 +238,9 @@ class TelemetryStore {
       }
 
       if (_gpsBuf.isNotEmpty) {
-        final values = _gpsBuf.map((g) =>
-          "('${_ts(g.ts)}', ${g.msg.latDeg}, ${g.msg.lonDeg}, "
-          '${g.msg.altMetres}, ${g.msg.relAltMetres}, 3, 14, 0.85, 1.2, 0, 0)'
-        ).join(', ');
+        final values = _gpsBuf
+            .map((g) => buildGpsRowValues(_ts(g.ts), g.msg, g.rawGps))
+            .join(', ');
         _conn!.execute('INSERT INTO gps VALUES $values');
         count += _gpsBuf.length;
         _gpsBuf.clear();
@@ -355,6 +365,7 @@ class TelemetryStore {
     _conn = null;
     _isRecording = false;
     _currentFilePath = null;
+    _latestGpsRaw = null;
   }
 
   /// Save a mission snapshot to the database.
@@ -610,6 +621,36 @@ class TelemetryStore {
   }
 
   String _ts(DateTime dt) => dt.toIso8601String().replaceFirst('T', ' ');
+
+  /// Build the SQL VALUES tuple for one `gps` row.
+  ///
+  /// Position (lat/lon/altitude) comes from GLOBAL_POSITION_INT, but the
+  /// GPS-quality columns (fix type, satellites, HDOP/VDOP, ground velocity,
+  /// course) are only carried by GPS_RAW_INT. [rawGps] is the most recent
+  /// GPS_RAW_INT received before this position sample, or null if none has
+  /// arrived yet — in which case the quality columns are written as NULL
+  /// rather than fabricated constants. UINT16_MAX (0xFFFF) sentinels in the
+  /// raw message also map to NULL (the value is reported but unknown).
+  static String buildGpsRowValues(
+    String ts,
+    GlobalPositionIntMessage pos,
+    GpsRawIntMessage? rawGps,
+  ) {
+    final fixType = rawGps != null ? '${rawGps.fixType}' : 'NULL';
+    final sats = rawGps != null ? '${rawGps.satellitesVisible}' : 'NULL';
+    final hdop =
+        rawGps != null && rawGps.eph != 0xFFFF ? '${rawGps.hdop}' : 'NULL';
+    final vdop =
+        rawGps != null && rawGps.epv != 0xFFFF ? '${rawGps.vdop}' : 'NULL';
+    final vel = rawGps != null && rawGps.vel != 0xFFFF
+        ? '${rawGps.vel / 100.0}'
+        : 'NULL';
+    final cog = rawGps != null && rawGps.cog != 0xFFFF
+        ? '${rawGps.cog / 100.0}'
+        : 'NULL';
+    return "('$ts', ${pos.latDeg}, ${pos.lonDeg}, ${pos.altMetres}, "
+        '${pos.relAltMetres}, $fixType, $sats, $hdop, $vdop, $vel, $cog)';
+  }
 }
 
 // Buffered message wrappers
@@ -620,9 +661,13 @@ class _BufferedAttitude {
 }
 
 class _BufferedGps {
-  _BufferedGps(this.ts, this.msg);
+  _BufferedGps(this.ts, this.msg, this.rawGps);
   final DateTime ts;
   final GlobalPositionIntMessage msg;
+
+  /// Latest GPS_RAW_INT at the time this position was buffered, or null if
+  /// none had been received yet. Source of real GPS-quality fields.
+  final GpsRawIntMessage? rawGps;
 }
 
 class _BufferedBattery {

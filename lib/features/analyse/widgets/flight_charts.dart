@@ -736,7 +736,12 @@ class _FlightChartsState extends State<FlightCharts> {
       try {
         final ts = _parseTimestamp(row[tsCol]);
         final x = ts.difference(startTime).inMilliseconds / 1000.0;
-        final y = (row[valCol] as num?)?.toDouble() ?? 0;
+        final raw = row[valCol];
+        // Skip NULL samples (e.g. GPS quality before any GPS_RAW_INT was
+        // received) rather than plotting them as 0, which would misleadingly
+        // look like a real reading.
+        if (raw == null) continue;
+        final y = (raw as num?)?.toDouble() ?? 0;
         if (!y.isNaN && !y.isInfinite) {
           spots.add(FlSpot(x, y));
         }
