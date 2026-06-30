@@ -106,11 +106,17 @@ install-android-apk: build-android ## Build APK and push directly via adb (bypas
 
 # ── Testing ──────────────────────────────────────────────────
 
-.PHONY: test analyze lint check
-test: ## Run all Flutter tests
+.PHONY: test analyze lint check ensure-deps
+ensure-deps: ## Resolve root Flutter deps when missing (keeps fresh git worktrees working)
+	@if [ ! -f .dart_tool/package_config.json ]; then \
+		echo "Resolving Flutter dependencies (fresh checkout/worktree)..."; \
+		flutter pub get; \
+	fi
+
+test: ensure-deps ## Run all Flutter tests
 	flutter test
 
-analyze: ## Run Dart analyzer with fatal warnings (matches CI exactly)
+analyze: ensure-deps ## Run Dart analyzer with fatal warnings (matches CI exactly)
 	@for dir in packages/*/; do \
 		if [ -f "$$dir/pubspec.yaml" ]; then \
 			echo "pub get $$dir"; \
