@@ -2,6 +2,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:helios_gcs/core/params/parameter_service.dart';
 
 void main() {
+  group('Parameter default tracking', () {
+    Parameter make({required double value, double? def}) => Parameter(
+          id: 'ARMING_CHECK',
+          value: value,
+          type: 9,
+          index: 0,
+          defaultValue: def,
+        );
+
+    test('no default known → not flagged as non-default', () {
+      final p = make(value: 5.0);
+      expect(p.hasDefault, isFalse);
+      expect(p.isNonDefault, isFalse);
+    });
+
+    test('value equal to default → not non-default', () {
+      final p = make(value: 1.0, def: 1.0);
+      expect(p.hasDefault, isTrue);
+      expect(p.isNonDefault, isFalse);
+    });
+
+    test('value differing from default → non-default', () {
+      final p = make(value: 3.0, def: 1.0);
+      expect(p.isNonDefault, isTrue);
+    });
+
+    test('difference within epsilon is treated as equal', () {
+      final p = make(value: 1.0 + 1e-12, def: 1.0);
+      expect(p.isNonDefault, isFalse);
+    });
+  });
+
   group('ParameterService.parseParamFile', () {
     test('parses valid CSV content', () {
       const content = 'ARMING_CHECK,1.0\nBATT_CAPACITY,5000.0';

@@ -330,6 +330,30 @@ class MavlinkFrameBuilder {
     return buildFrame(messageId: 86, payload: payload);
   }
 
+  /// Build a FILE_TRANSFER_PROTOCOL frame (msg_id=110).
+  ///
+  /// [ftpPayload] is the raw FTP payload (FTP header + data), at most 251
+  /// bytes. It is placed after the 3-byte target prefix. ArduPilot expects
+  /// the FILE_TRANSFER_PROTOCOL payload to be exactly 251 bytes total
+  /// (3 + 248), so the FTP payload is zero-padded to 248 bytes.
+  Uint8List buildFileTransferProtocol({
+    required int targetSystem,
+    required int targetComponent,
+    required Uint8List ftpPayload,
+    int targetNetwork = 0,
+  }) {
+    const ftpPayloadLen = 251 - 3; // 248
+    final payload = Uint8List(3 + ftpPayloadLen);
+    payload[0] = targetNetwork;
+    payload[1] = targetSystem;
+    payload[2] = targetComponent;
+    final n = ftpPayload.length < ftpPayloadLen
+        ? ftpPayload.length
+        : ftpPayloadLen;
+    payload.setRange(3, 3 + n, ftpPayload);
+    return buildFrame(messageId: 110, payload: payload);
+  }
+
   /// Build a RC_CHANNELS_OVERRIDE frame (msg_id=70, CRC=124).
   ///
   /// Channel values in microseconds (1000–2000 µs, center 1500).
