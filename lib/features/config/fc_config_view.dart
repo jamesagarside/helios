@@ -5,6 +5,7 @@ import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
 import '../setup/widgets/airspeed_cal_panel.dart';
+import '../setup/widgets/battery_power_panel.dart';
 import '../setup/widgets/calibration_wizard.dart';
 import '../setup/widgets/esc_calibration_panel.dart';
 import '../setup/widgets/failsafe_panel.dart';
@@ -39,6 +40,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     (icon: Icons.settings_remote_outlined, label: 'RC'),
     (icon: Icons.toggle_on_outlined, label: 'Flight Modes'),
     (icon: Icons.checklist_outlined, label: 'Pre-Arm'),
+    (icon: Icons.battery_charging_full_outlined, label: 'Battery'),
     (icon: Icons.list_alt_outlined, label: 'Parameters'),
   ];
 
@@ -126,6 +128,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       _RcTab(),
                       const FlightModesPanel(),
                       const PreArmPanel(),
+                      const BatteryPowerPanel(),
                       _ParametersTab(),
                     ],
                   ),
@@ -160,6 +163,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       _RcTab(),
                       const FlightModesPanel(),
                       const PreArmPanel(),
+                      const BatteryPowerPanel(),
                       _ParametersTab(),
                     ],
                   ),
