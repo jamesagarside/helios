@@ -4,6 +4,7 @@ import '../../core/params/parameter_service.dart';
 import '../../shared/models/vehicle_state.dart';
 import '../../shared/providers/providers.dart';
 import '../../shared/theme/helios_colors.dart';
+import '../setup/widgets/airspeed_cal_panel.dart';
 import '../setup/widgets/calibration_wizard.dart';
 import '../setup/widgets/failsafe_panel.dart';
 import '../setup/widgets/frame_type_panel.dart';
@@ -28,6 +29,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     (icon: Icons.info_outline, label: 'Firmware'),
     (icon: Icons.threed_rotation_outlined, label: 'Orientation'),
     (icon: Icons.sensors_outlined, label: 'Calibration'),
+    (icon: Icons.air, label: 'Airspeed'),
     (icon: Icons.shield_outlined, label: 'Safety'),
     (icon: Icons.grid_view_outlined, label: 'Frame'),
     (icon: Icons.propane_outlined, label: 'Motors'),
@@ -112,6 +114,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       _FirmwareTab(),
                       const OrientationTab(),
                       const CalibrationWizard(),
+                      const AirspeedCalPanel(),
                       const FailsafePanel(),
                       const FrameTypePanel(),
                       const MotorTestPanel(),
@@ -143,6 +146,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       _FirmwareTab(),
                       const OrientationTab(),
                       const CalibrationWizard(),
+                      const AirspeedCalPanel(),
                       const FailsafePanel(),
                       const FrameTypePanel(),
                       const MotorTestPanel(),
