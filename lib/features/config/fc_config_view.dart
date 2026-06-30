@@ -11,6 +11,7 @@ import '../setup/widgets/motor_test_panel.dart';
 import '../setup/widgets/parameter_editor.dart';
 import '../setup/widgets/prearm_panel.dart';
 import '../setup/widgets/rc_calibration_panel.dart';
+import '../setup/widgets/flight_modes_panel.dart';
 import '../airframe/orientation_tab.dart';
 
 class FcConfigView extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     (icon: Icons.grid_view_outlined, label: 'Frame'),
     (icon: Icons.propane_outlined, label: 'Motors'),
     (icon: Icons.settings_remote_outlined, label: 'RC'),
+    (icon: Icons.toggle_on_outlined, label: 'Flight Modes'),
     (icon: Icons.checklist_outlined, label: 'Pre-Arm'),
     (icon: Icons.list_alt_outlined, label: 'Parameters'),
   ];
@@ -116,6 +118,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const FrameTypePanel(),
                       const MotorTestPanel(),
                       _RcTab(),
+                      const FlightModesPanel(),
                       const PreArmPanel(),
                       _ParametersTab(),
                     ],
@@ -147,6 +150,7 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       const FrameTypePanel(),
                       const MotorTestPanel(),
                       _RcTab(),
+                      const FlightModesPanel(),
                       const PreArmPanel(),
                       _ParametersTab(),
                     ],
