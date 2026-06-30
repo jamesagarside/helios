@@ -2,30 +2,37 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:dart_mavlink/dart_mavlink.dart';
 import '../../shared/models/vehicle_state.dart';
-import 'heartbeat_watchdog.dart';
+import '../link/link_health_monitor.dart';
+import '../protocol/protocol_message.dart';
+import '../protocol/protocol_service.dart';
 import 'transports/transport.dart';
 
-/// Primary MAVLink communication service.
+/// MAVLink **Protocol adapter** behind the shared seam ([ProtocolService]).
 ///
-/// Owns the transport, parser, heartbeat watchdog, and GCS heartbeat sender.
-/// Decodes incoming messages and broadcasts them to consumers.
-class MavlinkService {
+/// Owns the transport, parser, shared [LinkHealthMonitor], and GCS heartbeat
+/// sender. Decodes incoming frames into typed [MavlinkMessage]s, presents them
+/// inbound as [MavlinkMsg] Protocol messages, and records link activity on each
+/// HEARTBEAT. MAVLink-specific outbound (commands, mission/param sub-protocols)
+/// stays on this concrete adapter — it is not part of the seam interface.
+class MavlinkService implements ProtocolService {
   MavlinkService(this._transport);
 
   final MavlinkTransport _transport;
   final MavlinkParser _parser = MavlinkParser();
-  final HeartbeatWatchdog _watchdog = HeartbeatWatchdog();
+  final LinkHealthMonitor _linkMonitor = LinkHealthMonitor();
   late final MavlinkFrameBuilder frameBuilder = MavlinkFrameBuilder();
 
   StreamSubscription<Uint8List>? _dataSubscription;
   Timer? _heartbeatTimer;
 
   final _messageController = StreamController<MavlinkMessage>.broadcast();
+  final _protocolController = StreamController<ProtocolMessage>.broadcast();
 
   int _messagesReceived = 0;
   int _messagesSent = 0;
 
-  /// Stream of all decoded MAVLink messages.
+  /// Stream of all decoded MAVLink messages (concrete-adapter view, used by the
+  /// MAVLink sub-protocol services: mission, param, log, rally, calibration).
   Stream<MavlinkMessage> get messageStream => _messageController.stream;
 
   /// Filtered stream of a specific message type.
@@ -33,25 +40,35 @@ class MavlinkService {
     return _messageController.stream.where((m) => m is T).cast<T>();
   }
 
-  /// Current link state from heartbeat watchdog.
-  LinkState get linkState => _watchdog.state;
+  // --- ProtocolService seam ---------------------------------------------------
 
-  /// Stream of link state changes.
-  Stream<LinkState> get linkStateStream => _watchdog.stateStream;
+  @override
+  Stream<ProtocolMessage> get messages => _protocolController.stream;
+
+  @override
+  Stream<LinkState> get linkHealth => _linkMonitor.stateStream;
+
+  @override
+  LinkState get linkState => _linkMonitor.state;
 
   /// Transport state.
+  @override
   TransportState get transportState => _transport.state;
 
   /// Stream of transport state changes.
+  @override
   Stream<TransportState> get transportStateStream => _transport.stateStream;
 
   /// Messages received count.
+  @override
   int get messagesReceived => _messagesReceived;
 
   /// Messages sent count.
+  @override
   int get messagesSent => _messagesSent;
 
   /// Parse error count.
+  @override
   int get parseErrors => _parser.parseErrors;
 
   /// CRC error count.
@@ -61,6 +78,7 @@ class MavlinkService {
   ///
   /// Set [alreadyConnected] to true when the transport has already been
   /// connected externally (e.g. during protocol auto-detection).
+  @override
   Future<void> connect({bool alreadyConnected = false}) async {
     if (!alreadyConnected) await _transport.connect();
 
@@ -73,12 +91,13 @@ class MavlinkService {
   }
 
   /// Disconnect and stop all processing.
+  @override
   Future<void> disconnect() async {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     await _dataSubscription?.cancel();
     _dataSubscription = null;
-    _watchdog.reset();
+    _linkMonitor.reset();
     await _transport.disconnect();
   }
 
@@ -234,12 +253,15 @@ class MavlinkService {
     for (final msg in messages) {
       _messagesReceived++;
 
-      // Heartbeat handling
+      // Record link activity on HEARTBEAT — the MAVLink feed into the shared
+      // LinkHealthMonitor.
       if (msg is HeartbeatMessage) {
-        _watchdog.onHeartbeatReceived();
+        _linkMonitor.recordActivity();
       }
 
+      // Concrete-adapter view (sub-protocol services) and seam view.
       _messageController.add(msg);
+      _protocolController.add(MavlinkMsg(msg));
     }
   }
 
@@ -254,11 +276,13 @@ class MavlinkService {
   }
 
   /// Dispose all resources.
+  @override
   void dispose() {
     _heartbeatTimer?.cancel();
     _dataSubscription?.cancel();
-    _watchdog.dispose();
+    _linkMonitor.dispose();
     _transport.dispose();
     _messageController.close();
+    _protocolController.close();
   }
 }
