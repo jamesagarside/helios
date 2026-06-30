@@ -58,6 +58,7 @@ packages/
 - PFD Ticker interpolation: 60fps smooth rendering between 10Hz telemetry samples
 - 305 auto-generated CRC extras from MAVLink XML at build time
 - SITL via native binary (not Docker): On-demand download, cached per vehicle type
+- Unified protocol layer: MAVLink and MSP sit behind one protocol abstraction with shared link-health monitoring
 
 ---
 
@@ -79,10 +80,13 @@ Technical: 60fps rendering using Flutter's Ticker for PFD interpolation between 
 The Plan View supports:
 
 - **Waypoint Editor**: Drag-and-drop waypoints on the map with altitude, speed, and action parameters. Reorder, insert, delete waypoints.
+- **Altitude Frame**: Per-waypoint altitude reference frame  - Relative, AMSL, or Terrain.
+- **Mission Commands**: Spline waypoints, servo and relay set/repeat, fence enable, and conditional delay/distance/yaw, in addition to standard waypoint and navigation commands.
 - **Survey Patterns**: Automatic grid/zigzag patterns for area coverage missions.
 - **Corridor Scan**: Linear survey along a path with configurable swath width.
 - **Geofencing**: Inclusion and exclusion polygons with breach actions (RTL, Land, Report).
 - **Rally Points**: Alternate landing locations for RTL.
+- **Mission Validation**: Pre-upload validation surfaces issues through a stats-bar warning chip before the mission is sent.
 - **File Import/Export**: KML and GPX format support for interoperability with other tools.
 - **Upload/Download**: Full MAVLink mission protocol implementation for transferring missions to/from the flight controller.
 
@@ -107,6 +111,7 @@ DuckDB Schema: Telemetry stored in columnar format with timestamps, message type
 
 Supported transports:
 - **USB Serial**: Direct connection to flight controller via USB cable. Auto-detection of baud rate (57600, 115200). Requires libserialport.
+- **Web Serial**: Real USB serial connections in the browser app on Chromium browsers over HTTPS, with no relay server required.
 - **UDP**: Default MAVLink port 14550. Used with telemetry radios, Wi-Fi bridges, and SITL simulators.
 - **TCP**: Port 5760. Used with SITL and some telemetry configurations.
 - **Telemetry Radios**: SiK radio (57600 baud), Holybro (57600 baud), and other MAVLink-compatible radio modems.
@@ -121,8 +126,19 @@ Platform limitations:
 
 ## Setup & Configuration
 
-- **Parameter Editor**: Full list of flight controller parameters with search, filtering by category, and inline editing. Modified parameters highlighted, with reset-to-default option.
-- **Sensor Calibration**: Step-by-step wizards for accelerometer, compass, and RC calibration with visual guidance.
+The FC Config view provides an end-to-end vehicle setup and calibration suite:
+
+- **Airframe Model**: A live 3D airframe model driven by real-time attitude. It is frame-aware and turns green when the aircraft is held in a target pose, and acts as a live position validator during calibration.
+- **Board Orientation**: Editor for the autopilot board orientation.
+- **Accelerometer Calibration**: 6-point calibration wizard that uses the airframe model to validate each position.
+- **RC / Radio Calibration**: Live channel bars, min/max/trim capture, reversal, and RCMAP assignment.
+- **Flight Modes**: Maps flight modes to RC PWM bands.
+- **ESC Calibration**: Semi-automatic and manual endpoint calibration, gated on props-off confirmation.
+- **Battery / Power Monitor**: Power monitor setup.
+- **Airspeed Calibration**: Zero-offset and ratio calibration.
+- **Pre-Arm Checks**: Editor for pre-arm / ARMING_CHECK flags.
+- **VTOL / Quadplane**: Setup panel for quadplane airframes covering frame, transition/assist, tilt, tuning, and QAUTOTUNE; shown only for quadplane airframes.
+- **Parameter Editor**: Full list of flight controller parameters with search, filtering by category, and inline editing. A modified-only diff view shows changed parameters, with per-row reset-to-default and export of only changed values to a .param file. Board-exact parameter defaults are fetched over MAVLink FTP.
 - **EKF Status**: Real-time Extended Kalman Filter health monitoring with variance indicators.
 - **Stream Rate Control**: Per-message rate configuration using MAV_CMD_SET_MESSAGE_INTERVAL with legacy fallback.
 

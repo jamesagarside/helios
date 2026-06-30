@@ -111,9 +111,12 @@
       <p>Build complex missions with an intuitive drag-and-drop editor. From simple waypoint routes to automated area surveys.</p>
       <ul class="feature-detail-list">
         <li>Drag-and-drop waypoints on the map</li>
+        <li>Per-waypoint altitude frame: Relative, AMSL, or Terrain</li>
+        <li>Spline waypoints, servo/relay set and repeat, fence enable, conditional delay/distance/yaw</li>
         <li>Polygon survey and corridor scan patterns</li>
         <li>Geofence and rally point management</li>
         <li>Import routes from KML and GPX files</li>
+        <li>Pre-upload mission validation with a warning chip</li>
         <li>Upload and download missions to your FC</li>
         <li>Real-time mission progress tracking</li>
       </ul>
@@ -137,11 +140,38 @@
       <p>Connects to ArduPilot, PX4, iNav, and Betaflight over USB, Wi-Fi, or telemetry radio. No special adapters needed.</p>
       <ul class="feature-detail-list">
         <li>USB serial, TCP, and UDP connections</li>
+        <li>Web Serial USB connections in the browser app</li>
         <li>Automatic protocol detection</li>
         <li>Plug-and-play auto-connect</li>
         <li>SiK and Holybro radio support</li>
         <li>Multi-vehicle fleet operations</li>
         <li>Persistent connection settings</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="configure">
+      <div class="feature-detail-label">Configure</div>
+      <h3>Vehicle setup and calibration</h3>
+      <p>Set up a new airframe from end to end. A live 3D airframe model, driven by real-time attitude, shows you exactly how the aircraft is held and turns green when it reaches a target pose.</p>
+      <ul class="feature-detail-list">
+        <li>Live 3D airframe model and board orientation editor</li>
+        <li>6-point accelerometer calibration wizard</li>
+        <li>RC calibration with live bars, min/max/trim, reversal, and RCMAP</li>
+        <li>Flight-mode setup mapped to RC PWM bands</li>
+        <li>ESC calibration, battery/power monitor, and airspeed setup</li>
+        <li>Pre-arm / ARMING_CHECK editor</li>
+        <li>VTOL / Quadplane panel for quadplane airframes</li>
+      </ul>
+    </div>
+    <div class="feature-detail-card" id="params">
+      <div class="feature-detail-label">Parameters</div>
+      <h3>Parameter management</h3>
+      <p>Review and edit the full flight controller parameter set, or focus on just what you have changed.</p>
+      <ul class="feature-detail-list">
+        <li>Modified-only diff view of changed parameters</li>
+        <li>Per-row reset-to-default</li>
+        <li>Export only changed values to a .param file</li>
+        <li>Board-exact defaults fetched over MAVLink FTP</li>
+        <li>Search and filter across all parameters</li>
       </ul>
     </div>
     <div class="feature-detail-card" id="video">
@@ -227,7 +257,7 @@
   <!-- Shared Foundation -->
   <div class="shared-foundation">
     <h3>Everything you'd expect from a ground control station, too</h3>
-    <p>Helios covers all the essentials: waypoint and survey mission planning, geofencing, rally points, KML/GPX import, USB/UDP/TCP connections, parameter editing, sensor calibration, video streaming, and simulation. If you've used other ground control station software before, you'll feel right at home.</p>
+    <p>Helios covers all the essentials: waypoint and survey mission planning, geofencing, rally points, KML/GPX import, USB/UDP/TCP connections, parameter editing, vehicle setup and sensor calibration, video streaming, and simulation. If you've used other ground control station software before, you'll feel right at home.</p>
   </div>
 </section>
 

@@ -19,11 +19,12 @@ Helios is part of the Argus Platform. Licensed under GPL 3.0.
 ## Core Features
 
 - **Fly View**: Real-time primary flight display (PFD) with attitude, speed, altitude tapes, heading compass, and live map tracking. 60fps rendering with 30Hz state batching.
-- **Mission Planning**: Visual drag-and-drop waypoint editor, area surveys, corridor scans, geofencing, rally points. KML/GPX import support.
+- **Mission Planning**: Visual drag-and-drop waypoint editor with per-waypoint altitude frame (Relative / AMSL / Terrain), area surveys, corridor scans, geofencing, rally points. Mission commands include spline waypoints, servo/relay set and repeat, fence enable, and conditional delay/distance/yaw. Pre-upload mission validation with a warning chip. KML/GPX import support.
 - **Flight Analytics**: Every telemetry point automatically recorded to DuckDB. SQL editor for custom queries, chart builder, Parquet export, cross-flight comparison.
 - **Video Streaming**: RTSP video integration with telemetry overlay and hardware-accelerated playback.
-- **Connections**: USB serial, UDP (14550), TCP (5760), SiK radio, Holybro telemetry. Auto-detection of protocol and baud rate.
-- **Setup & Calibration**: Full parameter editor with search and categories, accelerometer/compass/RC calibration, EKF status monitoring.
+- **Connections**: USB serial, UDP (14550), TCP (5760), SiK radio, Holybro telemetry. Auto-detection of protocol and baud rate. Web Serial support gives real USB serial connections in the browser app on Chromium over HTTPS, with no relay required.
+- **Vehicle Setup & Calibration**: Live 3D airframe model driven by real-time attitude (turns green at a target pose), board orientation editor, 6-point accelerometer calibration wizard, RC/radio calibration (live bars, min/max/trim, reversal, RCMAP), flight-mode setup to RC PWM bands, ESC calibration (semi-auto and manual endpoints, props-off gating), battery/power monitor setup, airspeed calibration (zero-offset and ratio), a pre-arm / ARMING_CHECK editor, and a VTOL / Quadplane panel (frame, transition/assist, tilt, tuning, QAUTOTUNE) for quadplane airframes.
+- **Parameter Management**: Full parameter editor with search and categories, a modified-only diff view with per-row reset-to-default and changed-only .param export, and board-exact parameter defaults fetched over MAVLink FTP. EKF status monitoring.
 - **Simulation**: One-click SITL (Software In The Loop) with on-demand ArduPilot binary download. No Docker required.
 
 ## What Makes Helios Different

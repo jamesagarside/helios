@@ -62,8 +62,11 @@
       "ArduPilot and PX4 compatible",
       "Offline map tile caching",
       "RTSP video streaming",
-      "Parameter editor",
-      "Sensor calibration"
+      "Parameter editor with modified-only diff view",
+      "Vehicle setup and sensor calibration suite",
+      "6-point accelerometer and RC calibration",
+      "Live 3D airframe model",
+      "Web Serial USB connections in the browser"
     ]
   }
   </script>
@@ -289,6 +292,13 @@
       </div>
       <p>Works with the hardware you already have. USB, Wi-Fi, or telemetry radio  - just plug in and fly. Automatic protocol detection and multi-vehicle support.</p>
     </a>
+    <a href="features.html#configure" class="feature-card">
+      <div class="feature-header">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feature-svg"><circle cx="10" cy="10" r="3"/><path d="M10 1.5v2.5M10 16v2.5M1.5 10h2.5M16 10h2.5M4 4l1.8 1.8M14.2 14.2L16 16M16 4l-1.8 1.8M5.8 14.2L4 16"/></svg>
+        <h3>Configure</h3>
+      </div>
+      <p>Set up a vehicle from a live 3D airframe model: board orientation, 6-point accelerometer and RC calibration, flight modes, ESC, power and airspeed, pre-arm checks, and a VTOL panel for quadplanes.</p>
+    </a>
     <a href="features.html#video" class="feature-card">
       <div class="feature-header">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feature-svg"><rect x="2" y="4" width="12" height="12" rx="1.5"/><polygon points="14,7 19,4.5 19,15.5 14,13"/></svg>
@@ -409,7 +419,7 @@ flutter run -d macos</pre>
         <li><span class="compat-dot green"></span>Windows</li>
         <li><span class="compat-dot amber"></span>iOS <span class="compat-note">no serial</span></li>
         <li><span class="compat-dot amber"></span>Android <span class="compat-note">no serial</span></li>
-        <li><span class="compat-dot green"></span><a href="https://app.heliosgcs.com" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">Web App</a> <span class="compat-note">via relay</span></li>
+        <li><span class="compat-dot green"></span><a href="https://app.heliosgcs.com" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">Web App</a> <span class="compat-note">USB or relay</span></li>
       </ul>
     </div>
     <div class="compat-col">
@@ -418,6 +428,7 @@ flutter run -d macos</pre>
         <li><span class="compat-dot green"></span>UDP (14550)</li>
         <li><span class="compat-dot green"></span>TCP (5760)</li>
         <li><span class="compat-dot green"></span>USB Serial</li>
+        <li><span class="compat-dot green"></span>Web Serial <span class="compat-note">browser USB</span></li>
         <li><span class="compat-dot green"></span>SiK Radio (57600)</li>
         <li><span class="compat-dot green"></span>Holybro (57600)</li>
       </ul>

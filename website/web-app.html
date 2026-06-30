@@ -123,13 +123,13 @@
   <div class="feature-details-grid" style="grid-template-columns: repeat(3, 1fr);">
     <div class="feature-detail-card">
       <div class="feature-detail-label">Step 1</div>
-      <h3>Start the relay</h3>
-      <p>Run a lightweight relay server on the computer connected to your drone. The relay bridges your MAVLink connection to a WebSocket that the browser can reach.</p>
+      <h3>Connect to your drone</h3>
+      <p>On a Chromium browser over HTTPS, connect to your flight controller over USB serial directly with Web Serial  - no relay needed. Or run a lightweight relay server to bridge a MAVLink connection to a WebSocket the browser can reach.</p>
     </div>
     <div class="feature-detail-card">
       <div class="feature-detail-label">Step 2</div>
       <h3>Open the web app</h3>
-      <p>Visit <a href="https://app.heliosgcs.com">app.heliosgcs.com</a> in any modern browser. Enter the relay address and connect. Works on desktop, tablet, and mobile.</p>
+      <p>Visit <a href="https://app.heliosgcs.com">app.heliosgcs.com</a> in any modern browser. Choose a USB serial port or enter a relay address, then connect. Works on desktop, tablet, and mobile.</p>
     </div>
     <div class="feature-detail-card">
       <div class="feature-detail-label">Step 3</div>
@@ -173,6 +173,13 @@
     </div>
     <div class="diff-card">
       <div class="diff-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="6" height="9" rx="1"/><path d="M10 11v5"/><path d="M6 16h8"/><path d="M9 5h2"/></svg>
+      </div>
+      <h3>Web Serial USB</h3>
+      <p>On Chromium browsers over HTTPS, connect to a flight controller over USB serial directly from the browser  - no relay server required. Pick the serial port and connect.</p>
+    </div>
+    <div class="diff-card">
+      <div class="diff-icon">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="11" rx="2"/><path d="M6 17h8M10 14v3"/></svg>
       </div>
       <h3>Any Device</h3>
@@ -192,7 +199,7 @@
 <section class="section" style="border-top: 1px solid var(--border);">
   <div class="shared-foundation">
     <h3>When to use the web app vs the desktop app</h3>
-    <p>The web app is ideal for quick monitoring, sharing a view with a team member, or using a device where you can't install software. For the full Helios experience  - including DuckDB flight recording, USB serial connections, offline maps, and video streaming  - use the <a href="/#download">desktop application</a>.</p>
+    <p>The web app is ideal for quick monitoring, sharing a view with a team member, or using a device where you can't install software. On Chromium browsers over HTTPS it can also talk to a flight controller over USB serial directly via Web Serial. For the full Helios experience  - including DuckDB flight recording, offline maps, and video streaming  - use the <a href="/#download">desktop application</a>.</p>
   </div>
 </section>
 
