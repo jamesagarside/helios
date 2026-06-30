@@ -30,12 +30,12 @@ class MissionFileResult {
   bool get hasError => error != null;
 }
 
-/// Service for saving and loading mission files in QGC Plan and ArduPilot
-/// waypoint formats.
+/// Service for saving and loading mission files in the `.plan` JSON and
+/// `.waypoints` (WPL) formats.
 ///
 /// Supports:
-/// - `.plan` (JSON, QGroundControl compatible)
-/// - `.waypoints` (text, ArduPilot/Mission Planner compatible)
+/// - `.plan` (the JSON mission-plan file format)
+/// - `.waypoints` (the text WPL waypoint file format)
 class MissionFileService {
   // ─── Save ────────────────────────────────────────────────────────────────
 

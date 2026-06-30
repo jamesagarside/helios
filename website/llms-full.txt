@@ -170,11 +170,11 @@ One-click simulation without Docker:
 **What drones does Helios support?**
 Helios works with any drone running ArduPilot or PX4 firmware that communicates via MAVLink v2. This includes multirotors, fixed-wing aircraft, rovers, and submarines. It also has experimental support for iNav, Betaflight, and Cleanflight via MSP protocol.
 
-**How does Helios compare to QGroundControl?**
-Both are open-source MAVLink GCS applications. Helios differentiates with DuckDB-powered flight analytics (queryable SQL database for every flight), a modern Flutter UI, and cross-platform mobile support. QGroundControl has a larger user base, more mature codebase, and broader hardware integration.
+**How does Helios compare to other open-source MAVLink ground control stations?**
+Helios differentiates with DuckDB-powered flight analytics (queryable SQL database for every flight), a modern Flutter UI, and cross-platform mobile support. Longer-established stations tend to have larger user bases, more mature codebases, and broader hardware integration.
 
-**How does Helios compare to Mission Planner?**
-Mission Planner is Windows-only (.NET) and deeply integrated with ArduPilot. Helios is cross-platform, supports both ArduPilot and PX4, and focuses on flight data analytics. Mission Planner has more advanced configuration options for ArduPilot-specific features.
+**How does Helios compare to ArduPilot-focused configurators?**
+Some established configurators are Windows-only and deeply integrated with ArduPilot, with very advanced ArduPilot-specific configuration options. Helios is cross-platform, supports both ArduPilot and PX4, and focuses on flight data analytics.
 
 **Is Helios free?**
 Yes. Helios is free and open-source under GPL 3.0. No accounts, no subscriptions, no telemetry collection. Your data stays on your device.

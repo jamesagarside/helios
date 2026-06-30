@@ -218,7 +218,7 @@ class ParameterService {
   int get nonDefaultCount =>
       _params.values.where((p) => p.isNonDefault).length;
 
-  /// Export parameters to Mission Planner .param format.
+  /// Export parameters to the `.param` file format.
   /// Format: PARAM_NAME,VALUE
   String exportToParamFile() {
     final sorted = _params.values.toList()..sort((a, b) => a.id.compareTo(b.id));
