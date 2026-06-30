@@ -1,4 +1,6 @@
 import '../database/database.dart';
+import 'columns.dart';
+import 'flight_stats.dart';
 import 'telemetry_store.dart';
 
 /// A cross-flight comparison result row.
@@ -128,6 +130,15 @@ ORDER BY week
 /// On web: queries each flight individually and aggregates in Dart.
 /// This provides the same results without requiring ATTACH support.
 class ForensicsService {
+  /// Creates a forensics service.
+  ///
+  /// [factory] defaults to the platform [databaseFactory]; tests inject an
+  /// in-memory fake so cross-flight queries run without a live DuckDB.
+  ForensicsService({HeliosDatabaseFactory? factory})
+      : _factory = factory ?? databaseFactory;
+
+  final HeliosDatabaseFactory _factory;
+
   /// Run a [ForensicsTemplate] or custom SQL query across [flights].
   Future<ForensicsResult> query(
     List<FlightSummary> flights, {
@@ -141,9 +152,9 @@ class ForensicsService {
       );
     }
 
-    databaseFactory.ensureInitialised();
+    _factory.ensureInitialised();
 
-    if (databaseFactory.capabilities.supportsAttach) {
+    if (_factory.capabilities.supportsAttach) {
       return _queryWithAttach(flights, sql: sql);
     } else {
       return _queryWithAggregation(flights, sql: sql);
@@ -156,26 +167,10 @@ class ForensicsService {
     required String sql,
   }) async {
     final sw = Stopwatch()..start();
-    final conn = databaseFactory.openMemory();
+    final conn = _factory.openMemory();
 
     try {
-      conn.execute('''
-        CREATE TEMP TABLE flight_stats (
-          flight_id       VARCHAR,
-          start_time      VARCHAR,
-          duration_min    DOUBLE,
-          max_alt_m       DOUBLE,
-          max_ias_ms      DOUBLE,
-          avg_gs_ms       DOUBLE,
-          min_voltage     DOUBLE,
-          min_bat_pct     INTEGER,
-          avg_vibe_x      DOUBLE,
-          avg_vibe_y      DOUBLE,
-          avg_vibe_z      DOUBLE,
-          max_vibe_z      DOUBLE,
-          total_clips     INTEGER
-        )
-      ''');
+      conn.execute(FlightStats.createTable(temp: true));
 
       for (var i = 0; i < flights.length; i++) {
         final flight = flights[i];
@@ -185,72 +180,59 @@ class ForensicsService {
         try {
           conn.execute("ATTACH '$escaped' AS $alias (READ_ONLY)");
 
-          String flightId = flight.fileName.replaceAll('.duckdb', '');
-          String startTime = '';
-          try {
-            final meta = conn.fetch(
-              'SELECT key, value FROM $alias.flight_meta '
-              "WHERE key IN ('flight_id', 'start_time_utc', 'user_name')",
-            );
-            final keys = meta['key'] ?? [];
-            final vals = meta['value'] ?? [];
-            final metaMap = <String, String>{};
-            for (var j = 0; j < keys.length; j++) {
-              metaMap[keys[j].toString()] = vals[j].toString();
-            }
-            flightId = metaMap['user_name'] ??
-                metaMap['flight_id'] ??
-                flightId;
-            startTime = metaMap['start_time_utc'] ?? '';
-          } catch (_) {}
+          final (flightId, startTime) = _resolveMeta(
+            () => conn.fetch(
+              'SELECT ${FlightMetaColumns.key}, ${FlightMetaColumns.value} '
+              'FROM $alias.${FlightMetaColumns.table} '
+              'WHERE ${FlightMetaColumns.key} IN '
+              "('flight_id', 'start_time_utc', 'user_name')",
+            ),
+            flight,
+          );
 
           final stats = conn.fetch('''
             SELECT
-              (SELECT MAX(alt_rel) FROM $alias.gps)                          AS max_alt,
-              (SELECT MAX(airspeed) FROM $alias.vfr_hud)                     AS max_ias,
-              (SELECT AVG(groundspeed) FROM $alias.vfr_hud)                  AS avg_gs,
-              (SELECT MIN(voltage) FROM $alias.battery)                      AS min_v,
-              (SELECT MIN(remaining_pct) FROM $alias.battery)                AS min_bat,
-              (SELECT AVG(vibe_x) FROM $alias.vibration)                     AS avg_vx,
-              (SELECT AVG(vibe_y) FROM $alias.vibration)                     AS avg_vy,
-              (SELECT AVG(vibe_z) FROM $alias.vibration)                     AS avg_vz,
-              (SELECT MAX(vibe_z) FROM $alias.vibration)                     AS max_vz,
-              (SELECT COALESCE(SUM(clip_0+clip_1+clip_2),0) FROM $alias.vibration) AS clips
+              (SELECT MAX(${GpsColumns.altRel}) FROM $alias.${GpsColumns.table})              AS max_alt,
+              (SELECT MAX(${VfrHudColumns.airspeed}) FROM $alias.${VfrHudColumns.table})       AS max_ias,
+              (SELECT AVG(${VfrHudColumns.groundspeed}) FROM $alias.${VfrHudColumns.table})    AS avg_gs,
+              (SELECT MIN(${BatteryColumns.voltage}) FROM $alias.${BatteryColumns.table})      AS min_v,
+              (SELECT MIN(${BatteryColumns.remainingPct}) FROM $alias.${BatteryColumns.table}) AS min_bat,
+              (SELECT AVG(${VibrationColumns.vibeX}) FROM $alias.${VibrationColumns.table})     AS avg_vx,
+              (SELECT AVG(${VibrationColumns.vibeY}) FROM $alias.${VibrationColumns.table})     AS avg_vy,
+              (SELECT AVG(${VibrationColumns.vibeZ}) FROM $alias.${VibrationColumns.table})     AS avg_vz,
+              (SELECT MAX(${VibrationColumns.vibeZ}) FROM $alias.${VibrationColumns.table})     AS max_vz,
+              (SELECT COALESCE(SUM(${VibrationColumns.clip0}+${VibrationColumns.clip1}+${VibrationColumns.clip2}),0)
+                 FROM $alias.${VibrationColumns.table})                                         AS clips
           ''');
 
           double durationMin = 0;
           try {
             final dr = conn.fetch(
               'SELECT EXTRACT(EPOCH FROM '
-              '(SELECT MAX(ts) - MIN(ts) FROM $alias.gps)) AS sec',
+              '(SELECT MAX(${GpsColumns.ts}) - MIN(${GpsColumns.ts}) '
+              'FROM $alias.${GpsColumns.table})) AS sec',
             );
             final sec = dr['sec']?.firstOrNull;
             if (sec is num) durationMin = sec.toDouble() / 60.0;
           } catch (_) {}
 
-          final flightIdEsc = flightId.replaceAll("'", "''");
-          final startTimeSql = startTime.isEmpty
-              ? 'NULL'
-              : "'${startTime.replaceAll("'", "''")}'";
-
           num? n(String col) => _colFirst(stats, col) as num?;
-          conn.execute('''
-            INSERT INTO flight_stats VALUES (
-              '$flightIdEsc',
-              $startTimeSql,
-              $durationMin,
-              ${n('max_alt')?.toDouble() ?? 'NULL'},
-              ${n('max_ias')?.toDouble() ?? 'NULL'},
-              ${n('avg_gs')?.toDouble() ?? 'NULL'},
-              ${n('min_v')?.toDouble() ?? 'NULL'},
-              ${n('min_bat')?.toInt() ?? 'NULL'},
-              ${n('avg_vx')?.toDouble() ?? 'NULL'},
-              ${n('avg_vy')?.toDouble() ?? 'NULL'},
-              ${n('avg_vz')?.toDouble() ?? 'NULL'},
-              ${n('max_vz')?.toDouble() ?? 'NULL'},
-              ${n('clips')?.toInt() ?? 0}
-            )
-          ''');
+          final row = FlightStats(
+            flightId: flightId,
+            startTime: startTime,
+            durationMin: durationMin,
+            maxAltM: n('max_alt')?.toDouble(),
+            maxIasMs: n('max_ias')?.toDouble(),
+            avgGsMs: n('avg_gs')?.toDouble(),
+            minVoltage: n('min_v')?.toDouble(),
+            minBatPct: n('min_bat')?.toInt(),
+            avgVibeX: n('avg_vx')?.toDouble(),
+            avgVibeY: n('avg_vy')?.toDouble(),
+            avgVibeZ: n('avg_vz')?.toDouble(),
+            maxVibeZ: n('max_vz')?.toDouble(),
+            totalClips: n('clips')?.toInt() ?? 0,
+          );
+          conn.execute(row.toInsert());
         } catch (_) {
           // Skip flights that fail (corrupt / missing tables)
         } finally {
@@ -279,110 +261,37 @@ class ForensicsService {
     required String sql,
   }) async {
     final sw = Stopwatch()..start();
-    final conn = databaseFactory.openMemory();
+    final conn = _factory.openMemory();
 
     try {
-      conn.execute('''
-        CREATE TABLE flight_stats (
-          flight_id       VARCHAR,
-          start_time      VARCHAR,
-          duration_min    DOUBLE,
-          max_alt_m       DOUBLE,
-          max_ias_ms      DOUBLE,
-          avg_gs_ms       DOUBLE,
-          min_voltage     DOUBLE,
-          min_bat_pct     INTEGER,
-          avg_vibe_x      DOUBLE,
-          avg_vibe_y      DOUBLE,
-          avg_vibe_z      DOUBLE,
-          max_vibe_z      DOUBLE,
-          total_clips     INTEGER
-        )
-      ''');
+      conn.execute(FlightStats.createTable());
 
       // Open each flight individually and extract stats
       for (final flight in flights) {
         HeliosDatabase? flightConn;
         try {
-          flightConn = databaseFactory.open(flight.filePath);
+          flightConn = _factory.open(flight.filePath);
 
-          String flightId = flight.fileName.replaceAll('.duckdb', '');
-          String startTime = '';
-
-          try {
-            final meta = flightConn.fetch(
-              "SELECT key, value FROM flight_meta WHERE key IN "
+          final (flightId, startTime) = _resolveMeta(
+            () => flightConn!.fetch(
+              'SELECT ${FlightMetaColumns.key}, ${FlightMetaColumns.value} '
+              'FROM ${FlightMetaColumns.table} '
+              'WHERE ${FlightMetaColumns.key} IN '
               "('flight_id', 'start_time_utc', 'user_name')",
-            );
-            final keys = meta['key'] ?? [];
-            final vals = meta['value'] ?? [];
-            for (var i = 0; i < keys.length; i++) {
-              final k = keys[i].toString();
-              final v = vals[i].toString();
-              if (k == 'user_name') flightId = v;
-              else if (k == 'flight_id' && flightId == flight.fileName.replaceAll('.duckdb', '')) flightId = v;
-              if (k == 'start_time_utc') startTime = v;
-            }
-          } catch (_) {}
+            ),
+            flight,
+          );
 
-          // Gather per-table stats
-          double? maxAlt, maxIas, avgGs, minV, avgVx, avgVy, avgVz, maxVz;
-          int? minBat, totalClips;
-          double durationMin = 0;
-
-          try {
-            final gps = flightConn.fetch('SELECT MAX(alt_rel) AS v, MIN(ts) AS t0, MAX(ts) AS t1 FROM gps');
-            maxAlt = (_colFirst(gps, 'v') as num?)?.toDouble();
-            final t0 = _colFirst(gps, 't0');
-            final t1 = _colFirst(gps, 't1');
-            if (t0 != null && t1 != null) {
-              final d0 = DateTime.tryParse(t0.toString());
-              final d1 = DateTime.tryParse(t1.toString());
-              if (d0 != null && d1 != null) {
-                durationMin = d1.difference(d0).inSeconds / 60.0;
-              }
-            }
-          } catch (_) {}
-
-          try {
-            final vfr = flightConn.fetch('SELECT MAX(airspeed) AS mi, AVG(groundspeed) AS ag FROM vfr_hud');
-            maxIas = (_colFirst(vfr, 'mi') as num?)?.toDouble();
-            avgGs = (_colFirst(vfr, 'ag') as num?)?.toDouble();
-          } catch (_) {}
-
-          try {
-            final bat = flightConn.fetch('SELECT MIN(voltage) AS mv, MIN(remaining_pct) AS mb FROM battery');
-            minV = (_colFirst(bat, 'mv') as num?)?.toDouble();
-            minBat = (_colFirst(bat, 'mb') as num?)?.toInt();
-          } catch (_) {}
-
-          try {
-            final vib = flightConn.fetch(
-              'SELECT AVG(vibe_x) AS ax, AVG(vibe_y) AS ay, AVG(vibe_z) AS az, '
-              'MAX(vibe_z) AS mz, SUM(clip_0+clip_1+clip_2) AS tc FROM vibration',
-            );
-            avgVx = (_colFirst(vib, 'ax') as num?)?.toDouble();
-            avgVy = (_colFirst(vib, 'ay') as num?)?.toDouble();
-            avgVz = (_colFirst(vib, 'az') as num?)?.toDouble();
-            maxVz = (_colFirst(vib, 'mz') as num?)?.toDouble();
-            totalClips = (_colFirst(vib, 'tc') as num?)?.toInt();
-          } catch (_) {}
+          final stats = FlightStats.fromDatabase(
+            flightConn,
+            flightId: flightId,
+            startTime: startTime,
+          );
 
           flightConn.close();
           flightConn = null;
 
-          final flightIdEsc = flightId.replaceAll("'", "''");
-          final startTimeSql = startTime.isEmpty ? 'NULL' : "'${startTime.replaceAll("'", "''")}'";
-
-          conn.execute('''
-            INSERT INTO flight_stats VALUES (
-              '$flightIdEsc', $startTimeSql, $durationMin,
-              ${maxAlt ?? 'NULL'}, ${maxIas ?? 'NULL'}, ${avgGs ?? 'NULL'},
-              ${minV ?? 'NULL'}, ${minBat ?? 'NULL'},
-              ${avgVx ?? 'NULL'}, ${avgVy ?? 'NULL'}, ${avgVz ?? 'NULL'},
-              ${maxVz ?? 'NULL'}, ${totalClips ?? 0}
-            )
-          ''');
+          conn.execute(stats.toInsert());
         } catch (_) {
           // Skip corrupt flights
         } finally {
@@ -435,5 +344,30 @@ class ForensicsService {
 
   static dynamic _colFirst(Map<String, List<dynamic>> result, String col) {
     return result[col]?.firstOrNull;
+  }
+
+  /// Resolve a flight's display id and start time from its `flight_meta`
+  /// key/value rows. Prefers `user_name`, then `flight_id`, falling back to the
+  /// file name (sans `.duckdb`). Shared by both the ATTACH and aggregation
+  /// paths so the resolution rule lives in one place.
+  static (String flightId, String startTime) _resolveMeta(
+    Map<String, List<dynamic>> Function() fetchMeta,
+    FlightSummary flight,
+  ) {
+    final fallback = flight.fileName.replaceAll('.duckdb', '');
+    var flightId = fallback;
+    var startTime = '';
+    try {
+      final meta = fetchMeta();
+      final keys = meta[FlightMetaColumns.key] ?? [];
+      final vals = meta[FlightMetaColumns.value] ?? [];
+      final metaMap = <String, String>{};
+      for (var i = 0; i < keys.length; i++) {
+        metaMap[keys[i].toString()] = vals[i].toString();
+      }
+      flightId = metaMap['user_name'] ?? metaMap['flight_id'] ?? fallback;
+      startTime = metaMap['start_time_utc'] ?? '';
+    } catch (_) {}
+    return (flightId, startTime);
   }
 }
