@@ -219,6 +219,42 @@ class CalibrationService {
     );
   }
 
+  /// Start full 6-point accelerometer calibration.
+  ///
+  /// Sends `MAV_CMD_PREFLIGHT_CALIBRATION` with param5=1 to begin the six-step
+  /// flow. Unlike [startAccelCal], the autopilot then drives the pilot through
+  /// six orientations via `STATUSTEXT`; the pilot confirms each with
+  /// [confirmAccelPosition]. The 6-point UI parses STATUSTEXT itself through
+  /// [AccelCalStateMachine]; this method only issues the start command.
+  Future<void> startSixPointAccelCal({
+    required int targetSystem,
+    required int targetComponent,
+  }) async {
+    await _mavlink.sendCommand(
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      command: 241, // MAV_CMD_PREFLIGHT_CALIBRATION
+      param5: 1, // accelerometer (full 6-point)
+    );
+  }
+
+  /// Confirm the vehicle is held in the requested accel-cal position.
+  ///
+  /// Sends `MAV_CMD_ACCELCAL_VEHICLE_POS` (42429) with [positionIndex]
+  /// (1=level, 2=left, 3=right, 4=nose-down, 5=nose-up, 6=back).
+  Future<void> confirmAccelPosition({
+    required int targetSystem,
+    required int targetComponent,
+    required int positionIndex,
+  }) async {
+    await _mavlink.sendCommand(
+      targetSystem: targetSystem,
+      targetComponent: targetComponent,
+      command: 42429, // MAV_CMD_ACCELCAL_VEHICLE_POS
+      param1: positionIndex.toDouble(),
+    );
+  }
+
   /// Cancel any running calibration.
   Future<void> cancel({
     required int targetSystem,
