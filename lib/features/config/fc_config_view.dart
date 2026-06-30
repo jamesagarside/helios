@@ -15,7 +15,9 @@ import '../setup/widgets/parameter_editor.dart';
 import '../setup/widgets/prearm_panel.dart';
 import '../setup/widgets/rc_calibration_panel.dart';
 import '../setup/widgets/flight_modes_panel.dart';
+import '../setup/widgets/vtol_panel.dart';
 import '../airframe/orientation_tab.dart';
+import '../../core/params/vtol_setup.dart';
 
 class FcConfigView extends ConsumerStatefulWidget {
   const FcConfigView({super.key});
@@ -24,35 +26,67 @@ class FcConfigView extends ConsumerStatefulWidget {
   ConsumerState<FcConfigView> createState() => _FcConfigViewState();
 }
 
+/// One config tab: its icon, label, and content builder. Kept as a record-like
+/// class so the tab list can be built dynamically (the VTOL tab is gated on
+/// `Q_ENABLE`).
+class _ConfigTab {
+  const _ConfigTab(this.icon, this.label, this.build);
+  final IconData icon;
+  final String label;
+  final Widget Function() build;
+}
+
 class _FcConfigViewState extends ConsumerState<FcConfigView>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    with TickerProviderStateMixin {
+  TabController? _tabController;
+  int _lastLength = -1;
 
-  static const _tabs = [
-    (icon: Icons.info_outline, label: 'Firmware'),
-    (icon: Icons.threed_rotation_outlined, label: 'Orientation'),
-    (icon: Icons.sensors_outlined, label: 'Calibration'),
-    (icon: Icons.air, label: 'Airspeed'),
-    (icon: Icons.shield_outlined, label: 'Safety'),
-    (icon: Icons.grid_view_outlined, label: 'Frame'),
-    (icon: Icons.propane_outlined, label: 'Motors'),
-    (icon: Icons.electrical_services_outlined, label: 'ESC'),
-    (icon: Icons.settings_remote_outlined, label: 'RC'),
-    (icon: Icons.toggle_on_outlined, label: 'Flight Modes'),
-    (icon: Icons.checklist_outlined, label: 'Pre-Arm'),
-    (icon: Icons.battery_charging_full_outlined, label: 'Battery'),
-    (icon: Icons.list_alt_outlined, label: 'Parameters'),
-  ];
+  /// The full ordered tab set. The VTOL tab is inserted conditionally per the
+  /// `Q_ENABLE` gate; everything else is always present.
+  List<_ConfigTab> _buildTabs(bool showVtol) {
+    return [
+      _ConfigTab(Icons.info_outline, 'Firmware', () => _FirmwareTab()),
+      _ConfigTab(Icons.threed_rotation_outlined, 'Orientation',
+          () => const OrientationTab()),
+      _ConfigTab(Icons.sensors_outlined, 'Calibration',
+          () => const CalibrationWizard()),
+      _ConfigTab(Icons.air, 'Airspeed', () => const AirspeedCalPanel()),
+      _ConfigTab(Icons.shield_outlined, 'Safety', () => const FailsafePanel()),
+      _ConfigTab(
+          Icons.grid_view_outlined, 'Frame', () => const FrameTypePanel()),
+      if (showVtol)
+        _ConfigTab(Icons.flight_takeoff, 'VTOL', () => const VtolPanel()),
+      _ConfigTab(Icons.propane_outlined, 'Motors', () => const MotorTestPanel()),
+      _ConfigTab(Icons.electrical_services_outlined, 'ESC',
+          () => const EscCalibrationPanel()),
+      _ConfigTab(Icons.settings_remote_outlined, 'RC', () => _RcTab()),
+      _ConfigTab(Icons.toggle_on_outlined, 'Flight Modes',
+          () => const FlightModesPanel()),
+      _ConfigTab(Icons.checklist_outlined, 'Pre-Arm', () => const PreArmPanel()),
+      _ConfigTab(Icons.battery_charging_full_outlined, 'Battery',
+          () => const BatteryPowerPanel()),
+      _ConfigTab(
+          Icons.list_alt_outlined, 'Parameters', () => _ParametersTab()),
+    ];
+  }
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+  TabController _controllerFor(int length) {
+    if (_tabController == null || _lastLength != length) {
+      final previousIndex = _tabController?.index ?? 0;
+      _tabController?.dispose();
+      _tabController = TabController(
+        length: length,
+        vsync: this,
+        initialIndex: previousIndex.clamp(0, length - 1),
+      );
+      _lastLength = length;
+    }
+    return _tabController!;
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -61,6 +95,16 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
     final hc = context.hc;
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 900;
+
+    // Gate the VTOL tab on Q_ENABLE — never on MAV_TYPE (ArduPilot quadplanes
+    // report as fixed-wing). See docs/adr/0003-gate-vtol-panel-on-q-enable.md.
+    final params = ref.watch(paramCacheProvider);
+    final showVtol = vtolTabVisible(
+      paramsLoaded: params.isNotEmpty,
+      qEnable: params[kQEnableParam]?.value,
+    );
+    final tabs = _buildTabs(showVtol);
+    final tabController = _controllerFor(tabs.length);
 
     return Scaffold(
       backgroundColor: hc.background,
@@ -88,18 +132,18 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                       ),
                       Expanded(
                         child: ListenableBuilder(
-                          listenable: _tabController,
+                          listenable: tabController,
                           builder: (_, _) {
                             return ListView.builder(
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              itemCount: _tabs.length,
+                              itemCount: tabs.length,
                               itemBuilder: (_, i) {
-                                final tab = _tabs[i];
+                                final tab = tabs[i];
                                 return _SidebarTabItem(
                                   icon: tab.icon,
                                   label: tab.label,
-                                  selected: _tabController.index == i,
-                                  onTap: () => _tabController.animateTo(i),
+                                  selected: tabController.index == i,
+                                  onTap: () => tabController.animateTo(i),
                                 );
                               },
                             );
@@ -114,23 +158,9 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
                 // Content
                 Expanded(
                   child: TabBarView(
-                    controller: _tabController,
+                    controller: tabController,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _FirmwareTab(),
-                      const OrientationTab(),
-                      const CalibrationWizard(),
-                      const AirspeedCalPanel(),
-                      const FailsafePanel(),
-                      const FrameTypePanel(),
-                      const MotorTestPanel(),
-                      const EscCalibrationPanel(),
-                      _RcTab(),
-                      const FlightModesPanel(),
-                      const PreArmPanel(),
-                      const BatteryPowerPanel(),
-                      _ParametersTab(),
-                    ],
+                    children: [for (final t in tabs) t.build()],
                   ),
                 ),
               ],
@@ -138,34 +168,20 @@ class _FcConfigViewState extends ConsumerState<FcConfigView>
           : Column(
               children: [
                 TabBar(
-                  controller: _tabController,
+                  controller: tabController,
                   isScrollable: true,
                   labelColor: hc.accent,
                   unselectedLabelColor: hc.textSecondary,
                   indicatorColor: hc.accent,
-                  tabs: _tabs
+                  tabs: tabs
                       .map((t) => Tab(
                           icon: Icon(t.icon, size: 18), text: t.label))
                       .toList(),
                 ),
                 Expanded(
                   child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _FirmwareTab(),
-                      const OrientationTab(),
-                      const CalibrationWizard(),
-                      const AirspeedCalPanel(),
-                      const FailsafePanel(),
-                      const FrameTypePanel(),
-                      const MotorTestPanel(),
-                      const EscCalibrationPanel(),
-                      _RcTab(),
-                      const FlightModesPanel(),
-                      const PreArmPanel(),
-                      const BatteryPowerPanel(),
-                      _ParametersTab(),
-                    ],
+                    controller: tabController,
+                    children: [for (final t in tabs) t.build()],
                   ),
                 ),
               ],
