@@ -4,62 +4,99 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helios_gcs/app.dart';
 import 'package:helios_gcs/shared/widgets/splash_screen.dart';
 
-/// Pump the widget tree far enough past the splash screen's timers and
-/// animations so the main shell is fully visible.
+/// Pumps [HeliosApp] inside an [UncontrolledProviderScope] backed by a
+/// freshly-created [ProviderContainer], returned so the test can dispose it.
 ///
-/// The splash:
-///   1. Runs a 1800 ms assemble animation.
-///   2. Waits 1400 ms via a Timer.
-///   3. Runs a 500 ms fade-out animation.
-///   4. Calls onComplete() → _splashDone = true → rebuilds shell.
+/// Isolating a container per test — and disposing it at the end of the test
+/// body via [_teardownApp] — is what makes these smoke tests deterministic
+/// under parallel test isolates. The main shell reads
+/// `serialPortMonitorProvider` from its `initState`, which starts a
+/// `Timer.periodic(2 s)` inside [_SerialPortMonitor]. The splash dismissal
+/// advances the fake clock well past 2 s, so that periodic timer is live by
+/// the time the test body ends. flutter_test's `_verifyInvariants` runs at the
+/// end of the test body (before any `addTearDown`) and fails with "A Timer is
+/// still pending" if any periodic timer is outstanding. Whether the timer was
+/// even created depended on microtask scheduling under load — hence the
+/// intermittent failure. Disposing the container in-body cancels the monitor's
+/// timer (via the notifier's `dispose()`) before that check runs.
+Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
+  final container = ProviderContainer();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const HeliosApp(),
+    ),
+  );
+  return container;
+}
+
+/// Tears the app down deterministically *within the test body*, before
+/// flutter_test's end-of-body invariant check.
 ///
-/// We advance the fake clock by 4 s (well past 1800 + 1400 + 500 ms) and
-/// then pump one final frame to flush the setState rebuild.
+/// First unmounts the widget tree so each widget's `dispose()` cancels its own
+/// timers (live chart, flight-mode strip, etc.), then disposes the container
+/// so the [_SerialPortMonitor]'s `Timer.periodic` is cancelled too.
+Future<void> _teardownApp(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  container.dispose();
+}
+
+/// Pump the widget tree past the splash screen's timers and animations so the
+/// main shell is fully visible.
+///
+/// The splash lifecycle is:
+///   1. 1800 ms assemble animation
+///   2. 1400 ms delay (Timer)
+///   3.  500 ms fade-out animation
+///   4. onComplete() → _splashDone = true → rebuilds shell
+/// Total: 3700 ms.
+///
+/// The completion chain is built lazily — each stage is scheduled only once
+/// the previous one finishes (`assemble.then(() => Timer(1400).then(() =>
+/// fade.then(onComplete)))`). A single large clock jump cannot traverse it,
+/// because the `Timer` and the fade controller don't exist until the earlier
+/// microtasks have run. We step the fake clock in coarse increments so every
+/// stage gets scheduled and fired, then `pumpAndSettle` to flush the final
+/// fade-out and `setState` rebuild deterministically.
 Future<void> _dismissSplash(WidgetTester tester) async {
-  // The splash runs:
-  //   1800 ms assemble animation
-  //   1400 ms delay (Timer)
-  //    500 ms fade animation
-  // Total: 3700 ms.
-  //
-  // We pump one frame at a time through the splash lifecycle, flushing
-  // microtasks (from TickerFuture.then() chains) between animation phases.
   await tester.pump(); // start controllers
 
-  // Tick through each millisecond of the animation in coarse steps.
-  // Using runAsync so that TickerFuture.then() microtasks fire naturally
-  // between steps.
-  for (var i = 0; i < 40; i++) {
+  // Step through the full 3700 ms lifecycle. Stepping (rather than one jump)
+  // lets each TickerFuture.then() microtask fire and schedule the next stage.
+  // 50 × 100 ms = 5000 ms, comfortably past 3700 ms.
+  for (var i = 0; i < 50; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
-  // Extra frames to flush setState rebuild.
-  await tester.pump();
-  await tester.pump();
+
+  // Settle remaining frames/microtasks (fade-out completion + the setState
+  // that swaps the splash for the shell).
+  await tester.pumpAndSettle();
 }
 
 void main() {
-
   group('HeliosApp smoke tests', () {
     testWidgets('app launches and shows Fly view by default', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       // Fly view should be visible (contains PFD placeholder)
       expect(find.byType(CustomPaint), findsWidgets);
       // Splash should be dismissed.
       expect(find.byType(SplashScreen), findsNothing);
+
+      await _teardownApp(tester, container);
     });
 
     testWidgets('sidebar visible on desktop width', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       // Extended sidebar shows Helios branding and nav labels
@@ -67,43 +104,46 @@ void main() {
       expect(find.text('Fly'), findsOneWidget);
       expect(find.text('Plan'), findsOneWidget);
       expect(find.byType(BottomNavigationBar), findsNothing);
+
+      await _teardownApp(tester, container);
     });
 
     testWidgets('navigation rail visible on tablet width', (tester) async {
       tester.view.physicalSize = const Size(900, 700);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       expect(find.byType(NavigationRail), findsOneWidget);
       expect(find.byType(BottomNavigationBar), findsNothing);
+
+      await _teardownApp(tester, container);
     });
 
     testWidgets('bottom nav visible on mobile width', (tester) async {
       tester.view.physicalSize = const Size(375, 812);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+      await _teardownApp(tester, container);
     });
 
     testWidgets('can navigate between views', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       // Tap Plan
@@ -118,16 +158,18 @@ void main() {
 
       // Note: Video and Setup tabs use media_kit which requires native libs
       // not available in the test environment. Tested manually.
+
+      await _teardownApp(tester, container);
     });
 
     testWidgets('status bar is visible', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: HeliosApp()),
-      );
+      final container = await _pumpApp(tester);
       await _dismissSplash(tester);
 
       // Status bar shows DISARMED by default
       expect(find.text('DISARMED'), findsOneWidget);
+
+      await _teardownApp(tester, container);
     });
   });
 }
