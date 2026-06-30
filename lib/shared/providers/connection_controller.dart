@@ -11,10 +11,15 @@ import '../../core/mavlink/transports/tcp.dart';
 import '../../core/mavlink/transports/serial.dart';
 import '../../core/mavlink/transports/websocket_transport.dart';
 import '../../core/mission/mission_service.dart';
+import '../../core/msp/msp_message.dart';
+import '../../core/msp/msp_message_router.dart';
 import '../../core/msp/msp_service.dart';
 import '../../core/logs/log_download_service.dart';
 import '../../core/params/parameter_service.dart';
 import '../../core/params/param_meta_service.dart';
+import '../../core/protocol/protocol_adapter_factory.dart';
+import '../../core/protocol/protocol_message.dart';
+import '../../core/protocol/protocol_service.dart';
 import '../../core/protocol_detector.dart';
 import '../../core/mavlink/flight_modes.dart';
 import '../../core/rally/rally_service.dart';
@@ -32,10 +37,16 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
   ConnectionController(this._ref) : super(const ConnectionStatus());
 
   final Ref _ref;
+
+  /// The one Protocol adapter behind the seam for the active Link.
+  ProtocolService? _adapter;
+
+  /// The concrete MAVLink adapter, set only when [_adapter] is a MAVLink adapter
+  /// (the MAVLink sub-protocol services and outbound commands need it). Null on
+  /// the MSP path.
   MavlinkService? _service;
-  MspService? _mspService;
-  StreamSubscription<MavlinkMessage>? _messageSub;
-  StreamSubscription<VehicleState>? _mspStateSub;
+
+  StreamSubscription<ProtocolMessage>? _messageSub;
   StreamSubscription<LinkState>? _linkSub;
   StreamSubscription<TransportState>? _transportStateSub;
   Timer? _rateTimer;
@@ -48,6 +59,12 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
   // firing for an initial connection attempt that never succeeded.
   bool _wasConnected = false;
 
+  /// Per-connection MAVLink message router (built on the MAVLink path).
+  MavlinkMessageRouter? _mavRouter;
+
+  /// Per-connection MSP State convergence (built on the MSP path).
+  MspMessageRouter? _mspRouter;
+
   static const _reconnectDelays = [2, 4, 8, 16, 30];
 
   bool get isConnected =>
@@ -57,41 +74,51 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _intentionalDisconnect = false;
     await disconnect();
 
-    final MavlinkTransport transport = switch (config) {
-      UdpConnectionConfig(:final bindAddress, :final port) =>
-        UdpTransport(bindAddress: bindAddress, bindPort: port),
-      TcpConnectionConfig(:final host, :final port) =>
-        TcpTransport(host: host, port: port),
-      SerialConnectionConfig(:final portName, :final baudRate) =>
-        SerialTransport(portName: portName, baudRate: baudRate),
-      WebSocketConnectionConfig(:final uri) =>
-        WebSocketTransport(uri: uri),
-    };
-
     try {
-      if (config.protocol == ProtocolType.auto) {
-        await _connectWithDetection(transport, config);
-        return;
+      // Build transport → detect if auto → factory → one adapter →
+      // shared wiring. This is the protocol-agnostic connect lifecycle: the
+      // only place protocol still matters is the single exhaustive dispatch
+      // switch in [_dispatchMessage]. See ADR 0002, decision 6.
+      final transport = _buildTransport(config);
+
+      var protocol = config.protocol;
+      var alreadyConnected = false;
+
+      if (protocol == ProtocolType.auto) {
+        protocol = await _detectProtocol(transport, config);
+        alreadyConnected = true;
       }
 
-      if (config.protocol == ProtocolType.msp) {
-        await _connectMsp(transport, config);
-        return;
-      }
-
-      await _connectMavlink(transport, config);
+      final adapter = ProtocolAdapterFactory.create(protocol, transport);
+      await _bringUpAdapter(
+        adapter,
+        config,
+        alreadyConnected: alreadyConnected,
+      );
     } catch (_) {
       // Connection failure is already reflected in state (TransportState.error).
       // Swallow here so unawaited callers (e.g. UI button handlers) don't crash.
     }
   }
 
-  /// Connect using protocol auto-detection.
+  MavlinkTransport _buildTransport(ConnectionConfig config) {
+    return switch (config) {
+      UdpConnectionConfig(:final bindAddress, :final port) =>
+        UdpTransport(bindAddress: bindAddress, bindPort: port),
+      TcpConnectionConfig(:final host, :final port) =>
+        TcpTransport(host: host, port: port),
+      SerialConnectionConfig(:final portName, :final baudRate) =>
+        SerialTransport(portName: portName, baudRate: baudRate),
+      WebSocketConnectionConfig(:final uri) => WebSocketTransport(uri: uri),
+    };
+  }
+
+  /// Connect the transport and run [ProtocolDetector.detect].
   ///
-  /// Connects the transport, runs [ProtocolDetector.detect], then hands off
-  /// to [_connectMavlink] or [_connectMsp] with [alreadyConnected] = true so
-  /// the transport is not re-connected.
-  Future<void> _connectWithDetection(
+  /// Returns the resolved [ProtocolType] (never [ProtocolType.auto]). The
+  /// transport is left connected so the adapter can adopt it with
+  /// `alreadyConnected: true`.
+  Future<ProtocolType> _detectProtocol(
     MavlinkTransport transport,
     ConnectionConfig config,
   ) async {
@@ -110,13 +137,7 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       rethrow;
     }
 
-    final detected = await ProtocolDetector.detect(transport);
-
-    if (detected == ProtocolType.msp) {
-      await _connectMsp(transport, config, alreadyConnected: true);
-    } else {
-      await _connectMavlink(transport, config, alreadyConnected: true);
-    }
+    return ProtocolDetector.detect(transport);
   }
 
   /// Build the routing sinks that bridge the pure [MavlinkMessageRouter] to
@@ -186,20 +207,24 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     );
   }
 
-  /// MAVLink connection path.
-  Future<void> _connectMavlink(
-    MavlinkTransport transport,
+  /// Shared bring-up for the one Protocol adapter behind the seam.
+  ///
+  /// Identical for every protocol: wire Link health, transport-state →
+  /// reconnect, the stats timer, and the single inbound message subscription
+  /// (dispatched by [_dispatchMessage]); then connect, mark connected, persist
+  /// the config, and start auto-recording. The only per-protocol setup is
+  /// constructing the matching convergence router and (for MAVLink) the
+  /// sub-protocol services — done by [_prepareConvergence].
+  Future<void> _bringUpAdapter(
+    ProtocolService adapter,
     ConnectionConfig config, {
     bool alreadyConnected = false,
   }) async {
-    _service = MavlinkService(transport);
-    _missionService = MissionService(_service!);
-    _paramService = ParameterService(_service!);
-    _logDownloadService = LogDownloadService(_service!);
-    _rallyService = RallyService(_service!);
+    _adapter = adapter;
+    _prepareConvergence(adapter);
 
-    // Wire link state changes to connection status
-    _linkSub = _service!.linkStateStream.listen((linkState) {
+    // Wire Link-health changes to connection status.
+    _linkSub = adapter.linkHealth.listen((linkState) {
       state = state.copyWith(linkState: linkState);
       _ref.read(connectionStatusProvider.notifier).state = state;
     });
@@ -207,21 +232,21 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     // Watch for transport errors (e.g. USB serial unplugged) and auto-reconnect.
     // Only reconnect if the connection was fully established (_wasConnected),
     // not when the initial connect attempt fails.
-    _transportStateSub = _service!.transportStateStream.listen((ts) {
-      if (ts == TransportState.error && _wasConnected && !_intentionalDisconnect && !_reconnecting) {
+    _transportStateSub = adapter.transportStateStream.listen((ts) {
+      if (ts == TransportState.error &&
+          _wasConnected &&
+          !_intentionalDisconnect &&
+          !_reconnecting) {
         _scheduleReconnect(config);
       }
     });
 
-    // Route all messages through the pure router into VehicleStateNotifier,
-    // TelemetryStore, alert/adsb/inspector sinks and first-heartbeat setup.
-    final Set<int> knownSystems = {};
-    final router = MavlinkMessageRouter(_buildRouterSinks(knownSystems));
-    _messageSub = _service!.messageStream.listen(router.route);
+    // One inbound subscription → one exhaustive dispatch switch.
+    _messageSub = adapter.messages.listen(_dispatchMessage);
 
-    // Message rate calculation (every second)
+    // Message rate calculation (every second).
     _rateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final current = _service?.messagesReceived ?? 0;
+      final current = _adapter?.messagesReceived ?? 0;
       final rate = (current - _lastMsgCount).toDouble();
       _lastMsgCount = current;
       state = state.copyWith(
@@ -240,7 +265,7 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
         _ref.read(connectionStatusProvider.notifier).state = state;
       }
 
-      await _service!.connect(alreadyConnected: alreadyConnected);
+      await adapter.connect(alreadyConnected: alreadyConnected);
 
       _wasConnected = true;
       state = state.copyWith(
@@ -249,14 +274,16 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
       );
       _ref.read(connectionStatusProvider.notifier).state = state;
 
-      // Save last connection for quick reconnect
+      // Save last connection for quick reconnect.
       _ref.read(connectionSettingsProvider.notifier).save(config);
 
-      // Auto-record on connect
+      // Auto-record on connect.
       try {
         final store = _ref.read(telemetryStoreProvider);
         if (!store.isRecording) {
-          final path = await store.createFlight(protocol: 'mavlink');
+          final path = await store.createFlight(
+            protocol: _service != null ? 'mavlink' : 'msp',
+          );
           _ref.read(recordingStateProvider.notifier).state = RecordingState(
             isRecording: true,
             currentFilePath: path,
@@ -264,131 +291,104 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
           );
         }
       } catch (e, st) {
-        // Recording failure shouldn't prevent connection, but log it
+        // Recording failure shouldn't prevent connection, but log it.
         // ignore: avoid_print
         print('[Helios] Auto-record failed: $e\n$st');
       }
     } catch (e) {
-      // Clean up on connection failure
-      await _service?.disconnect();
-      _service?.dispose();
+      // Clean up on connection failure.
+      await _adapter?.disconnect();
+      _adapter?.dispose();
+      _adapter = null;
       _service = null;
+      _mavRouter = null;
+      _mspRouter = null;
       state = state.copyWith(transportState: TransportState.error);
       _ref.read(connectionStatusProvider.notifier).state = state;
       rethrow;
     }
   }
 
-  /// MSP connection path — separate from MAVLink to keep each path readable.
-  Future<void> _connectMsp(
-    MavlinkTransport transport,
-    ConnectionConfig config, {
-    bool alreadyConnected = false,
-  }) async {
-    _mspService = MspService(transport);
-
-    _linkSub = _mspService!.linkStateStream.listen((linkState) {
-      state = state.copyWith(linkState: linkState);
-      _ref.read(connectionStatusProvider.notifier).state = state;
-    });
-
-    _mspStateSub = _mspService!.vehicleStateStream.listen((mspState) {
-      _ref.read(vehicleStateProvider.notifier).applyMspState(mspState);
-
-      // Buffer to DuckDB if recording
-      final store = _ref.read(telemetryStoreProvider);
-      if (store.isRecording) {
-        store.bufferMspAttitude(
-          rollDeg: mspState.roll * 180 / pi,
-          pitchDeg: mspState.pitch * 180 / pi,
-          headingDeg: mspState.heading,
-        );
-        if (mspState.hasPosition) {
-          store.bufferMspGps(
-            fixType: mspState.gpsFix.index,
-            numSat: mspState.satellites,
-            lat: mspState.latitude,
-            lon: mspState.longitude,
-            altitudeM: mspState.altitudeMsl,
-            speedMs: mspState.groundspeed,
-            courseDeg: mspState.heading.toDouble(),
-          );
-        }
-        if (mspState.batteryVoltage > 0) {
-          store.bufferMspAnalog(
-            voltageV: mspState.batteryVoltage,
-            currentA: mspState.batteryCurrent,
-            consumedMah: mspState.batteryConsumed,
-            remainingPct: mspState.batteryRemaining.clamp(0, 100),
-            rssi: mspState.rssi,
-          );
-        }
-        store.bufferMspAltitude(
-          altitudeRelM: mspState.altitudeRel,
-          climbMs: mspState.climbRate,
-        );
-        store.bufferMspStatus(
-          armed: mspState.armed,
-          flightModeFlags: mspState.flightMode.number,
-          flightModeName: mspState.flightMode.name,
-          sensorsOk: mspState.sensorHealth == 0,
-          cycleTimeUs: 0,
-        );
-      }
-    });
-
-    _rateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final current = _mspService?.messagesReceived ?? 0;
-      final rate = (current - _lastMsgCount).toDouble();
-      _lastMsgCount = current;
-      state = state.copyWith(
-        messageRate: rate,
-        messagesReceived: current,
-      );
-      _ref.read(connectionStatusProvider.notifier).state = state;
-    });
-
-    try {
-      state = state.copyWith(
-        transportState: TransportState.connecting,
-        activeConfig: config,
-      );
-      _ref.read(connectionStatusProvider.notifier).state = state;
-
-      await _mspService!.connect(alreadyConnected: alreadyConnected);
-
-      _wasConnected = true;
-      state = state.copyWith(
-        transportState: TransportState.connected,
-        connectedSince: DateTime.now(),
-      );
-      _ref.read(connectionStatusProvider.notifier).state = state;
-
-      _ref.read(connectionSettingsProvider.notifier).save(config);
-
-      // Auto-record on connect
-      try {
-        final store = _ref.read(telemetryStoreProvider);
-        if (!store.isRecording) {
-          final path = await store.createFlight(protocol: 'msp');
-          _ref.read(recordingStateProvider.notifier).state = RecordingState(
-            isRecording: true,
-            currentFilePath: path,
-            recordingStarted: DateTime.now(),
-          );
-        }
-      } catch (e, st) {
-        // ignore: avoid_print
-        print('[Helios] Auto-record failed: $e\n$st');
-      }
-    } catch (e) {
-      await _mspService?.disconnect();
-      _mspService?.dispose();
-      _mspService = null;
-      state = state.copyWith(transportState: TransportState.error);
-      _ref.read(connectionStatusProvider.notifier).state = state;
-      rethrow;
+  /// Per-protocol convergence setup: build the matching State-convergence router
+  /// and, on the MAVLink path, the sub-protocol services and outbound handle.
+  void _prepareConvergence(ProtocolService adapter) {
+    switch (adapter) {
+      case MavlinkService():
+        _service = adapter;
+        _missionService = MissionService(adapter);
+        _paramService = ParameterService(adapter);
+        _logDownloadService = LogDownloadService(adapter);
+        _rallyService = RallyService(adapter);
+        _mavRouter = MavlinkMessageRouter(_buildRouterSinks(<int>{}));
+      case MspService():
+        _mspRouter = MspMessageRouter();
     }
+  }
+
+  /// The single exhaustive dispatch switch over the sealed [ProtocolMessage].
+  ///
+  /// This is the "one protocol seam" in practice: not zero branching, but one
+  /// honest branch routing each typed inbound fact into its per-protocol State
+  /// convergence (ADR 0002). MAVLink folds through [MavlinkMessageRouter];
+  /// MSP folds through [MspMessageRouter] and feeds the recorder.
+  void _dispatchMessage(ProtocolMessage message) {
+    switch (message) {
+      case MavlinkMsg(:final message):
+        _mavRouter?.route(message);
+      case MspMsg(:final message):
+        _routeMspMessage(message);
+    }
+  }
+
+  /// Fold one typed MSP message into vehicle state and DuckDB.
+  void _routeMspMessage(MspMessage message) {
+    final router = _mspRouter;
+    if (router == null) return;
+
+    final mspState = router.route(message);
+    _ref.read(vehicleStateProvider.notifier).applyMspState(mspState);
+
+    // Buffer to DuckDB if recording. Buffer per fold so the recorder sees the
+    // same cadence the old per-snapshot path produced.
+    final store = _ref.read(telemetryStoreProvider);
+    if (!store.isRecording) return;
+
+    store.bufferMspAttitude(
+      rollDeg: mspState.roll * 180 / pi,
+      pitchDeg: mspState.pitch * 180 / pi,
+      headingDeg: mspState.heading,
+    );
+    if (mspState.hasPosition) {
+      store.bufferMspGps(
+        fixType: mspState.gpsFix.index,
+        numSat: mspState.satellites,
+        lat: mspState.latitude,
+        lon: mspState.longitude,
+        altitudeM: mspState.altitudeMsl,
+        speedMs: mspState.groundspeed,
+        courseDeg: mspState.heading.toDouble(),
+      );
+    }
+    if (mspState.batteryVoltage > 0) {
+      store.bufferMspAnalog(
+        voltageV: mspState.batteryVoltage,
+        currentA: mspState.batteryCurrent,
+        consumedMah: mspState.batteryConsumed,
+        remainingPct: mspState.batteryRemaining.clamp(0, 100),
+        rssi: mspState.rssi,
+      );
+    }
+    store.bufferMspAltitude(
+      altitudeRelM: mspState.altitudeRel,
+      climbMs: mspState.climbRate,
+    );
+    store.bufferMspStatus(
+      armed: mspState.armed,
+      flightModeFlags: mspState.flightMode.number,
+      flightModeName: mspState.flightMode.name,
+      sensorsOk: mspState.sensorHealth == 0,
+      cycleTimeUs: 0,
+    );
   }
 
   /// Request AUTOPILOT_VERSION with retries and fallback to the older
@@ -512,27 +512,36 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _reconnectTimer = Timer(Duration(seconds: delaySecs), () async {
       if (_intentionalDisconnect) return;
       try {
-        // Tear down the broken service without flagging as intentional.
+        // Tear down the broken adapter without flagging as intentional.
         _reconnectTimer = null;
         _rateTimer?.cancel(); _rateTimer = null;
         await _messageSub?.cancel(); _messageSub = null;
         await _linkSub?.cancel(); _linkSub = null;
         await _transportStateSub?.cancel(); _transportStateSub = null;
-        await _service?.disconnect(); _service?.dispose(); _service = null;
+        _missionService?.dispose(); _missionService = null;
+        _paramService?.dispose(); _paramService = null;
+        _logDownloadService?.dispose(); _logDownloadService = null;
+        _rallyService?.dispose(); _rallyService = null;
+        await _adapter?.disconnect(); _adapter?.dispose(); _adapter = null;
+        _service = null;
+        _mavRouter = null;
+        _mspRouter = null;
         _lastMsgCount = 0;
 
-        await _connectMavlink(
-          switch (config) {
-            SerialConnectionConfig(:final portName, :final baudRate) =>
-              SerialTransport(portName: portName, baudRate: baudRate),
-            UdpConnectionConfig(:final bindAddress, :final port) =>
-              UdpTransport(bindAddress: bindAddress, bindPort: port),
-            TcpConnectionConfig(:final host, :final port) =>
-              TcpTransport(host: host, port: port),
-            WebSocketConnectionConfig(:final uri) =>
-              WebSocketTransport(uri: uri),
-          },
+        // Rebuild through the same path connect() uses: fresh transport →
+        // detect if auto → factory → shared bring-up.
+        final transport = _buildTransport(config);
+        var protocol = config.protocol;
+        var alreadyConnected = false;
+        if (protocol == ProtocolType.auto) {
+          protocol = await _detectProtocol(transport, config);
+          alreadyConnected = true;
+        }
+        final adapter = ProtocolAdapterFactory.create(protocol, transport);
+        await _bringUpAdapter(
+          adapter,
           config,
+          alreadyConnected: alreadyConnected,
         );
         _reconnecting = false;
         _reconnectAttempts = 0;
@@ -556,8 +565,6 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _rateTimer = null;
     await _messageSub?.cancel();
     _messageSub = null;
-    await _mspStateSub?.cancel();
-    _mspStateSub = null;
     await _linkSub?.cancel();
     _linkSub = null;
     await _transportStateSub?.cancel();
@@ -570,12 +577,12 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _missionService = null;
     _rallyService?.dispose();
     _rallyService = null;
-    await _service?.disconnect();
-    _service?.dispose();
+    await _adapter?.disconnect();
+    _adapter?.dispose();
+    _adapter = null;
     _service = null;
-    await _mspService?.disconnect();
-    _mspService?.dispose();
-    _mspService = null;
+    _mavRouter = null;
+    _mspRouter = null;
     _lastMsgCount = 0;
 
     // Stop recording on disconnect
@@ -1098,11 +1105,11 @@ class ConnectionController extends StateNotifier<ConnectionStatus> {
     _missionService?.dispose();
     _rallyService?.dispose();
     _rateTimer?.cancel();
+    _reconnectTimer?.cancel();
     _messageSub?.cancel();
-    _mspStateSub?.cancel();
     _linkSub?.cancel();
-    _service?.dispose();
-    _mspService?.dispose();
+    _transportStateSub?.cancel();
+    _adapter?.dispose();
     super.dispose();
   }
 }
