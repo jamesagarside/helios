@@ -5,6 +5,7 @@ import '../../../core/calibration/calibration_service.dart';
 import '../../../shared/models/vehicle_state.dart';
 import '../../../shared/providers/providers.dart';
 import '../../../shared/theme/helios_colors.dart';
+import 'accel_cal_wizard.dart';
 
 /// Sensor calibration wizard with step-by-step guidance.
 class CalibrationWizard extends ConsumerStatefulWidget {
@@ -18,6 +19,7 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
   CalibrationService? _calService;
   StreamSubscription<CalibrationProgress>? _progressSub;
   CalibrationProgress _progress = const CalibrationProgress();
+  bool _showAccelWizard = false;
 
   @override
   void dispose() {
@@ -59,6 +61,13 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
   @override
   Widget build(BuildContext context) {
     final hc = context.hc;
+
+    if (_showAccelWizard) {
+      return AccelCalWizard(
+        onClose: () => setState(() => _showAccelWizard = false),
+      );
+    }
+
     final isConnected = ref.watch(connectionControllerProvider).transportState ==
         TransportState.connected;
     final isRunning = _progress.state == CalibrationState.running;
@@ -85,8 +94,15 @@ class _CalibrationWizardState extends ConsumerState<CalibrationWizard> {
                   ? () => _startCal(CalibrationType.compass) : null,
             ),
             _CalButton(
+              icon: Icons.view_in_ar,
+              label: '6-Point Accel',
+              onPressed: isConnected && !isRunning
+                  ? () => setState(() => _showAccelWizard = true)
+                  : null,
+            ),
+            _CalButton(
               icon: Icons.straighten,
-              label: 'Accel',
+              label: 'Simple Accel',
               onPressed: isConnected && !isRunning
                   ? () => _startCal(CalibrationType.accel) : null,
             ),
