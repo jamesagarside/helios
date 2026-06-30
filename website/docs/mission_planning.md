@@ -18,25 +18,61 @@ The Plan View is Helios's mission planning screen. It supports waypoint editing,
 | Loiter (unlimited) | Circle indefinitely at position |
 | Loiter (turns) | Circle N times then continue |
 | Loiter (time) | Circle for T seconds then continue |
-| Loiter to altitude | Circle until reaching altitude |
 | Return to Launch | Return home |
 | Spline waypoint | Smooth curve through waypoint |
 
-### Action commands (DO_)
+### Action commands (DO_ / CONDITION)
 
-Action commands execute in parallel with navigation and do not move the vehicle.
+Action and condition commands execute alongside navigation and do not move the vehicle.
 
 | Command | Parameters | Description |
 |---|---|---|
 | Change Speed | Speed type, Speed (m/s), Throttle % | Change cruise speed mid-mission |
 | Jump | Target seq, Repeat count | Loop back to a waypoint N times |
-| Camera trigger | Distance (m) | Trigger camera every N metres |
-| Mount control | Pitch, Roll, Yaw | Point gimbal to angle |
-| Land start | — | Mark start of auto-landing sequence |
-| Gripper | Instance, Action | Open/close servo gripper |
-| Pause/Continue | Continue flag | Pause mission until resumed |
+| Camera Trigger | Distance (m) | Trigger camera every N metres |
+| Gimbal Control | Pitch, Roll, Yaw | Point gimbal to angle (mount control) |
+| Land Start | — | Mark start of auto-landing sequence |
+| Gripper | Gripper ID, Action | Open/close servo gripper |
+| Pause/Continue | Pause or continue flag | Pause mission until resumed |
+| Set Servo | Servo #, PWM (us) | Move a servo to a PWM value |
+| Set Relay | Relay #, State | Switch a relay on or off |
+| Repeat Servo | Servo #, PWM (us), Count, Cycle (s) | Cycle a servo N times |
+| Repeat Relay | Relay #, Count, Cycle (s) | Cycle a relay N times |
+| Fence Enable | Enable (off / on / floor-only) | Enable or disable the geofence |
+| Condition: Delay | Delay (s) | Wait before the next command |
+| Condition: Distance | Distance (m) | Hold the next command until a distance is reached |
+| Condition: Yaw | Angle, Rate, Direction, Relative | Turn to a heading before continuing |
 
-Each command shows labelled parameter fields — no more generic "Param 1"–"Param 7".
+Each command shows labelled parameter fields rather than generic "Param 1"–"Param 7".
+
+---
+
+## Altitude Frames
+
+Each waypoint carries its own altitude frame, selected from the **Alt Frame**
+picker in the waypoint editor:
+
+| Frame | Meaning |
+|---|---|
+| Relative (home) | Altitude is measured above the home position |
+| Absolute (AMSL) | Altitude is measured above mean sea level |
+| Terrain | Altitude is measured above the ground beneath the waypoint |
+
+---
+
+## Pre-Upload Validation
+
+Helios checks the mission before upload and surfaces findings as a chip in the
+mission stats bar. Findings are ordered errors first, then warnings, then info:
+
+| Finding | Severity |
+|---|---|
+| `DO_JUMP` target out of range | Error |
+| Mission above the item limit | Warning |
+| Waypoint altitude at or below home / ground (relative or terrain frame) | Warning |
+| Below the minimum terrain clearance (absolute frame, when terrain data is available) | Warning |
+| Duplicate of the previous waypoint (same position) | Warning |
+| Large altitude change from the previous waypoint | Info |
 
 ---
 

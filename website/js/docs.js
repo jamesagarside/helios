@@ -16,7 +16,7 @@ var DOCS_BASE = 'docs/';
 const ALLOWED_SLUGS = new Set([
   'getting-started', 'installation', 'connection-guide', 'web-app-guide',
   'features-overview', 'fly_view', 'mission_planning',
-  'analyse-view', 'video-streaming', 'setup-guide',
+  'analyse-view', 'video-streaming', 'setup-guide', 'vehicle-config',
   'points_of_interest', 'corridor-scan', 'no_fly_zones', 'terrain-planning',
   'emergency-procedures', 'gimbal-control', 'guided-commands', 'joystick-control',
   'mavlink-terminal', 'diagnostic_panels', 'simulate',
@@ -43,6 +43,7 @@ const DOCS_NAV = [
       { slug: 'analyse-view', title: 'Data & Analytics' },
       { slug: 'video-streaming', title: 'Video Streaming' },
       { slug: 'setup-guide', title: 'Setup & Config' },
+      { slug: 'vehicle-config', title: 'Vehicle Config' },
     ],
   },
   {

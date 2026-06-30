@@ -106,6 +106,41 @@ Telemetry recording is automatic. It starts when a vehicle connects and stops on
 
 ---
 
+## Parameter Editor
+
+**Protocol**: MAVLink only
+
+The parameter editor (in the FC Config view's Parameters tab) lists every
+parameter with search, group filtering, and metadata. It also tracks how each
+parameter differs from its default.
+
+### Defaults
+
+Defaults can be loaded two ways:
+
+| Source | Detail |
+|---|---|
+| Fetch Defaults (from FC) | Pulls vehicle-exact, board-specific defaults from the flight controller over MAVLink FTP (`@PARAM/param.pck?withdefaults=1`, decoded from the `param.pck` payload) |
+| Load from file | Loads defaults from a `.param` file as an offline fallback |
+
+Once defaults are loaded, each row shows whether its value differs from the
+default.
+
+### Modified-only view
+
+A **Modified** filter shows only parameters that differ from their default, with
+a live count of changed parameters. The filter appears once defaults have been
+loaded.
+
+| Action | Effect |
+|---|---|
+| Modified filter | Show only changed parameters, with a live count |
+| Reset to default | Per-row reset writes the known default back to the FC |
+| Export .param | Export the full parameter set |
+| Export changed-only | Export only the parameters that differ from their default |
+
+---
+
 ## Video Tab
 
 ### RTSP URL

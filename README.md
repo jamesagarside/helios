@@ -107,13 +107,29 @@ Helios supports both MAVLink (ArduPilot, PX4, iNav) and MSP (Betaflight, iNav, C
 | **Setup & Configuration** | | | |
 | Connection (UDP / TCP) | ✅ | ✅ | |
 | Connection (Serial / USB) | ✅ | ✅ | macOS, Linux, Windows only -- not available on iOS/Android |
+| Web Serial (USB in browser) | ✅ | ✅ | Chromium browsers over HTTPS; no relay needed |
 | Protocol auto-detection | ✅ | ✅ | 5 s probe; first valid frame wins |
 | Parameter editor | ✅ | ❌ | MSP has no parameter protocol in Helios |
+| Modified-only param view | ✅ | ❌ | Per-row default + changed flag, live count, reset-to-default, changed-only export |
+| Board-exact param defaults | ✅ | ❌ | Fetched over MAVLink FTP (`param.pck`); offline file fallback retained |
+| 3D Airframe Model | ✅ | ❌ | Frame-aware, attitude-driven; turns green at a target pose |
+| Board orientation editor | ✅ | ❌ | `AHRS_ORIENTATION` / `COMPASS_ORIENT` beside the Airframe Model |
+| 6-point accel calibration | ✅ | ❌ | Wizard with Airframe Model as live target-pose validator |
+| RC / radio calibration | ✅ | ❌ | Live channel bars, min/max/trim, reversal, `RCMAP_*` |
+| Flight-mode mapping | ✅ | ❌ | Modes to RC PWM bands (`FLTMODE_CH`, `FLTMODE1`..`6`) with live active slot |
+| ESC calibration | ✅ | ❌ | Semi-auto + manual endpoints; props-off gating; DShot/brushed detection |
+| Battery / power setup | ✅ | ❌ | Monitor type, voltage/current cal, capacity, live readouts |
+| Airspeed calibration | ✅ | ❌ | Preflight zero-offset, ratio, sensor config, live readout |
+| Pre-arm / arming-check editor | ✅ | ❌ | `ARMING_CHECK` bitmask editor + live pre-arm health |
+| VTOL / quadplane panel | ✅ | ❌ | Shown when `Q_ENABLE`=1; transition/assist, tilt, `Q_OPTIONS`, PID tuning, QAUTOTUNE |
 | Sensor calibration | ✅ | ❌ | ArduPilot/PX4 calibration commands only |
 | Stream rate control | ✅ | ❌ | Polling rates are fixed in MSP service |
 | **Mission Planning** | | | |
 | Waypoint upload / download | ✅ | ❌ | Betaflight has no waypoint mission support |
-| DO_ action commands (speed, jump, camera, gimbal, gripper) | ✅ | ❌ | Labelled param editor per command type |
+| Per-waypoint altitude frame | ✅ | ❌ | Relative (home), Absolute (AMSL), or Terrain |
+| DO_ / CONDITION commands | ✅ | ❌ | Speed, jump, camera, gimbal, gripper, set/repeat servo + relay, fence enable, condition delay/distance/yaw; labelled param editor per command |
+| Spline waypoints | ✅ | ❌ | NAV_SPLINE_WAYPOINT |
+| Pre-upload mission validation | ✅ | ❌ | Out-of-range DO_JUMP, bad altitude, duplicates, terrain clearance, large jumps; stats-bar chip |
 | Multi-select + batch altitude / delete | ✅ | ❌ | Long-press → checkbox mode; Ctrl+A |
 | KML / GPX import | ✅ | ❌ | Placemark, LineString, wpt, trkpt |
 | Polygon area survey | ✅ | ❌ | Tap polygon vertices → lawnmower grid clipped to shape |

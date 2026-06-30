@@ -35,10 +35,12 @@ Presentation (UI)
 ```
 lib/
   core/                    Business logic (no UI imports)
+    protocol/              Unified protocol seam (ProtocolService, sealed ProtocolMessage)
     mavlink/               MAVLink parser, transports, heartbeat watchdog, flight modes
     mission/               Mission upload/download protocol, corridor scan, survey
-    params/                Parameter fetch/set/export, metadata service
-    calibration/           Sensor calibration sequences
+    params/                Parameter fetch/set/export, metadata service, MAVLink FTP
+    calibration/           Sensor calibration sequences (accel, RC, ESC, battery, airspeed)
+    airframe/              Frame-aware 3D Airframe Model meshes and projection
     fence/                 Geofence upload/download
     logs/                  Dataflash log download
     telemetry/             DuckDB recording, schema, analytics, replay, export
@@ -51,7 +53,7 @@ lib/
     analyse/               Data View -- flight browser, charts, SQL editor
     video/                 Video View -- RTSP streaming, HUD overlay
     setup/                 Setup View -- connection, params, calibration, settings
-    config/                FC Config View -- parameter editor
+    config/                FC Config View -- vehicle setup, calibration, parameter editor
     inspect/               Inspect View -- MAVLink packet inspector
   shared/                  Cross-feature code
     models/                Immutable data classes (Equatable)
@@ -111,6 +113,30 @@ The generated CRC extras file must never be hand-edited. Always regenerate from 
 
 `MavlinkFrameBuilder` constructs outgoing MAVLink v2 frames for sending commands, mission items, parameter requests, and other GCS-to-vehicle messages. It handles sequence numbering, system/component ID assignment, and CRC computation.
 
+## Unified Protocol Seam
+
+MAVLink and MSP sit behind a single `ProtocolService` interface
+(`lib/core/protocol/`). Each protocol is implemented as an adapter that owns its
+own transport, parser, and decoder, and the connection layer holds one adapter
+regardless of which protocol is in use.
+
+The seam carries inbound facts, lifecycle, link health, and stats:
+
+| Concern | Detail |
+|---|---|
+| Inbound messages | One stream of typed `ProtocolMessage` values |
+| Sealed message type | `ProtocolMessage` has exactly two cases, `MavlinkMsg` and `MspMsg`, so the connection layer dispatches with one exhaustive `switch` |
+| Link health | One shared link-health stream, computed the same way for every protocol |
+| Stats | Read-only received / sent / parse-error counters |
+
+Outbound behaviour stays protocol-specific and is reached through the concrete
+adapter rather than the shared interface, because MAVLink
+(command / mission / parameter / calibration) and MSP (polling) have different
+shapes. The MSP decoder is firmware-agnostic (bytes to typed fields); firmware
+interpretation happens during per-protocol state convergence. The rationale is
+recorded in
+[ADR 0002](https://github.com/jamesagarside/helios/blob/main/docs/adr/0002-unified-protocol-seam.md).
+
 ## 30Hz State Batching
 
 High-frequency MAVLink messages (ATTITUDE at 25-50Hz, GPS at 5-10Hz, SYS_STATUS at 1-2Hz) arrive at different rates. Updating the Flutter widget tree on every incoming message would cause excessive rebuilds.
@@ -169,6 +195,7 @@ DuckDB's columnar engine enables analytical queries that would be slow in a row-
 | 305 auto-generated CRC extras | Generated from MAVLink XML at build time, not hand-coded |
 | Equatable models | Immutable value objects with structural equality for reliable Riverpod state comparison |
 | Protocol auto-detection | 5-second probe supports both MAVLink and MSP without manual protocol selection |
+| Unified protocol seam | One `ProtocolService` behind a sealed `ProtocolMessage`; shared inbound, link health, and stats with one exhaustive dispatch switch (ADR 0002) |
 
 ## Build System
 

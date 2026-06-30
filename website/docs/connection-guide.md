@@ -57,6 +57,20 @@ The serial port dropdown lists all currently available serial ports. On macOS, P
 
 **Note:** Serial port access on macOS requires the app sandbox to be disabled, which is already configured in the Helios build settings.
 
+#### Serial in the web app (Web Serial)
+
+The web app can connect to a USB flight controller directly from the browser
+using the Web Serial API, with no relay process required. This is supported in
+Chromium-based browsers (Chrome / Edge 89 and later) served over HTTPS.
+
+The Web Serial API requires a user gesture to grant access to a port. Use the
+serial port chooser to grant a port; once granted, the port is available to the
+transport and is remembered for later sessions. The serial port list shows only
+ports you have already granted.
+
+On browsers without Web Serial support (for example Firefox and Safari), use the
+relay instead. See the [Web App Guide](web-app-guide.md) for relay setup.
+
 ## Protocol Auto-Detection
 
 When connecting on any transport, Helios runs a 5-second protocol detection probe to determine whether the flight controller speaks MAVLink or MSP (Multiwii Serial Protocol, used by Betaflight and iNav).
