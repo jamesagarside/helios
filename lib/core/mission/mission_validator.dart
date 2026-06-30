@@ -21,8 +21,8 @@ class MissionIssue {
       '[${severity.name}]${seq != null ? ' wp$seq:' : ''} $message';
 }
 
-/// Pre-upload sanity checks for a mission, mirroring the kind of warnings
-/// Mission Planner surfaces before sending a mission to the vehicle.
+/// Pre-upload sanity checks for a mission, surfacing the kind of warnings a
+/// ground control station should raise before sending a mission to the vehicle.
 ///
 /// Intentionally pure and dependency-free so it is straightforward to unit
 /// test. Terrain awareness is opt-in: callers may pass per-waypoint ground
