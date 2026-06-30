@@ -10,6 +10,7 @@ import '../setup/widgets/frame_type_panel.dart';
 import '../setup/widgets/motor_test_panel.dart';
 import '../setup/widgets/parameter_editor.dart';
 import '../setup/widgets/prearm_panel.dart';
+import '../setup/widgets/rc_calibration_panel.dart';
 import '../airframe/orientation_tab.dart';
 
 class FcConfigView extends ConsumerStatefulWidget {
@@ -810,166 +811,9 @@ class _FsValueEditorState extends State<_FsValueEditor> {
 class _RcTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hc = context.hc;
-    final vehicle = ref.watch(vehicleStateProvider);
-    final channels = vehicle.rcChannels;
-    final count = vehicle.rcChannelCount;
-    final hasSignal = count > 0;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Section(
-            title: 'SIGNAL',
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: hasSignal
-                    ? _RcSignalBar(
-                        label: 'RSSI',
-                        value: vehicle.rssi / 255.0,
-                        valueText: '${vehicle.rssi}/255',
-                      )
-                    : Text('No RC signal detected',
-                        style: TextStyle(color: hc.textTertiary, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _Section(
-            title: 'CHANNELS ($count active)',
-            children: [
-              if (!hasSignal)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Connect and arm RC transmitter to see live values.',
-                      style: TextStyle(color: hc.textTertiary, fontSize: 13)),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      for (int i = 0; i < count && i < channels.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 10),
-                        _RcChannelRow(
-                          channelNum: i + 1,
-                          pwm: channels[i],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RcChannelRow extends StatelessWidget {
-  const _RcChannelRow({required this.channelNum, required this.pwm});
-  final int channelNum;
-  final int pwm;
-
-  static const _kMin = 1000;
-  static const _kMax = 2000;
-
-  // 0 means channel not connected in MAVLink spec
-  bool get _active => pwm >= 900 && pwm <= 2200;
-
-  @override
-  Widget build(BuildContext context) {
-    final hc = context.hc;
-    final normalised = _active
-        ? ((pwm - _kMin) / (_kMax - _kMin)).clamp(0.0, 1.0)
-        : 0.0;
-
-    Color barColor;
-    if (!_active) {
-      barColor = hc.textTertiary;
-    } else if (normalised < 0.15 || normalised > 0.85) {
-      barColor = hc.warning;
-    } else {
-      barColor = hc.accent;
-    }
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 32,
-          child: Text('CH$channelNum',
-              style: TextStyle(fontSize: 11, color: hc.textTertiary,
-                  fontWeight: FontWeight.w500)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: normalised,
-              backgroundColor: hc.surfaceDim,
-              color: barColor,
-              minHeight: 8,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 50,
-          child: Text(
-            _active ? '$pwm µs' : '—',
-            textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 11, color: hc.textSecondary,
-                fontFamily: 'monospace'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RcSignalBar extends StatelessWidget {
-  const _RcSignalBar(
-      {required this.label,
-      required this.value,
-      required this.valueText});
-  final String label;
-  final double value;
-  final String valueText;
-
-  @override
-  Widget build(BuildContext context) {
-    final hc = context.hc;
-    return Row(
-      children: [
-        SizedBox(
-          width: 60,
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12, color: hc.textSecondary)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: value.clamp(0.0, 1.0),
-              backgroundColor: hc.surfaceDim,
-              color: hc.accent,
-              minHeight: 8,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(valueText,
-            style: TextStyle(
-                fontSize: 12, color: hc.textTertiary)),
-      ],
-    );
+    // Live bars, endpoint capture, channel reversal, and RCMAP assignment all
+    // live in the dedicated calibration panel so this tab stays a thin host.
+    return const RcCalibrationPanel();
   }
 }
 
