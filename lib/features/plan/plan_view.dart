@@ -15,6 +15,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../../core/mission/kml_importer.dart';
 import '../../core/mission/gpx_importer.dart';
+import '../../core/mission/survey_grid.dart';
 import '../../core/map/cached_tile_provider.dart';
 import '../../core/map/tile_download_service.dart';
 import '../../shared/models/airspace_zone.dart';
@@ -1661,12 +1662,13 @@ class _PlanViewState extends ConsumerState<PlanView> {
     final altitude = double.tryParse(altController.text) ?? 30.0;
     final laps = int.tryParse(lapsController.text) ?? 2;
 
-    final orbitWaypoints = _generateOrbitWaypoints(
-      poi.latitude,
-      poi.longitude,
-      radiusM: radius.clamp(5.0, 2000.0),
-      altitudeM: altitude.clamp(1.0, 500.0),
-      laps: laps.clamp(1, 20),
+    final orbitWaypoints = SurveyGridGenerator().generateOrbitWaypoints(
+      centre: (lat: poi.latitude, lon: poi.longitude),
+      params: OrbitParams(
+        radiusM: radius.clamp(5.0, 2000.0),
+        altitudeM: altitude.clamp(1.0, 500.0),
+        laps: laps.clamp(1, 20),
+      ),
     );
 
     if (orbitWaypoints.isEmpty || !mounted) return;
@@ -1715,55 +1717,6 @@ class _PlanViewState extends ConsumerState<PlanView> {
         );
       },
     );
-  }
-
-  /// Generates [laps] * 12 orbit waypoints clockwise around [centreLat]/[centreLon].
-  List<MissionItem> _generateOrbitWaypoints(
-    double centreLat,
-    double centreLon, {
-    required double radiusM,
-    required double altitudeM,
-    required int laps,
-  }) {
-    const pointsPerLap = 12;
-    const earthRadius = 6371000.0;
-    final latOffsetDeg = (radiusM / earthRadius) * (180.0 / math.pi);
-    final lonOffsetDeg = latOffsetDeg / math.cos(centreLat * math.pi / 180.0);
-
-    final items = <MissionItem>[];
-    var seq = 0;
-
-    // Takeoff at first orbit point
-    const firstAngle = 0.0;
-    final takeoffLat = centreLat + latOffsetDeg * math.cos(firstAngle);
-    final takeoffLon = centreLon + lonOffsetDeg * math.sin(firstAngle);
-    items.add(MissionItem(
-      seq: seq++,
-      frame: MavFrame.globalRelativeAlt,
-      command: MavCmd.navTakeoff,
-      latitude: takeoffLat,
-      longitude: takeoffLon,
-      altitude: altitudeM,
-    ));
-
-    for (var lap = 0; lap < laps; lap++) {
-      for (var p = 0; p < pointsPerLap; p++) {
-        // Clockwise: angle increases in positive direction
-        final angle = 2.0 * math.pi * p / pointsPerLap;
-        final lat = centreLat + latOffsetDeg * math.cos(angle);
-        final lon = centreLon + lonOffsetDeg * math.sin(angle);
-        items.add(MissionItem(
-          seq: seq++,
-          frame: MavFrame.globalRelativeAlt,
-          command: MavCmd.navWaypoint,
-          latitude: lat,
-          longitude: lon,
-          altitude: altitudeM,
-        ));
-      }
-    }
-
-    return items;
   }
 
   Widget _buildTransferOverlay(MissionState missionState, HeliosColors hc) {
@@ -2134,9 +2087,18 @@ class _PlanViewState extends ConsumerState<PlanView> {
       });
       return;
     }
-    final items = _generateSurveyGrid(corner1, corner2, result);
+    final existing = ref.read(missionEditProvider).items;
+    final items = SurveyGridGenerator().generateSurveyGrid(
+      corner1: (lat: corner1.latitude, lon: corner1.longitude),
+      corner2: (lat: corner2.latitude, lon: corner2.longitude),
+      params: SurveyGridParams(
+        laneSpacingM: result.laneSpacing,
+        altitudeM: result.altitude,
+        angleDeg: result.angle,
+      ),
+      existingItemCount: existing.length,
+    );
     if (items.isNotEmpty) {
-      final existing = ref.read(missionEditProvider).items;
       ref.read(missionEditProvider.notifier).loadItems([...existing, ...items]);
     }
     setState(() {
@@ -2153,215 +2115,23 @@ class _PlanViewState extends ConsumerState<PlanView> {
     );
     if (result == null) return;
 
-    final polygon = List<LatLng>.from(_polygonSurveyPoints);
-    final items = _generatePolygonSurvey(polygon, result.laneSpacing, result.altitude);
+    final polygon = _polygonSurveyPoints
+        .map((p) => (lat: p.latitude, lon: p.longitude))
+        .toList();
+    final existing = ref.read(missionEditProvider).items;
+    final items = SurveyGridGenerator().generatePolygonSurvey(
+      polygon: polygon,
+      spacingM: result.laneSpacing,
+      altM: result.altitude,
+      existingItemCount: existing.length,
+    );
     if (items.isNotEmpty) {
-      final existing = ref.read(missionEditProvider).items;
       ref.read(missionEditProvider.notifier).loadItems([...existing, ...items]);
     }
     setState(() {
       _polygonSurveyMode = false;
       _polygonSurveyPoints.clear();
     });
-  }
-
-  /// Generate a lawnmower survey grid clipped to [polygon] (list of LatLng vertices).
-  ///
-  /// Uses a ray-casting algorithm to clip scan-line segments to only include
-  /// portions inside the polygon.
-  List<MissionItem> _generatePolygonSurvey(
-    List<LatLng> polygon,
-    double spacingM,
-    double altM,
-  ) {
-    if (polygon.length < 3) return [];
-
-    // Convert polygon to local metres (centred on polygon centroid)
-    final centreLat =
-        polygon.map((p) => p.latitude).reduce((a, b) => a + b) / polygon.length;
-    final centreLon =
-        polygon.map((p) => p.longitude).reduce((a, b) => a + b) / polygon.length;
-
-    const mPerDegLat = 111319.0;
-    final mPerDegLon = 111319.0 * math.cos(centreLat * math.pi / 180.0);
-
-    List<(double, double)> toXY(LatLng ll) => [
-          ((ll.longitude - centreLon) * mPerDegLon,
-              (ll.latitude - centreLat) * mPerDegLat)
-        ];
-
-    final polyXY =
-        polygon.map((ll) => toXY(ll).first).toList();
-
-    // Bounding box in local metres
-    var minY = double.infinity;
-    var maxY = double.negativeInfinity;
-    var minX = double.infinity;
-    var maxX = double.negativeInfinity;
-    for (final (x, y) in polyXY) {
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-    }
-
-    final existing = ref.read(missionEditProvider).items;
-    final items = <MissionItem>[];
-
-    // Add takeoff at the first polygon vertex when mission is empty
-    if (existing.isEmpty) {
-      final (fx, fy) = polyXY.first;
-      items.add(MissionItem(
-        seq: 0,
-        command: MavCmd.navTakeoff,
-        latitude: centreLat + fy / mPerDegLat,
-        longitude: centreLon + fx / mPerDegLon,
-        altitude: altM,
-      ));
-    }
-
-    final startSeq = existing.length + items.length;
-    var rowIndex = 0;
-    var y = minY + spacingM / 2.0;
-
-    while (y < maxY + spacingM / 2.0 - 1e-6) {
-      // Find intersections of this horizontal scan line with the polygon
-      final xs = <double>[];
-      final n = polyXY.length;
-      for (var i = 0; i < n; i++) {
-        final (x1, y1) = polyXY[i];
-        final (x2, y2) = polyXY[(i + 1) % n];
-        if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
-          final t = (y - y1) / (y2 - y1);
-          xs.add(x1 + t * (x2 - x1));
-        }
-      }
-      xs.sort();
-
-      // Add waypoint pairs (inside segments)
-      if (xs.length >= 2) {
-        final isEven = rowIndex.isEven;
-        for (var k = 0; k + 1 < xs.length; k += 2) {
-          final xA = isEven ? xs[k] : xs[xs.length - 1 - k - 1];
-          final xB = isEven ? xs[k + 1] : xs[xs.length - 1 - k];
-          for (final xi in [xA, xB]) {
-            items.add(MissionItem(
-              seq: startSeq + items.length - (existing.isEmpty ? 1 : 0),
-              command: MavCmd.navWaypoint,
-              latitude: centreLat + y / mPerDegLat,
-              longitude: centreLon + xi / mPerDegLon,
-              altitude: altM,
-            ));
-          }
-        }
-      }
-
-      rowIndex++;
-      y += spacingM;
-    }
-
-    // Renumber sequentially
-    for (var i = 0; i < items.length; i++) {
-      items[i] = items[i].copyWith(seq: existing.length + i);
-    }
-
-    return items;
-  }
-
-  /// Generate a lawnmower survey grid for the given bounding rectangle.
-  List<MissionItem> _generateSurveyGrid(
-    LatLng corner1,
-    LatLng corner2,
-    _SurveyConfig config,
-  ) {
-    final minLat = math.min(corner1.latitude, corner2.latitude);
-    final maxLat = math.max(corner1.latitude, corner2.latitude);
-    final minLon = math.min(corner1.longitude, corner2.longitude);
-    final maxLon = math.max(corner1.longitude, corner2.longitude);
-
-    final centreLat = (minLat + maxLat) / 2.0;
-    final centreLon = (minLon + maxLon) / 2.0;
-
-    const metersPerDegLat = 111319.0;
-    final metersPerDegLon =
-        111319.0 * math.cos(centreLat * math.pi / 180.0);
-
-    final x1 = (minLon - centreLon) * metersPerDegLon;
-    final y1 = (minLat - centreLat) * metersPerDegLat;
-    final x2 = (maxLon - centreLon) * metersPerDegLon;
-    final y2 = (maxLat - centreLat) * metersPerDegLat;
-
-    final angleRad = config.angle * math.pi / 180.0;
-    final cosA = math.cos(angleRad);
-    final sinA = math.sin(angleRad);
-
-    // Find extent of bounding box in rotated frame
-    final corners = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)];
-    var rMinX = double.infinity;
-    var rMaxX = double.negativeInfinity;
-    var rMinY = double.infinity;
-    var rMaxY = double.negativeInfinity;
-    for (final (cx, cy) in corners) {
-      final rx = cx * cosA + cy * sinA;
-      final ry = -cx * sinA + cy * cosA;
-      if (rx < rMinX) rMinX = rx;
-      if (rx > rMaxX) rMaxX = rx;
-      if (ry < rMinY) rMinY = ry;
-      if (ry > rMaxY) rMaxY = ry;
-    }
-
-    // Build lawnmower row endpoints in rotated frame
-    final rowPoints = <(double, double)>[];
-    var rowIndex = 0;
-    var ry = rMinY + config.laneSpacing / 2.0;
-    while (ry < rMaxY + config.laneSpacing / 2.0 - 1e-6) {
-      if (rowIndex.isEven) {
-        rowPoints.add((rMinX, ry));
-        rowPoints.add((rMaxX, ry));
-      } else {
-        rowPoints.add((rMaxX, ry));
-        rowPoints.add((rMinX, ry));
-      }
-      rowIndex++;
-      ry += config.laneSpacing;
-    }
-
-    if (rowPoints.isEmpty) return [];
-
-    final existing = ref.read(missionEditProvider).items;
-    final items = <MissionItem>[];
-
-    // First item is TAKEOFF if mission is currently empty
-    if (existing.isEmpty) {
-      final (frx, fry) = rowPoints.first;
-      final gx = frx * cosA - fry * sinA;
-      final gy = frx * sinA + fry * cosA;
-      items.add(MissionItem(
-        seq: 0,
-        frame: MavFrame.globalRelativeAlt,
-        command: MavCmd.navTakeoff,
-        latitude: centreLat + gy / metersPerDegLat,
-        longitude: centreLon + gx / metersPerDegLon,
-        altitude: config.altitude,
-      ));
-    }
-
-    final startSeq = existing.length + items.length;
-    for (var i = 0; i < rowPoints.length; i++) {
-      final (rx, ry2) = rowPoints[i];
-      final gx = rx * cosA - ry2 * sinA;
-      final gy = rx * sinA + ry2 * cosA;
-      items.add(MissionItem(
-        seq: startSeq + i,
-        frame: MavFrame.globalRelativeAlt,
-        command: MavCmd.navWaypoint,
-        latitude: centreLat + gy / metersPerDegLat,
-        longitude: centreLon + gx / metersPerDegLon,
-        altitude: config.altitude,
-      ));
-    }
-
-    return items;
   }
 
   void _handleKeyEvent(KeyEvent event) {
